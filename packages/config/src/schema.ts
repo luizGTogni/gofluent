@@ -21,6 +21,13 @@ export const AppConfigSchema = z.object({
     onlineFallbackEnabled: z.boolean().default(false),
     edgeDefaultVoice: z.string().default("en-US-AriaNeural"),
   }),
+  asr: z.object({
+    /** Microphone conversation is optional (PRD §23); disabled keeps Speak Mode network-free and typed-only. */
+    enabled: z.boolean().default(false),
+    baseUrl: z.string().url().default("https://ai.api.nvidia.com/v1/speech"),
+    apiKey: z.string().optional(),
+    model: z.string().optional(),
+  }),
   learning: z.object({
     dailyMinutes: z.number().int().positive().default(20),
     newItemsPerSession: z.number().int().positive().default(8),

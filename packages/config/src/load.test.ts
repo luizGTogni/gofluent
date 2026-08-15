@@ -9,6 +9,8 @@ describe("loadConfig", () => {
     expect(config.ai.provider).toBe("nvidia");
     expect(config.ai.baseUrl).toBe("https://integrate.api.nvidia.com");
     expect(config.speech.enabled).toBe(false);
+    expect(config.asr.enabled).toBe(false);
+    expect(config.asr.baseUrl).toBe("https://ai.api.nvidia.com/v1/speech");
     expect(config.learning.dailyMinutes).toBe(20);
     expect(config.learning.newItemsPerSession).toBe(8);
     expect(config.dataDir).toBe("/tmp/gofluent-test");
@@ -21,12 +23,17 @@ describe("loadConfig", () => {
         NVIDIA_API_KEY: "secret-key",
         NVIDIA_NIM_MODEL: "some-model",
         GOFLUENT_DAILY_MINUTES: "45",
+        GOFLUENT_ASR_ENABLED: "true",
+        NVIDIA_ASR_BASE_URL: "https://asr.example.test",
       },
     });
 
     expect(config.ai.apiKey).toBe("secret-key");
     expect(config.ai.model).toBe("some-model");
     expect(config.learning.dailyMinutes).toBe(45);
+    expect(config.asr.enabled).toBe(true);
+    expect(config.asr.baseUrl).toBe("https://asr.example.test");
+    expect(config.asr.apiKey).toBe("secret-key");
   });
 
   it("throws ConfigurationError on invalid values", () => {

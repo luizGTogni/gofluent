@@ -41,3 +41,17 @@ export const SESSION_STATUSES = [
   "FAILED",
 ] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
+
+/** DATABASE.md §51, ARCHITECTURE.md §54 — recurring learner-production error categories. */
+export const ERROR_CATEGORIES = [
+  "GRAMMAR",
+  "COLLOCATION",
+  "WORD_CHOICE",
+  "WORD_ORDER",
+  "PRONUNCIATION",
+  "SPELLING",
+  "ARTICLE",
+  "PREPOSITION",
+  "PHRASAL_VERB",
+] as const;
+export type ErrorCategory = (typeof ERROR_CATEGORIES)[number];

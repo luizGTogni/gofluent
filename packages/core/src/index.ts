@@ -4,3 +4,4 @@ export * from "./learner-model.js";
 export * from "./content-model.js";
 export * from "./session-model.js";
 export * from "./audio-model.js";
+export * from "./error-model.js";

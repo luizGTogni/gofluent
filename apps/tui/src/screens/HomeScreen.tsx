@@ -10,13 +10,14 @@ export interface HomeScreenProps {
   services: AppServices;
   onOpenJourney: (session: LearningSession, activities: SessionActivity[]) => void;
   onQuickReview: () => void;
+  onOpenSpeak: () => void;
   onOpenProgress: () => void;
   onOpenSettings: () => void;
   onError: (message: string) => void;
 }
 
-/** Home hub branches into Journey/Review/Progress/Settings (ARCHITECTURE.md §21, PRD §64). */
-export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenProgress, onOpenSettings, onError }: HomeScreenProps): React.JSX.Element {
+/** Home hub branches into Journey/Review/Speak/Progress/Settings (ARCHITECTURE.md §21, PRD §64). */
+export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenSpeak, onOpenProgress, onOpenSettings, onError }: HomeScreenProps): React.JSX.Element {
   const inProgress = useMemo(() => findInProgressSession(services.db, services.userId), [services]);
   const dueCount = useMemo(() => services.repos.reviews.listDue(services.userId, new Date().toISOString(), 200).length, [services]);
 
@@ -36,6 +37,7 @@ export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenProgr
   const items = [
     { label: inProgress ? "Continue today's journey" : "Start today's journey", value: "journey" as const },
     { label: `Quick review (${dueCount} due)`, value: "review" as const },
+    { label: "Speak Mode", value: "speak" as const },
     { label: "Progress", value: "progress" as const },
     { label: "Settings", value: "settings" as const },
   ];
@@ -48,6 +50,7 @@ export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenProgr
         onSelect={([value]) => {
           if (value === "journey") startOrResume();
           else if (value === "review") onQuickReview();
+          else if (value === "speak") onOpenSpeak();
           else if (value === "progress") onOpenProgress();
           else if (value === "settings") onOpenSettings();
         }}

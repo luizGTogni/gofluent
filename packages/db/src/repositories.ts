@@ -2,6 +2,7 @@ import type {
   AudioAsset, AudioAssetRepository,
   Content, ContentRepository, ContentTargetItem,
   Encounter, EncounterRepository, LearnerProfile, LearnerProfileRepository, LearnerLexemeState, LearnerLexemeStateRepository,
+  LearnerError, LearnerErrorRepository,
   LearnerInterest, LearnerInterestRepository,
   LearningSession, LearningSessionRepository,
   Lexeme, LexemeRepository, ReviewItem, ReviewRepository,
@@ -115,6 +116,26 @@ export class SqliteAudioAssetRepository implements AudioAssetRepository {
   findByCacheKey(textHash: string, voice: string, speed: number, provider: string): AudioAsset | null { const row = this.db.prepare("SELECT * FROM audio_assets WHERE text_hash=? AND voice=? AND speed=? AND provider=? ORDER BY created_at DESC LIMIT 1").get(textHash, voice, speed, provider) as Row | undefined; return row ? this.map(row) : null; }
   upsert(a: AudioAsset): void { this.db.prepare(`INSERT INTO audio_assets (id,content_id,text_hash,provider,voice,speed,file_path,duration_ms,created_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET file_path=excluded.file_path,duration_ms=excluded.duration_ms`).run(a.id,a.contentId ?? null,a.textHash,a.provider ?? null,a.voice ?? null,a.speed ?? null,a.filePath,a.durationMs ?? null,a.createdAt); }
   private map(row: Row): AudioAsset { return { id:String(row.id), contentId:optionalString(row.content_id), textHash:String(row.text_hash), provider:optionalString(row.provider), voice:optionalString(row.voice), speed:numberOrUndefined(row.speed), filePath:String(row.file_path), durationMs:numberOrUndefined(row.duration_ms), createdAt:String(row.created_at) }; }
+}
+
+export class SqliteLearnerErrorRepository implements LearnerErrorRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  findByPattern(learnerId: string, category: string, normalizedPattern: string): LearnerError | null {
+    const row = this.db.prepare("SELECT * FROM learner_errors WHERE learner_id=? AND category=? AND normalized_pattern=?").get(learnerId, category, normalizedPattern) as Row | undefined;
+    return row ? this.map(row) : null;
+  }
+  upsert(e: LearnerError): void {
+    this.db.prepare(`INSERT INTO learner_errors (id,learner_id,category,normalized_pattern,example_original,example_preferred,occurrences,severity,first_seen_at,last_seen_at,metadata_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(learner_id,category,normalized_pattern) DO UPDATE SET example_original=excluded.example_original,example_preferred=excluded.example_preferred,occurrences=excluded.occurrences,severity=excluded.severity,last_seen_at=excluded.last_seen_at,metadata_json=excluded.metadata_json,updated_at=excluded.updated_at`).run(e.id,e.learnerId,e.category,e.normalizedPattern,e.exampleOriginal ?? null,e.examplePreferred ?? null,e.occurrences,e.severity,e.firstSeenAt,e.lastSeenAt,e.metadata ? JSON.stringify(e.metadata) : null,e.createdAt,e.updatedAt);
+  }
+  listRecent(learnerId: string, limit: number): LearnerError[] {
+    return (this.db.prepare("SELECT * FROM learner_errors WHERE learner_id=? ORDER BY last_seen_at DESC LIMIT ?").all(learnerId, limit) as Row[]).map((r) => this.map(r));
+  }
+  private map(row: Row): LearnerError {
+    return { id: String(row.id), learnerId: String(row.learner_id), category: String(row.category) as LearnerError["category"], normalizedPattern: String(row.normalized_pattern),
+      exampleOriginal: optionalString(row.example_original), examplePreferred: optionalString(row.example_preferred),
+      occurrences: Number(row.occurrences), severity: Number(row.severity), firstSeenAt: String(row.first_seen_at), lastSeenAt: String(row.last_seen_at),
+      metadata: metadataFrom(row), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  }
 }
 
 export class SqliteLearnerInterestRepository implements LearnerInterestRepository {

@@ -44,6 +44,12 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
         (fileConfig as any).speech?.onlineFallbackEnabled,
       edgeDefaultVoice: env.EDGE_TTS_DEFAULT_VOICE ?? (fileConfig as any).speech?.edgeDefaultVoice,
     },
+    asr: {
+      enabled: parseOptionalBoolean(env.GOFLUENT_ASR_ENABLED) ?? (fileConfig as any).asr?.enabled,
+      baseUrl: env.NVIDIA_ASR_BASE_URL ?? (fileConfig as any).asr?.baseUrl,
+      apiKey: env.NVIDIA_API_KEY ?? (fileConfig as any).asr?.apiKey,
+      model: env.NVIDIA_ASR_MODEL ?? (fileConfig as any).asr?.model,
+    },
     learning: {
       dailyMinutes:
         parseOptionalInt(env.GOFLUENT_DAILY_MINUTES) ?? (fileConfig as any).learning?.dailyMinutes,

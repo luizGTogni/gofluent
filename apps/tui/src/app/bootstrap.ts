@@ -7,8 +7,9 @@ import {
 } from "@gofluent/db";
 import { FakeProvider, NvidiaNimProvider, type LLMProvider } from "@gofluent/ai";
 import {
-  EdgeTTSProvider, FakeTextToSpeechProvider, FallbackTextToSpeechProvider, KokoroTTSProvider, SystemAudioPlayer,
-  type AudioPlayer, type TextToSpeechProvider,
+  EdgeTTSProvider, FakeSpeechToTextProvider, FakeTextToSpeechProvider, FallbackTextToSpeechProvider,
+  KokoroTTSProvider, NvidiaAsrProvider, SystemAudioPlayer,
+  type AudioPlayer, type SpeechToTextProvider, type TextToSpeechProvider,
 } from "@gofluent/speech";
 
 /**
@@ -42,6 +43,7 @@ export interface AppServices {
   tts: TextToSpeechProvider;
   audioPlayer: AudioPlayer;
   audioDir: string;
+  asr: SpeechToTextProvider;
 }
 
 function buildRepos(db: DatabaseSync): AppRepos {
@@ -89,6 +91,18 @@ function createTtsProvider(config: AppConfig, audioDir: string): TextToSpeechPro
   return new FallbackTextToSpeechProvider(providers);
 }
 
+/**
+ * Microphone conversation is optional (PRD §23) — unconfigured/disabled
+ * stays network-free, and Speak Mode degrades to typed-only input
+ * (NVIDIA_NIM.md §43).
+ */
+function createAsrProvider(config: AppConfig): SpeechToTextProvider {
+  if (!config.asr.enabled || !config.asr.apiKey || config.asr.apiKey.trim().length === 0) {
+    return new FakeSpeechToTextProvider({ available: false });
+  }
+  return new NvidiaAsrProvider({ baseUrl: config.asr.baseUrl, apiKey: config.asr.apiKey, model: config.asr.model });
+}
+
 function initializeDatabase(db: DatabaseSync): void {
   runMigrations(db);
   const now = new Date().toISOString();
@@ -104,6 +118,7 @@ export function bootstrap(): AppServices {
   return {
     config, db, userId: LOCAL_USER_ID, provider: createProvider(config), model: config.ai.model, repos: buildRepos(db),
     tts: createTtsProvider(config, layout.audioDir), audioPlayer: new SystemAudioPlayer(), audioDir: layout.audioDir,
+    asr: createAsrProvider(config),
   };
 }
 
@@ -111,6 +126,7 @@ function defaultConfig(): AppConfig {
   return {
     ai: { provider: "fake", baseUrl: "https://example.test", model: "fake-model" },
     speech: { enabled: false, defaultVoice: "af_heart", defaultSpeed: 1.0, onlineFallbackEnabled: false, edgeDefaultVoice: "en-US-AriaNeural" },
+    asr: { enabled: false, baseUrl: "https://asr.example.test" },
     learning: { dailyMinutes: 20, newItemsPerSession: 8 },
     dataDir: ":memory:",
   };
@@ -124,5 +140,6 @@ export function createInMemoryServices(): AppServices {
   return {
     config, db, userId: LOCAL_USER_ID, provider: new FakeProvider(), model: config.ai.model, repos: buildRepos(db),
     tts: new FakeTextToSpeechProvider({ available: false }), audioPlayer: new SystemAudioPlayer({ commandExists: async () => false }), audioDir: "/tmp/gofluent-test-audio",
+    asr: new FakeSpeechToTextProvider({ available: false }),
   };
 }

@@ -1,11 +1,12 @@
 import { SpeechProviderError } from "@gofluent/core";
 
-/** NVIDIA_NIM.md §41/§45 — stable categories TTS adapters normalize into (mirrors packages/ai's ProviderErrorCode). */
+/** NVIDIA_NIM.md §41/§45 — stable categories TTS/ASR adapters normalize into (mirrors packages/ai's ProviderErrorCode). */
 export type SpeechErrorCode =
   | "MISSING_MODEL"
   | "UNAVAILABLE"
   | "TIMEOUT"
   | "SYNTHESIS_FAILED"
+  | "TRANSCRIPTION_FAILED"
   | "INVALID_REQUEST"
   | "CANCELLED";
 

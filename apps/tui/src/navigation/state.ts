@@ -12,6 +12,7 @@ export type Route =
   | "JOURNEY"
   | "STORY"
   | "REVIEW"
+  | "SPEAK"
   | "VOCAB_DETAIL"
   | "PROGRESS"
   | "SETTINGS"

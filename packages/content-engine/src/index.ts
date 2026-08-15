@@ -3,3 +3,4 @@
  * "Generate → Validate → Repair" pipeline's domain-validation layer.
  */
 export * from "./story-generation.js";
+export * from "./conversation-generation.js";
