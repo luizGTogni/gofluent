@@ -18,3 +18,6 @@ export * from "./import-content-activity.js";
 export * from "./gamification.js";
 export * from "./world-activity.js";
 export * from "./boss-challenge-activity.js";
+export * from "./media-preparation-activity.js";
+export * from "./immersion-feed.js";
+export * from "./blind-listening-activity.js";

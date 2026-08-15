@@ -13,6 +13,9 @@ import { SpeakScreen } from "../screens/SpeakScreen.js";
 import { ImportContentScreen } from "../screens/ImportContentScreen.js";
 import { WorldsScreen } from "../screens/WorldsScreen.js";
 import { BossChallengeScreen } from "../screens/BossChallengeScreen.js";
+import { ImmersionFeedScreen } from "../screens/ImmersionFeedScreen.js";
+import { MediaPrepScreen } from "../screens/MediaPrepScreen.js";
+import { BlindListeningScreen } from "../screens/BlindListeningScreen.js";
 import { ProgressScreen } from "../screens/ProgressScreen.js";
 import { SettingsScreen } from "../screens/SettingsScreen.js";
 import { ErrorScreen } from "../screens/ErrorScreen.js";
@@ -33,6 +36,9 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
   const [state, dispatch] = useReducer(navigationReducer, initialNavigationState);
   const [journey, setJourney] = useState<JourneyState | null>(null);
   const [activeChallenge, setActiveChallenge] = useState<{ world: World; bossChallenge: BossChallenge } | null>(null);
+  const [speakScenario, setSpeakScenario] = useState("Everyday conversation practice");
+  const [blindListeningTopic, setBlindListeningTopic] = useState<string | null>(null);
+  const [mediaPrepTitle, setMediaPrepTitle] = useState<string | undefined>(undefined);
 
   function onError(message: string): void {
     dispatch({ type: "ERROR_OCCURRED", message });
@@ -44,8 +50,9 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
     if (needsJourney && !journey && state.route !== "REVIEW") { dispatch({ type: "GO_HOME" }); return; }
     if (state.route === "STORY" && journey && !activeActivity) dispatch({ type: "GO_HOME" });
     if (state.route === "BOSS_CHALLENGE" && !activeChallenge) dispatch({ type: "NAVIGATE", route: "WORLDS" });
+    if (state.route === "BLIND_LISTENING" && !blindListeningTopic) dispatch({ type: "NAVIGATE", route: "IMMERSION" });
     if (state.route === "VOCAB_DETAIL") dispatch({ type: "GO_HOME" });
-  }, [state.route, journey, activeActivity, activeChallenge]);
+  }, [state.route, journey, activeActivity, activeChallenge, blindListeningTopic]);
 
   switch (state.route) {
     case "SPLASH":
@@ -69,6 +76,7 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
           onOpenSpeak={() => dispatch({ type: "NAVIGATE", route: "SPEAK" })}
           onOpenImport={() => dispatch({ type: "NAVIGATE", route: "IMPORT" })}
           onOpenWorlds={() => dispatch({ type: "NAVIGATE", route: "WORLDS" })}
+          onOpenImmersion={() => dispatch({ type: "NAVIGATE", route: "IMMERSION" })}
           onOpenProgress={() => dispatch({ type: "NAVIGATE", route: "PROGRESS" })}
           onOpenSettings={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })}
           onError={onError}
@@ -137,15 +145,66 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
       return (
         <SpeakScreen
           services={resolvedServices}
-          scenario="Everyday conversation practice"
+          scenario={speakScenario}
           sessionId={journey?.session.id}
-          onDone={() => dispatch({ type: "GO_HOME" })}
+          onDone={() => {
+            setSpeakScenario("Everyday conversation practice");
+            dispatch({ type: "GO_HOME" });
+          }}
           onError={onError}
         />
       );
 
     case "IMPORT":
       return <ImportContentScreen services={resolvedServices} onDone={() => dispatch({ type: "GO_HOME" })} onError={onError} />;
+
+    case "IMMERSION":
+      return (
+        <ImmersionFeedScreen
+          services={resolvedServices}
+          onOpenConversation={(topic) => {
+            setSpeakScenario(topic);
+            dispatch({ type: "NAVIGATE", route: "SPEAK" });
+          }}
+          onOpenBlindListening={(topic) => {
+            setBlindListeningTopic(topic);
+            dispatch({ type: "NAVIGATE", route: "BLIND_LISTENING" });
+          }}
+          onOpenMediaPrep={(title) => {
+            setMediaPrepTitle(title);
+            dispatch({ type: "NAVIGATE", route: "MEDIA_PREP" });
+          }}
+          onBack={() => dispatch({ type: "GO_HOME" })}
+        />
+      );
+
+    case "BLIND_LISTENING": {
+      if (!blindListeningTopic) return <SplashScreen onDone={() => {}} />;
+      return (
+        <BlindListeningScreen
+          services={resolvedServices}
+          topic={blindListeningTopic}
+          onDone={() => {
+            setBlindListeningTopic(null);
+            dispatch({ type: "NAVIGATE", route: "IMMERSION" });
+          }}
+          onError={onError}
+        />
+      );
+    }
+
+    case "MEDIA_PREP":
+      return (
+        <MediaPrepScreen
+          services={resolvedServices}
+          initialTitle={mediaPrepTitle}
+          onDone={() => {
+            setMediaPrepTitle(undefined);
+            dispatch({ type: "GO_HOME" });
+          }}
+          onError={onError}
+        />
+      );
 
     case "WORLDS":
       return (

@@ -4,7 +4,7 @@ import {
   SqliteBossChallengeAttemptRepository, SqliteBossChallengeRepository,
   SqliteContentRepository, SqliteEncounterRepository, SqliteLearnerInterestRepository,
   SqliteLearnerLexemeStateRepository, SqliteLearnerProfileRepository, SqliteLearningSessionRepository,
-  SqliteLexemeRepository, SqliteReviewRepository, SqliteSessionActivityRepository,
+  SqliteLexemeRepository, SqliteMediaPreparationRepository, SqliteReviewRepository, SqliteSessionActivityRepository,
   SqliteWorldProgressRepository, SqliteWorldRepository,
 } from "@gofluent/db";
 import { FakeProvider, NvidiaNimProvider, type LLMProvider } from "@gofluent/ai";
@@ -37,6 +37,7 @@ export interface AppRepos {
   worldProgress: SqliteWorldProgressRepository;
   bossChallenges: SqliteBossChallengeRepository;
   bossChallengeAttempts: SqliteBossChallengeAttemptRepository;
+  mediaPreparation: SqliteMediaPreparationRepository;
 }
 
 export interface AppServices {
@@ -67,6 +68,7 @@ function buildRepos(db: DatabaseSync): AppRepos {
     worldProgress: new SqliteWorldProgressRepository(db),
     bossChallenges: new SqliteBossChallengeRepository(db),
     bossChallengeAttempts: new SqliteBossChallengeAttemptRepository(db),
+    mediaPreparation: new SqliteMediaPreparationRepository(db),
   };
 }
 

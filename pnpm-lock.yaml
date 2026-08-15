@@ -41,6 +41,9 @@ importers:
       '@gofluent/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@gofluent/content-engine':
+        specifier: workspace:*
+        version: link:../../packages/content-engine
       '@gofluent/core':
         specifier: workspace:*
         version: link:../../packages/core

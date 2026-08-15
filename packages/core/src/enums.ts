@@ -24,6 +24,7 @@ export const ENCOUNTER_ACTIVITIES = [
   "RECAP",
   "BOSS_CHALLENGE",
   "IMPORTED_CONTENT",
+  "MEDIA_PREP",
 ] as const;
 export type EncounterActivity = (typeof ENCOUNTER_ACTIVITIES)[number];
 

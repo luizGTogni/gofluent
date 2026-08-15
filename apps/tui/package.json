@@ -15,6 +15,7 @@
     "@gofluent/ai": "workspace:*",
     "@gofluent/application": "workspace:*",
     "@gofluent/config": "workspace:*",
+    "@gofluent/content-engine": "workspace:*",
     "@gofluent/core": "workspace:*",
     "@gofluent/db": "workspace:*",
     "@gofluent/shared": "workspace:*",

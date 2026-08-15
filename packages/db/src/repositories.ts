@@ -10,6 +10,7 @@ import type {
   ImportedContent, ImportedContentRepository,
   World, WorldRepository, WorldProgress, WorldProgressRepository,
   BossChallenge, BossChallengeRepository, BossChallengeAttempt, BossChallengeAttemptRepository,
+  MediaPreparation, MediaPreparationRepository,
 } from "@gofluent/core";
 import type { DatabaseSyncInstance } from "./sqlite/node-sqlite.js";
 
@@ -232,5 +233,19 @@ export class SqliteBossChallengeAttemptRepository implements BossChallengeAttemp
     return { id: String(row.id), learnerId: String(row.learner_id), bossChallengeId: String(row.boss_challenge_id), sessionId: optionalString(row.session_id),
       taskCompletion: Number(row.task_completion), comprehension: Number(row.comprehension), targetPhraseUsage: Number(row.target_phrase_usage), abilityToContinue: Number(row.ability_to_continue),
       result: String(row.result) as BossChallengeAttempt["result"], feedback: optionalString(row.feedback), createdAt: String(row.created_at) };
+  }
+}
+
+export class SqliteMediaPreparationRepository implements MediaPreparationRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  get(id: string): MediaPreparation | null { const row = this.db.prepare("SELECT * FROM media_preparation WHERE id=?").get(id) as Row | undefined; return row ? this.map(row) : null; }
+  upsert(p: MediaPreparation): void {
+    this.db.prepare(`INSERT INTO media_preparation (id,learner_id,title,transcript_excerpt,language,estimated_comprehension,high_value_lexeme_ids_json,prepared_count,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET estimated_comprehension=excluded.estimated_comprehension,high_value_lexeme_ids_json=excluded.high_value_lexeme_ids_json,prepared_count=excluded.prepared_count,updated_at=excluded.updated_at`).run(p.id,p.learnerId,p.title,p.transcriptExcerpt,p.language,p.estimatedComprehension,JSON.stringify(p.highValueLexemeIds),p.preparedCount,p.createdAt,p.updatedAt);
+  }
+  listByLearner(learnerId: string, limit: number): MediaPreparation[] { return (this.db.prepare("SELECT * FROM media_preparation WHERE learner_id=? ORDER BY created_at DESC LIMIT ?").all(learnerId, limit) as Row[]).map((r) => this.map(r)); }
+  private map(row: Row): MediaPreparation {
+    return { id: String(row.id), learnerId: String(row.learner_id), title: String(row.title), transcriptExcerpt: String(row.transcript_excerpt), language: String(row.language),
+      estimatedComprehension: Number(row.estimated_comprehension), highValueLexemeIds: JSON.parse(String(row.high_value_lexeme_ids_json)) as string[],
+      preparedCount: Number(row.prepared_count), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
   }
 }

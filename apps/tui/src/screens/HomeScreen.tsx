@@ -13,13 +13,14 @@ export interface HomeScreenProps {
   onOpenSpeak: () => void;
   onOpenImport: () => void;
   onOpenWorlds: () => void;
+  onOpenImmersion: () => void;
   onOpenProgress: () => void;
   onOpenSettings: () => void;
   onError: (message: string) => void;
 }
 
-/** Home hub branches into Journey/Review/Speak/Import/Worlds/Progress/Settings (ARCHITECTURE.md §21, PRD §64). */
-export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenSpeak, onOpenImport, onOpenWorlds, onOpenProgress, onOpenSettings, onError }: HomeScreenProps): React.JSX.Element {
+/** Home hub branches into Journey/Review/Speak/Import/Worlds/Immersion/Progress/Settings (ARCHITECTURE.md §21, PRD §64). */
+export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenSpeak, onOpenImport, onOpenWorlds, onOpenImmersion, onOpenProgress, onOpenSettings, onError }: HomeScreenProps): React.JSX.Element {
   const inProgress = useMemo(() => findInProgressSession(services.db, services.userId), [services]);
   const dueCount = useMemo(() => services.repos.reviews.listDue(services.userId, new Date().toISOString(), 200).length, [services]);
 
@@ -42,6 +43,7 @@ export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenSpeak
     { label: "Speak Mode", value: "speak" as const },
     { label: "Learn From Anything", value: "import" as const },
     { label: "Worlds", value: "worlds" as const },
+    { label: "Immersion Feed", value: "immersion" as const },
     { label: "Progress", value: "progress" as const },
     { label: "Settings", value: "settings" as const },
   ];
@@ -57,6 +59,7 @@ export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenSpeak
           else if (value === "speak") onOpenSpeak();
           else if (value === "import") onOpenImport();
           else if (value === "worlds") onOpenWorlds();
+          else if (value === "immersion") onOpenImmersion();
           else if (value === "progress") onOpenProgress();
           else if (value === "settings") onOpenSettings();
         }}
