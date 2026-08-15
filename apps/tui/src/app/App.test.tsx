@@ -9,18 +9,15 @@ async function pressEnter(stdin: { write: (input: string) => void }): Promise<vo
 
 describe("App", () => {
   it("shows the Splash screen first, then advances to Onboarding automatically", async () => {
-    vi.useFakeTimers();
     const { lastFrame, unmount } = render(<App />);
 
     expect(lastFrame()).toContain("GoFluent");
 
-    vi.advanceTimersByTime(1000);
     await vi.waitFor(() => {
       expect(lastFrame()).toContain("Welcome to GoFluent");
-    });
+    }, { timeout: 2000 });
 
     unmount();
-    vi.useRealTimers();
   });
 
   it("walks Onboarding → Placement → Home end to end", async () => {
@@ -31,7 +28,11 @@ describe("App", () => {
     await pressEnter(stdin); // daily minutes -> interests
 
     stdin.write(" "); // toggle first interest
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await vi.waitFor(() => expect(lastFrame()).toContain("[x] travel"), { timeout: 2000 });
+    // Extra settle time: SelectList's useInput callback is a fresh closure every
+    // render, so Ink resubscribes its input listener in an effect after the toggle
+    // re-render commits. Sending Enter immediately can still hit the stale listener.
+    await new Promise((resolve) => setTimeout(resolve, 50));
     await pressEnter(stdin); // confirm interests -> summary
     await pressEnter(stdin); // confirm summary -> completes onboarding
 
