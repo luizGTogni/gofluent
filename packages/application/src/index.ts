@@ -14,3 +14,4 @@ export * from "./review-activity.js";
 export * from "./listening-activity.js";
 export * from "./error-memory.js";
 export * from "./speak-activity.js";
+export * from "./import-content-activity.js";

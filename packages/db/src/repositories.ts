@@ -7,6 +7,7 @@ import type {
   LearningSession, LearningSessionRepository,
   Lexeme, LexemeRepository, ReviewItem, ReviewRepository,
   SessionActivity, SessionActivityRepository,
+  ImportedContent, ImportedContentRepository,
 } from "@gofluent/core";
 import type { DatabaseSyncInstance } from "./sqlite/node-sqlite.js";
 
@@ -134,6 +135,26 @@ export class SqliteLearnerErrorRepository implements LearnerErrorRepository {
     return { id: String(row.id), learnerId: String(row.learner_id), category: String(row.category) as LearnerError["category"], normalizedPattern: String(row.normalized_pattern),
       exampleOriginal: optionalString(row.example_original), examplePreferred: optionalString(row.example_preferred),
       occurrences: Number(row.occurrences), severity: Number(row.severity), firstSeenAt: String(row.first_seen_at), lastSeenAt: String(row.last_seen_at),
+      metadata: metadataFrom(row), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  }
+}
+
+export class SqliteImportedContentRepository implements ImportedContentRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  get(id: string): ImportedContent | null {
+    const row = this.db.prepare("SELECT * FROM imported_content WHERE id=?").get(id) as Row | undefined;
+    return row ? this.map(row) : null;
+  }
+  upsert(r: ImportedContent): void {
+    this.db.prepare(`INSERT INTO imported_content (id,learner_id,content_id,title,raw_text,language,estimated_difficulty,known_ratio,unknown_ratio,metadata_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET content_id=excluded.content_id,title=excluded.title,estimated_difficulty=excluded.estimated_difficulty,known_ratio=excluded.known_ratio,unknown_ratio=excluded.unknown_ratio,metadata_json=excluded.metadata_json,updated_at=excluded.updated_at`).run(r.id,r.learnerId,r.contentId ?? null,r.title ?? null,r.rawText,r.language,r.estimatedDifficulty ?? null,r.knownRatio ?? null,r.unknownRatio ?? null,r.metadata ? JSON.stringify(r.metadata) : null,r.createdAt,r.updatedAt);
+  }
+  listByLearner(learnerId: string, limit: number): ImportedContent[] {
+    return (this.db.prepare("SELECT * FROM imported_content WHERE learner_id=? ORDER BY created_at DESC LIMIT ?").all(learnerId, limit) as Row[]).map((r) => this.map(r));
+  }
+  private map(row: Row): ImportedContent {
+    return { id: String(row.id), learnerId: String(row.learner_id), contentId: optionalString(row.content_id), title: optionalString(row.title),
+      rawText: String(row.raw_text), language: String(row.language), estimatedDifficulty: numberOrUndefined(row.estimated_difficulty),
+      knownRatio: numberOrUndefined(row.known_ratio), unknownRatio: numberOrUndefined(row.unknown_ratio),
       metadata: metadataFrom(row), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
   }
 }

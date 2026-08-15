@@ -10,6 +10,7 @@ import { DailyJourneyScreen } from "../screens/DailyJourneyScreen.js";
 import { StoryScreen } from "../screens/StoryScreen.js";
 import { ReviewScreen } from "../screens/ReviewScreen.js";
 import { SpeakScreen } from "../screens/SpeakScreen.js";
+import { ImportContentScreen } from "../screens/ImportContentScreen.js";
 import { ProgressScreen } from "../screens/ProgressScreen.js";
 import { SettingsScreen } from "../screens/SettingsScreen.js";
 import { ErrorScreen } from "../screens/ErrorScreen.js";
@@ -62,6 +63,7 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
           }}
           onQuickReview={() => dispatch({ type: "NAVIGATE", route: "REVIEW" })}
           onOpenSpeak={() => dispatch({ type: "NAVIGATE", route: "SPEAK" })}
+          onOpenImport={() => dispatch({ type: "NAVIGATE", route: "IMPORT" })}
           onOpenProgress={() => dispatch({ type: "NAVIGATE", route: "PROGRESS" })}
           onOpenSettings={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })}
           onError={onError}
@@ -136,6 +138,9 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
           onError={onError}
         />
       );
+
+    case "IMPORT":
+      return <ImportContentScreen services={resolvedServices} onDone={() => dispatch({ type: "GO_HOME" })} onError={onError} />;
 
     case "PROGRESS":
       return <ProgressScreen services={resolvedServices} onBack={() => dispatch({ type: "GO_HOME" })} />;

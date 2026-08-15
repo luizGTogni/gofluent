@@ -21,14 +21,15 @@ const EXPECTED_TABLES = [
   "schema_migrations",
   "audio_assets",
   "learner_errors",
+  "imported_content",
 ];
 
 describe("runMigrations", () => {
-  it("creates all vertical-slice tables from 0001_initial.sql, 0002_audio_assets.sql, and 0003_learner_errors.sql", () => {
+  it("creates all vertical-slice tables from 0001_initial.sql through 0004_imported_content.sql", () => {
     const db = openDatabase(":memory:");
     const applied = runMigrations(db);
 
-    expect(applied).toEqual(["0001_initial", "0002_audio_assets", "0003_learner_errors"]);
+    expect(applied).toEqual(["0001_initial", "0002_audio_assets", "0003_learner_errors", "0004_imported_content"]);
 
     const rows = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")

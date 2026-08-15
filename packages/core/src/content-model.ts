@@ -5,7 +5,7 @@
 import type { LexicalItemType } from "./learner-model.js";
 import type { ContentStatus } from "./enums.js";
 
-export const CONTENT_TYPES = ["STORY"] as const;
+export const CONTENT_TYPES = ["STORY", "IMPORTED_TEXT"] as const;
 export type ContentType = (typeof CONTENT_TYPES)[number];
 
 export const CONTENT_SOURCE_TYPES = ["AI_GENERATED", "IMPORTED", "SEED"] as const;
