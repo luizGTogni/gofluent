@@ -22,6 +22,7 @@ import { SettingsScreen } from "../screens/SettingsScreen.js";
 import { ProfilesScreen } from "../screens/ProfilesScreen.js";
 import { UpdateAvailableScreen } from "../screens/UpdateAvailableScreen.js";
 import { ErrorScreen } from "../screens/ErrorScreen.js";
+import { Fullscreen } from "../components/Fullscreen.js";
 import { createInMemoryServices, type AppServices } from "./bootstrap.js";
 
 export interface AppProps {
@@ -71,6 +72,9 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
     if (state.route === "VOCAB_DETAIL") dispatch({ type: "GO_HOME" });
   }, [state.route, journey, activeActivity, activeChallenge, blindListeningTopic]);
 
+  return <Fullscreen>{renderRoute()}</Fullscreen>;
+
+  function renderRoute(): React.JSX.Element {
   switch (state.route) {
     case "SPLASH":
       return <SplashScreen onDone={() => dispatch({ type: "SPLASH_DONE" })} />;
@@ -285,5 +289,6 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
 
     case "ERROR":
       return <ErrorScreen message={state.errorMessage} onAcknowledge={() => dispatch({ type: "GO_HOME" })} />;
+  }
   }
 }
