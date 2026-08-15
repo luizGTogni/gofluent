@@ -10,6 +10,7 @@ export * from "./provider/stream.js";
 export * from "./provider/errors.js";
 
 export * from "./schemas/zod-output.js";
+export * from "./schemas/story.js";
 
 export * from "./providers/fake/fake-provider.js";
 export * from "./providers/nvidia/index.js";

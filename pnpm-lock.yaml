@@ -32,12 +32,24 @@ importers:
 
   apps/tui:
     dependencies:
+      '@gofluent/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@gofluent/application':
+        specifier: workspace:*
+        version: link:../../packages/application
       '@gofluent/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@gofluent/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@gofluent/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@gofluent/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       ink:
         specifier: ^5.1.0
         version: 5.2.1(@types/react@18.3.31)(react@18.3.1)
@@ -73,6 +85,12 @@ importers:
 
   packages/application:
     dependencies:
+      '@gofluent/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@gofluent/content-engine':
+        specifier: workspace:*
+        version: link:../content-engine
       '@gofluent/core':
         specifier: workspace:*
         version: link:../core
@@ -82,6 +100,9 @@ importers:
       '@gofluent/learning-engine':
         specifier: workspace:*
         version: link:../learning-engine
+      '@gofluent/lexical-engine':
+        specifier: workspace:*
+        version: link:../lexical-engine
       '@gofluent/shared':
         specifier: workspace:*
         version: link:../shared
@@ -105,9 +126,15 @@ importers:
 
   packages/content-engine:
     dependencies:
+      '@gofluent/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@gofluent/core':
         specifier: workspace:*
         version: link:../core
+      '@gofluent/lexical-engine':
+        specifier: workspace:*
+        version: link:../lexical-engine
     devDependencies:
       typescript:
         specifier: ^5.7.0

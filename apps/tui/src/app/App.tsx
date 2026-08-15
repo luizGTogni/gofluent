@@ -1,21 +1,139 @@
-import React, { useReducer } from "react";
+import React, { useMemo, useState } from "react";
+import { useReducer } from "react";
+import type { LearningSession, SessionActivity } from "@gofluent/core";
 import { initialNavigationState, navigationReducer } from "../navigation/state.js";
 import { SplashScreen } from "../screens/SplashScreen.js";
 import { OnboardingScreen } from "../screens/OnboardingScreen.js";
 import { PlacementScreen } from "../screens/PlacementScreen.js";
 import { HomeScreen } from "../screens/HomeScreen.js";
+import { DailyJourneyScreen } from "../screens/DailyJourneyScreen.js";
+import { StoryScreen } from "../screens/StoryScreen.js";
+import { ReviewScreen } from "../screens/ReviewScreen.js";
+import { ProgressScreen } from "../screens/ProgressScreen.js";
+import { SettingsScreen } from "../screens/SettingsScreen.js";
+import { ErrorScreen } from "../screens/ErrorScreen.js";
+import { createInMemoryServices, type AppServices } from "./bootstrap.js";
 
-export function App(): React.JSX.Element {
+export interface AppProps {
+  services?: AppServices;
+}
+
+interface JourneyState {
+  session: LearningSession;
+  activities: SessionActivity[];
+  activeActivityId?: string | undefined;
+}
+
+export function App({ services }: AppProps = {}): React.JSX.Element {
+  const resolvedServices = useMemo(() => services ?? createInMemoryServices(), [services]);
   const [state, dispatch] = useReducer(navigationReducer, initialNavigationState);
+  const [journey, setJourney] = useState<JourneyState | null>(null);
+
+  function onError(message: string): void {
+    dispatch({ type: "ERROR_OCCURRED", message });
+  }
+
+  const activeActivity = journey?.activities.find((a) => a.id === journey.activeActivityId);
+  React.useEffect(() => {
+    const needsJourney = state.route === "JOURNEY" || state.route === "STORY" || state.route === "REVIEW";
+    if (needsJourney && !journey && state.route !== "REVIEW") { dispatch({ type: "GO_HOME" }); return; }
+    if (state.route === "STORY" && journey && !activeActivity) dispatch({ type: "GO_HOME" });
+    if (state.route === "VOCAB_DETAIL") dispatch({ type: "GO_HOME" });
+  }, [state.route, journey, activeActivity]);
 
   switch (state.route) {
     case "SPLASH":
       return <SplashScreen onDone={() => dispatch({ type: "SPLASH_DONE" })} />;
+
     case "ONBOARDING":
-      return <OnboardingScreen onDone={() => dispatch({ type: "ONBOARDING_DONE" })} />;
+      return <OnboardingScreen services={resolvedServices} onDone={() => dispatch({ type: "ONBOARDING_DONE" })} onError={onError} />;
+
     case "PLACEMENT":
-      return <PlacementScreen onDone={() => dispatch({ type: "PLACEMENT_DONE" })} />;
+      return <PlacementScreen services={resolvedServices} onDone={() => dispatch({ type: "PLACEMENT_DONE" })} onError={onError} />;
+
     case "HOME":
-      return <HomeScreen />;
+      return (
+        <HomeScreen
+          services={resolvedServices}
+          onOpenJourney={(session, activities) => {
+            setJourney({ session, activities });
+            dispatch({ type: "NAVIGATE", route: "JOURNEY" });
+          }}
+          onQuickReview={() => dispatch({ type: "NAVIGATE", route: "REVIEW" })}
+          onOpenProgress={() => dispatch({ type: "NAVIGATE", route: "PROGRESS" })}
+          onOpenSettings={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })}
+          onError={onError}
+        />
+      );
+
+    case "JOURNEY": {
+      if (!journey) return <SplashScreen onDone={() => {}} />;
+      return (
+        <DailyJourneyScreen
+          services={resolvedServices}
+          session={journey.session}
+          activities={journey.activities}
+          onOpenActivity={(activity) => {
+            setJourney({ ...journey, activeActivityId: activity.id });
+            dispatch({ type: "NAVIGATE", route: activity.activityType === "STORY" ? "STORY" : "REVIEW" });
+          }}
+          onFinishSession={() => {
+            setJourney(null);
+            dispatch({ type: "GO_HOME" });
+          }}
+          onError={onError}
+        />
+      );
+    }
+
+    case "STORY": {
+      if (!journey || !activeActivity) return <SplashScreen onDone={() => {}} />;
+      return (
+        <StoryScreen
+          services={resolvedServices}
+          session={journey.session}
+          activity={activeActivity}
+          onComplete={(completedActivity) => {
+            const updatedActivities = journey.activities.map((a) => (a.id === completedActivity.id ? { ...a, status: "COMPLETED" as const } : a));
+            setJourney({ ...journey, activities: updatedActivities });
+            dispatch({ type: "NAVIGATE", route: "JOURNEY" });
+          }}
+          onError={onError}
+        />
+      );
+    }
+
+    case "REVIEW": {
+      const plan = journey?.session.metadata?.plan as { reviewItemIds?: string[] } | undefined;
+      return (
+        <ReviewScreen
+          services={resolvedServices}
+          reviewLexemeIds={activeActivity ? plan?.reviewItemIds : undefined}
+          sessionId={journey?.session.id}
+          onComplete={() => {
+            if (journey && activeActivity) {
+              const updatedActivities = journey.activities.map((a) => (a.id === activeActivity.id ? { ...a, status: "COMPLETED" as const } : a));
+              setJourney({ ...journey, activities: updatedActivities });
+              dispatch({ type: "NAVIGATE", route: "JOURNEY" });
+            } else {
+              dispatch({ type: "GO_HOME" });
+            }
+          }}
+          onError={onError}
+        />
+      );
+    }
+
+    case "PROGRESS":
+      return <ProgressScreen services={resolvedServices} onBack={() => dispatch({ type: "GO_HOME" })} />;
+
+    case "SETTINGS":
+      return <SettingsScreen services={resolvedServices} onBack={() => dispatch({ type: "GO_HOME" })} />;
+
+    case "VOCAB_DETAIL":
+      return <SplashScreen onDone={() => {}} />;
+
+    case "ERROR":
+      return <ErrorScreen message={state.errorMessage} onAcknowledge={() => dispatch({ type: "GO_HOME" })} />;
   }
 }

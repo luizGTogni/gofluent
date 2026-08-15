@@ -12,8 +12,12 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@gofluent/ai": "workspace:*",
+    "@gofluent/application": "workspace:*",
     "@gofluent/config": "workspace:*",
+    "@gofluent/core": "workspace:*",
     "@gofluent/db": "workspace:*",
+    "@gofluent/shared": "workspace:*",
     "ink": "^5.1.0",
     "react": "^18.3.0"
   },

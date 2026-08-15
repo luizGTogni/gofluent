@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@gofluent/core": "workspace:*"
+    "@gofluent/ai": "workspace:*",
+    "@gofluent/core": "workspace:*",
+    "@gofluent/lexical-engine": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

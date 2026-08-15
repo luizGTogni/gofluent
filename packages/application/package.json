@@ -9,9 +9,12 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@gofluent/ai": "workspace:*",
+    "@gofluent/content-engine": "workspace:*",
     "@gofluent/core": "workspace:*",
     "@gofluent/db": "workspace:*",
     "@gofluent/learning-engine": "workspace:*",
+    "@gofluent/lexical-engine": "workspace:*",
     "@gofluent/shared": "workspace:*"
   },
   "devDependencies": {

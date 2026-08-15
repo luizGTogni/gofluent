@@ -5,3 +5,9 @@
  * boundaries and workspace wiring are established before feature code.
  */
 export * from "./register-encounter.js";
+export * from "./onboarding.js";
+export * from "./placement.js";
+export * from "./journey-planner.js";
+export * from "./session.js";
+export * from "./story-activity.js";
+export * from "./review-activity.js";
