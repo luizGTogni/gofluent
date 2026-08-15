@@ -13,6 +13,7 @@ export * from "./schemas/zod-output.js";
 export * from "./schemas/story.js";
 export * from "./schemas/conversation.js";
 export * from "./schemas/imported-lesson.js";
+export * from "./schemas/boss-challenge-evaluation.js";
 
 export * from "./providers/fake/fake-provider.js";
 export * from "./providers/nvidia/index.js";

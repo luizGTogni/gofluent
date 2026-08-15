@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useReducer } from "react";
-import type { LearningSession, SessionActivity } from "@gofluent/core";
+import type { BossChallenge, LearningSession, SessionActivity, World } from "@gofluent/core";
 import { initialNavigationState, navigationReducer } from "../navigation/state.js";
 import { SplashScreen } from "../screens/SplashScreen.js";
 import { OnboardingScreen } from "../screens/OnboardingScreen.js";
@@ -11,6 +11,8 @@ import { StoryScreen } from "../screens/StoryScreen.js";
 import { ReviewScreen } from "../screens/ReviewScreen.js";
 import { SpeakScreen } from "../screens/SpeakScreen.js";
 import { ImportContentScreen } from "../screens/ImportContentScreen.js";
+import { WorldsScreen } from "../screens/WorldsScreen.js";
+import { BossChallengeScreen } from "../screens/BossChallengeScreen.js";
 import { ProgressScreen } from "../screens/ProgressScreen.js";
 import { SettingsScreen } from "../screens/SettingsScreen.js";
 import { ErrorScreen } from "../screens/ErrorScreen.js";
@@ -30,6 +32,7 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
   const resolvedServices = useMemo(() => services ?? createInMemoryServices(), [services]);
   const [state, dispatch] = useReducer(navigationReducer, initialNavigationState);
   const [journey, setJourney] = useState<JourneyState | null>(null);
+  const [activeChallenge, setActiveChallenge] = useState<{ world: World; bossChallenge: BossChallenge } | null>(null);
 
   function onError(message: string): void {
     dispatch({ type: "ERROR_OCCURRED", message });
@@ -40,8 +43,9 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
     const needsJourney = state.route === "JOURNEY" || state.route === "STORY" || state.route === "REVIEW";
     if (needsJourney && !journey && state.route !== "REVIEW") { dispatch({ type: "GO_HOME" }); return; }
     if (state.route === "STORY" && journey && !activeActivity) dispatch({ type: "GO_HOME" });
+    if (state.route === "BOSS_CHALLENGE" && !activeChallenge) dispatch({ type: "NAVIGATE", route: "WORLDS" });
     if (state.route === "VOCAB_DETAIL") dispatch({ type: "GO_HOME" });
-  }, [state.route, journey, activeActivity]);
+  }, [state.route, journey, activeActivity, activeChallenge]);
 
   switch (state.route) {
     case "SPLASH":
@@ -64,6 +68,7 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
           onQuickReview={() => dispatch({ type: "NAVIGATE", route: "REVIEW" })}
           onOpenSpeak={() => dispatch({ type: "NAVIGATE", route: "SPEAK" })}
           onOpenImport={() => dispatch({ type: "NAVIGATE", route: "IMPORT" })}
+          onOpenWorlds={() => dispatch({ type: "NAVIGATE", route: "WORLDS" })}
           onOpenProgress={() => dispatch({ type: "NAVIGATE", route: "PROGRESS" })}
           onOpenSettings={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })}
           onError={onError}
@@ -141,6 +146,34 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
 
     case "IMPORT":
       return <ImportContentScreen services={resolvedServices} onDone={() => dispatch({ type: "GO_HOME" })} onError={onError} />;
+
+    case "WORLDS":
+      return (
+        <WorldsScreen
+          services={resolvedServices}
+          onStartBossChallenge={(world, bossChallenge) => {
+            setActiveChallenge({ world, bossChallenge });
+            dispatch({ type: "NAVIGATE", route: "BOSS_CHALLENGE" });
+          }}
+          onBack={() => dispatch({ type: "GO_HOME" })}
+        />
+      );
+
+    case "BOSS_CHALLENGE": {
+      if (!activeChallenge) return <SplashScreen onDone={() => {}} />;
+      return (
+        <BossChallengeScreen
+          services={resolvedServices}
+          world={activeChallenge.world}
+          bossChallenge={activeChallenge.bossChallenge}
+          onDone={() => {
+            setActiveChallenge(null);
+            dispatch({ type: "NAVIGATE", route: "WORLDS" });
+          }}
+          onError={onError}
+        />
+      );
+    }
 
     case "PROGRESS":
       return <ProgressScreen services={resolvedServices} onBack={() => dispatch({ type: "GO_HOME" })} />;

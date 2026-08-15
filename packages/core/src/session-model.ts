@@ -48,6 +48,8 @@ export interface LearningSessionRepository {
   get(id: string): LearningSession | null;
   upsert(session: LearningSession): void;
   findInProgress(learnerId: string): LearningSession | null;
+  /** Most-recent-first; feeds gamification's streak/personal-best computation (ROADMAP Phase 6). */
+  listCompleted(learnerId: string, limit: number): LearningSession[];
 }
 
 export interface SessionActivityRepository {

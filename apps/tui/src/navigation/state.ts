@@ -14,6 +14,8 @@ export type Route =
   | "REVIEW"
   | "SPEAK"
   | "IMPORT"
+  | "WORLDS"
+  | "BOSS_CHALLENGE"
   | "VOCAB_DETAIL"
   | "PROGRESS"
   | "SETTINGS"

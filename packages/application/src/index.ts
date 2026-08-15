@@ -15,3 +15,6 @@ export * from "./listening-activity.js";
 export * from "./error-memory.js";
 export * from "./speak-activity.js";
 export * from "./import-content-activity.js";
+export * from "./gamification.js";
+export * from "./world-activity.js";
+export * from "./boss-challenge-activity.js";

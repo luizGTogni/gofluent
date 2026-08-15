@@ -8,6 +8,8 @@ import type {
   Lexeme, LexemeRepository, ReviewItem, ReviewRepository,
   SessionActivity, SessionActivityRepository,
   ImportedContent, ImportedContentRepository,
+  World, WorldRepository, WorldProgress, WorldProgressRepository,
+  BossChallenge, BossChallengeRepository, BossChallengeAttempt, BossChallengeAttemptRepository,
 } from "@gofluent/core";
 import type { DatabaseSyncInstance } from "./sqlite/node-sqlite.js";
 
@@ -100,6 +102,7 @@ export class SqliteLearningSessionRepository implements LearningSessionRepositor
   constructor(private readonly db: DatabaseSyncInstance) {}
   get(id: string): LearningSession | null { const row = this.db.prepare("SELECT * FROM learning_sessions WHERE id=?").get(id) as Row | undefined; return row ? this.map(row) : null; }
   findInProgress(learnerId: string): LearningSession | null { const row = this.db.prepare("SELECT * FROM learning_sessions WHERE learner_id=? AND status='IN_PROGRESS' ORDER BY created_at DESC LIMIT 1").get(learnerId) as Row | undefined; return row ? this.map(row) : null; }
+  listCompleted(learnerId: string, limit: number): LearningSession[] { return (this.db.prepare("SELECT * FROM learning_sessions WHERE learner_id=? AND status='COMPLETED' ORDER BY completed_at DESC LIMIT ?").all(learnerId, limit) as Row[]).map((r) => this.map(r)); }
   upsert(s: LearningSession): void { this.db.prepare(`INSERT INTO learning_sessions (id,learner_id,session_type,status,planned_minutes,actual_seconds,started_at,completed_at,metadata_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,planned_minutes=excluded.planned_minutes,actual_seconds=excluded.actual_seconds,started_at=excluded.started_at,completed_at=excluded.completed_at,metadata_json=excluded.metadata_json,updated_at=excluded.updated_at`).run(s.id,s.learnerId,s.sessionType,s.status,s.plannedMinutes ?? null,s.actualSeconds ?? null,s.startedAt ?? null,s.completedAt ?? null,s.metadata ? JSON.stringify(s.metadata) : null,s.createdAt,s.updatedAt); }
   private map(row: Row): LearningSession { return { id:String(row.id), learnerId:String(row.learner_id), sessionType:String(row.session_type) as LearningSession["sessionType"], status:String(row.status) as LearningSession["status"], plannedMinutes:numberOrUndefined(row.planned_minutes), actualSeconds:numberOrUndefined(row.actual_seconds), startedAt:optionalString(row.started_at), completedAt:optionalString(row.completed_at), metadata:metadataFrom(row), createdAt:String(row.created_at), updatedAt:String(row.updated_at) }; }
 }
@@ -165,5 +168,69 @@ export class SqliteLearnerInterestRepository implements LearnerInterestRepositor
   replaceAll(userId: string, interests: LearnerInterest[]): void {
     this.db.prepare("DELETE FROM learner_interests WHERE user_id=?").run(userId);
     for (const interest of interests) this.db.prepare("INSERT INTO learner_interests (id,user_id,interest,weight,created_at) VALUES (?,?,?,?,?)").run(interest.id,interest.userId,interest.interest,interest.weight,interest.createdAt);
+  }
+}
+
+const worldMetadataFrom = (row: Row): { targetLexemeIds?: string[] } => typeof row.metadata_json === "string" ? JSON.parse(row.metadata_json) as { targetLexemeIds?: string[] } : {};
+
+export class SqliteWorldRepository implements WorldRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  get(id: string): World | null { const row = this.db.prepare("SELECT * FROM worlds WHERE id=?").get(id) as Row | undefined; return row ? this.map(row) : null; }
+  getByKey(language: string, key: string): World | null { const row = this.db.prepare("SELECT * FROM worlds WHERE language=? AND key=?").get(language, key) as Row | undefined; return row ? this.map(row) : null; }
+  listAll(language: string): World[] { return (this.db.prepare("SELECT * FROM worlds WHERE language=? ORDER BY ordering").all(language) as Row[]).map((r) => this.map(r)); }
+  upsert(w: World): void {
+    this.db.prepare(`INSERT INTO worlds (id,language,key,name,description,ordering,metadata_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,ordering=excluded.ordering,metadata_json=excluded.metadata_json,updated_at=excluded.updated_at`).run(w.id,w.language,w.key,w.name,w.description ?? null,w.ordering,JSON.stringify({ targetLexemeIds: w.targetLexemeIds }),w.createdAt,w.updatedAt);
+  }
+  private map(row: Row): World {
+    const metadata = worldMetadataFrom(row);
+    return { id: String(row.id), language: String(row.language), key: String(row.key), name: String(row.name), description: optionalString(row.description),
+      ordering: Number(row.ordering), targetLexemeIds: metadata.targetLexemeIds ?? [], createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  }
+}
+
+export class SqliteWorldProgressRepository implements WorldProgressRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  get(learnerId: string, worldId: string): WorldProgress | null { const row = this.db.prepare("SELECT * FROM world_progress WHERE learner_id=? AND world_id=?").get(learnerId, worldId) as Row | undefined; return row ? this.map(row) : null; }
+  upsert(p: WorldProgress): void {
+    this.db.prepare(`INSERT INTO world_progress (learner_id,world_id,mastery_score,boss_challenge_completed,last_activity_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(learner_id,world_id) DO UPDATE SET mastery_score=excluded.mastery_score,boss_challenge_completed=excluded.boss_challenge_completed,last_activity_at=excluded.last_activity_at,updated_at=excluded.updated_at`).run(p.learnerId,p.worldId,p.masteryScore,Number(p.bossChallengeCompleted),p.lastActivityAt ?? null,p.createdAt,p.updatedAt);
+  }
+  listByLearner(learnerId: string): WorldProgress[] { return (this.db.prepare("SELECT * FROM world_progress WHERE learner_id=?").all(learnerId) as Row[]).map((r) => this.map(r)); }
+  private map(row: Row): WorldProgress {
+    return { learnerId: String(row.learner_id), worldId: String(row.world_id), masteryScore: Number(row.mastery_score), bossChallengeCompleted: bool(row.boss_challenge_completed),
+      lastActivityAt: optionalString(row.last_activity_at), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  }
+}
+
+const bossChallengeMetadataFrom = (row: Row): { targetPhrases?: string[] } => typeof row.metadata_json === "string" ? JSON.parse(row.metadata_json) as { targetPhrases?: string[] } : {};
+
+export class SqliteBossChallengeRepository implements BossChallengeRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  get(id: string): BossChallenge | null { const row = this.db.prepare("SELECT * FROM boss_challenges WHERE id=?").get(id) as Row | undefined; return row ? this.map(row) : null; }
+  getByKey(worldId: string, key: string): BossChallenge | null { const row = this.db.prepare("SELECT * FROM boss_challenges WHERE world_id=? AND key=?").get(worldId, key) as Row | undefined; return row ? this.map(row) : null; }
+  listByWorld(worldId: string): BossChallenge[] { return (this.db.prepare("SELECT * FROM boss_challenges WHERE world_id=?").all(worldId) as Row[]).map((r) => this.map(r)); }
+  upsert(c: BossChallenge): void {
+    this.db.prepare(`INSERT INTO boss_challenges (id,world_id,language,key,title,scenario,metadata_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,scenario=excluded.scenario,metadata_json=excluded.metadata_json,updated_at=excluded.updated_at`).run(c.id,c.worldId,c.language,c.key,c.title,c.scenario,JSON.stringify({ targetPhrases: c.targetPhrases }),c.createdAt,c.updatedAt);
+  }
+  private map(row: Row): BossChallenge {
+    const metadata = bossChallengeMetadataFrom(row);
+    return { id: String(row.id), worldId: String(row.world_id), language: String(row.language), key: String(row.key), title: String(row.title), scenario: String(row.scenario),
+      targetPhrases: metadata.targetPhrases ?? [], createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  }
+}
+
+export class SqliteBossChallengeAttemptRepository implements BossChallengeAttemptRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  insert(a: BossChallengeAttempt): void {
+    this.db.prepare("INSERT INTO boss_challenge_attempts (id,learner_id,boss_challenge_id,session_id,task_completion,comprehension,target_phrase_usage,ability_to_continue,result,feedback,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)").run(a.id,a.learnerId,a.bossChallengeId,a.sessionId ?? null,a.taskCompletion,a.comprehension,a.targetPhraseUsage,a.abilityToContinue,a.result,a.feedback ?? null,a.createdAt);
+  }
+  listByLearner(learnerId: string, limit: number): BossChallengeAttempt[] { return (this.db.prepare("SELECT * FROM boss_challenge_attempts WHERE learner_id=? ORDER BY created_at DESC LIMIT ?").all(learnerId, limit) as Row[]).map((r) => this.map(r)); }
+  bestForChallenge(learnerId: string, bossChallengeId: string): BossChallengeAttempt | null {
+    const row = this.db.prepare("SELECT * FROM boss_challenge_attempts WHERE learner_id=? AND boss_challenge_id=? ORDER BY (task_completion+comprehension+target_phrase_usage+ability_to_continue) DESC LIMIT 1").get(learnerId, bossChallengeId) as Row | undefined;
+    return row ? this.map(row) : null;
+  }
+  private map(row: Row): BossChallengeAttempt {
+    return { id: String(row.id), learnerId: String(row.learner_id), bossChallengeId: String(row.boss_challenge_id), sessionId: optionalString(row.session_id),
+      taskCompletion: Number(row.task_completion), comprehension: Number(row.comprehension), targetPhraseUsage: Number(row.target_phrase_usage), abilityToContinue: Number(row.ability_to_continue),
+      result: String(row.result) as BossChallengeAttempt["result"], feedback: optionalString(row.feedback), createdAt: String(row.created_at) };
   }
 }

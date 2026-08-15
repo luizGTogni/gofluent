@@ -55,3 +55,7 @@ export const ERROR_CATEGORIES = [
   "PHRASAL_VERB",
 ] as const;
 export type ErrorCategory = (typeof ERROR_CATEGORIES)[number];
+
+/** PRD §30 — Boss Challenge evaluation outcome; a subset of EncounterResult (no SKIPPED). */
+export const BOSS_CHALLENGE_RESULTS = ["SUCCESS", "PARTIAL", "FAIL"] as const;
+export type BossChallengeResult = (typeof BOSS_CHALLENGE_RESULTS)[number];

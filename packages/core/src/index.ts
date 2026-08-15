@@ -6,3 +6,5 @@ export * from "./session-model.js";
 export * from "./audio-model.js";
 export * from "./error-model.js";
 export * from "./imported-content-model.js";
+export * from "./world-model.js";
+export * from "./boss-challenge-model.js";

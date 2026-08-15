@@ -1,9 +1,11 @@
 import { loadConfig, resolveDataDirLayout, type AppConfig } from "@gofluent/config";
-import { openDatabase, runMigrations, seedInitialLexemes, type DatabaseSync } from "@gofluent/db";
+import { openDatabase, runMigrations, seedBossChallenges, seedInitialLexemes, seedWorlds, type DatabaseSync } from "@gofluent/db";
 import {
+  SqliteBossChallengeAttemptRepository, SqliteBossChallengeRepository,
   SqliteContentRepository, SqliteEncounterRepository, SqliteLearnerInterestRepository,
   SqliteLearnerLexemeStateRepository, SqliteLearnerProfileRepository, SqliteLearningSessionRepository,
   SqliteLexemeRepository, SqliteReviewRepository, SqliteSessionActivityRepository,
+  SqliteWorldProgressRepository, SqliteWorldRepository,
 } from "@gofluent/db";
 import { FakeProvider, NvidiaNimProvider, type LLMProvider } from "@gofluent/ai";
 import {
@@ -31,6 +33,10 @@ export interface AppRepos {
   content: SqliteContentRepository;
   sessions: SqliteLearningSessionRepository;
   sessionActivities: SqliteSessionActivityRepository;
+  worlds: SqliteWorldRepository;
+  worldProgress: SqliteWorldProgressRepository;
+  bossChallenges: SqliteBossChallengeRepository;
+  bossChallengeAttempts: SqliteBossChallengeAttemptRepository;
 }
 
 export interface AppServices {
@@ -57,6 +63,10 @@ function buildRepos(db: DatabaseSync): AppRepos {
     content: new SqliteContentRepository(db),
     sessions: new SqliteLearningSessionRepository(db),
     sessionActivities: new SqliteSessionActivityRepository(db),
+    worlds: new SqliteWorldRepository(db),
+    worldProgress: new SqliteWorldProgressRepository(db),
+    bossChallenges: new SqliteBossChallengeRepository(db),
+    bossChallengeAttempts: new SqliteBossChallengeAttemptRepository(db),
   };
 }
 
@@ -107,6 +117,8 @@ function initializeDatabase(db: DatabaseSync): void {
   runMigrations(db);
   const now = new Date().toISOString();
   seedInitialLexemes(new SqliteLexemeRepository(db), now);
+  seedWorlds(new SqliteWorldRepository(db), now);
+  seedBossChallenges(new SqliteBossChallengeRepository(db), now);
   db.prepare("INSERT OR IGNORE INTO users (id,created_at,updated_at) VALUES (?,?,?)").run(LOCAL_USER_ID, now, now);
 }
 
