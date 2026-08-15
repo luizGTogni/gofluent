@@ -1,0 +1,30 @@
+{
+  "name": "gofluent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GoFluent — AI-based English acquisition TUI",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "build": "pnpm -r --if-present run build",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ai:live": "vitest run --config vitest.live.config.ts",
+    "dev": "pnpm --filter @gofluent/tui run dev",
+    "clean": "pnpm -r --if-present run clean"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.17.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

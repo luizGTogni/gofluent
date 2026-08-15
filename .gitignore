@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+*.log
+
+# Local runtime data (SQLite, cache, audio) — never commit learner data
+*.db
+*.db-wal
+*.db-shm
+.gofluent/
+
+.DS_Store
+Thumbs.db
