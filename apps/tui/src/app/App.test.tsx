@@ -25,7 +25,12 @@ describe("App", () => {
 
     await vi.waitFor(() => expect(lastFrame()).toContain("Welcome to GoFluent"), { timeout: 2000 });
     await pressEnter(stdin); // native language -> daily minutes
+    // Each step swaps in a freshly mounted SelectList, whose useInput listener
+    // subscribes in an effect after the render commits; on slower CI runners a
+    // fixed 20ms isn't always enough, so wait for the step's own text instead.
+    await vi.waitFor(() => expect(lastFrame()).toContain("How many minutes a day"), { timeout: 2000 });
     await pressEnter(stdin); // daily minutes -> interests
+    await vi.waitFor(() => expect(lastFrame()).toContain("Pick a few interests"), { timeout: 2000 });
 
     stdin.write(" "); // toggle first interest
     await vi.waitFor(() => expect(lastFrame()).toContain("[x] travel"), { timeout: 2000 });
