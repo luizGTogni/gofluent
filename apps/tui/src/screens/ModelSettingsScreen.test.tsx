@@ -4,8 +4,26 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "ink-testing-library";
 import { readStoredConfig } from "@gofluent/config";
+import { FakeProvider, type Model } from "@gofluent/ai";
 import { ModelSettingsScreen } from "./ModelSettingsScreen.js";
 import { createInMemoryServices } from "../app/bootstrap.js";
+
+function fakeModel(id: string): Model {
+  return {
+    id,
+    provider: "fake",
+    displayName: id,
+    capabilities: {
+      streaming: false,
+      structuredOutput: { type: "json" },
+      reasoning: { type: "unsupported" },
+      tools: { supported: false },
+      vision: false,
+      sampling: { temperature: true, topP: true, maxOutputTokens: true },
+    },
+    metadata: {},
+  };
+}
 
 async function tick(ms = 20): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -24,11 +42,11 @@ describe("ModelSettingsScreen", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("edits the model, picks an effort level, and saves both", async () => {
+  it("falls back to free-text entry when the provider has no listed models, edits it, picks an effort level, and saves both", async () => {
     const services = { ...createInMemoryServices(), configFilePath };
     const { lastFrame, stdin, unmount } = render(<ModelSettingsScreen services={services} onDone={() => {}} />);
 
-    await vi.waitFor(() => expect(lastFrame()).toContain("Model & Reasoning"), { timeout: 2000 });
+    await vi.waitFor(() => expect(lastFrame()).toContain("NVIDIA NIM model id"), { timeout: 2000 });
     expect(lastFrame()).toContain("Model: fake-model"); // pre-filled with the current model
 
     for (let i = 0; i < "fake-model".length + 2; i += 1) { stdin.write("\x7f"); await tick(5); } // clear the pre-filled value
@@ -57,7 +75,7 @@ describe("ModelSettingsScreen", () => {
     const onDone = vi.fn();
     const { lastFrame, stdin, unmount } = render(<ModelSettingsScreen services={services} onDone={onDone} />);
 
-    await vi.waitFor(() => expect(lastFrame()).toContain("Model & Reasoning"), { timeout: 2000 });
+    await vi.waitFor(() => expect(lastFrame()).toContain("NVIDIA NIM model id"), { timeout: 2000 });
     stdin.write(" ");
     await tick(20);
     stdin.write("\x1B");
@@ -65,6 +83,50 @@ describe("ModelSettingsScreen", () => {
 
     expect(onDone).toHaveBeenCalled();
     expect(readStoredConfig(configFilePath)).toEqual({});
+    unmount();
+  });
+
+  it("lists models fetched from the provider and lets the learner pick one", async () => {
+    const services = {
+      ...createInMemoryServices(),
+      configFilePath,
+      provider: new FakeProvider({ models: [fakeModel("model-a"), fakeModel("model-b")] }),
+    };
+    const { lastFrame, stdin, unmount } = render(<ModelSettingsScreen services={services} onDone={() => {}} />);
+
+    await vi.waitFor(() => expect(lastFrame()).toContain("Models available"), { timeout: 2000 });
+    expect(lastFrame()).toContain("model-a");
+    expect(lastFrame()).toContain("model-b");
+
+    stdin.write("j"); // throwaway keystroke absorbs the resubscription race (see SpeakScreen.test.tsx)
+    await tick();
+    stdin.write("\x1B[B"); // down to "model-b"
+    await tick(20);
+    stdin.write("\r");
+
+    await vi.waitFor(() => expect(lastFrame()).toContain("Reasoning effort"), { timeout: 2000 });
+    expect(lastFrame()).toContain("Model: model-b");
+
+    unmount();
+  });
+
+  it("falls back to free-text entry when the learner picks \"Type a different model id\"", async () => {
+    const services = {
+      ...createInMemoryServices(),
+      configFilePath,
+      provider: new FakeProvider({ models: [fakeModel("model-a")] }),
+    };
+    const { lastFrame, stdin, unmount } = render(<ModelSettingsScreen services={services} onDone={() => {}} />);
+
+    await vi.waitFor(() => expect(lastFrame()).toContain("Models available"), { timeout: 2000 });
+    stdin.write("j"); // throwaway keystroke absorbs the resubscription race (see SpeakScreen.test.tsx)
+    await tick();
+    stdin.write("\x1B[B"); // down to "Type a different model id…"
+    await tick(20);
+    stdin.write("\r");
+
+    await vi.waitFor(() => expect(lastFrame()).toContain("NVIDIA NIM model id"), { timeout: 2000 });
+
     unmount();
   });
 });
