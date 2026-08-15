@@ -144,7 +144,7 @@ The architecture must not collapse these two concerns.
 │         │               │                  │                │
 │         ▼               ▼                  ▼                │
 │      Database         AI Layer          Speech Layer         │
-│       SQLite        NVIDIA NIM        ASR / TTS NIM          │
+│       SQLite        NVIDIA NIM        NVIDIA ASR / Kokoro TTS│
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -489,12 +489,12 @@ Responsibilities:
 ```text
 ASR interface
 TTS interface
-NVIDIA adapters
+Kokoro TTS adapter and NVIDIA ASR adapter
 audio file metadata
 speech errors
 ```
 
-The rest of the system should not depend on NVIDIA speech-specific response objects.
+The rest of the system should not depend on provider-specific speech response objects.
 
 ---
 

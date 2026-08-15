@@ -915,7 +915,7 @@ Learners may skip audio if audio is not configured.
 
 # 20. Listening
 
-Audio is mandatory as a product capability even if speech features are initially opt-in based on available NIM configuration.
+Audio is mandatory as a product capability even if speech features are initially opt-in while the local TTS model is unavailable.
 
 Listening modes:
 
@@ -951,10 +951,10 @@ interface TextToSpeechProvider {
 Initial provider:
 
 ```text
-NVIDIA Speech NIM
+Kokoro, running locally
 ```
 
-The rest of the application MUST NOT depend directly on NVIDIA-specific API objects.
+The rest of the application MUST NOT depend directly on Kokoro-specific model or inference objects.
 
 This allows future providers.
 
@@ -1371,7 +1371,7 @@ Contains:
 
 - ASR abstraction;
 - TTS abstraction;
-- NVIDIA Speech NIM adapters.
+- local Kokoro TTS adapter.
 
 ## `packages/db`
 
@@ -2624,7 +2624,7 @@ Package manager   pnpm
 Validation        Zod
 AI                NVIDIA NIM
 LLM access        provider abstraction
-Speech            NVIDIA Speech NIM adapters
+Speech            NVIDIA ASR and local Kokoro TTS adapters
 Tests             Vitest
 Versioning        SemVer 2.0.0
 CI                Linux + Windows

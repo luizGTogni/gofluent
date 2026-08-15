@@ -781,7 +781,7 @@ SpeechToTextProvider
 TextToSpeechProvider
 ```
 
-with NVIDIA implementations.
+with an NVIDIA ASR implementation and a local Kokoro TTS implementation.
 
 ---
 
@@ -828,9 +828,12 @@ NVIDIA adapter maps this into the selected ASR NIM interface.
 
 ---
 
-# 40. NVIDIA TTS NIM
+# 40. Local Kokoro TTS
 
-NVIDIA TTS NIM provides speech synthesis and supports offline and streaming modes depending on interface/deployment.
+Kokoro is the initial TTS engine. It runs locally, keeps learner text on-device,
+and downloads model assets once before they are cached locally. Its model weights
+are Apache-2.0 licensed. The implementation must retain a provider boundary so
+the inference runtime and voices can be changed without affecting learning flows.
 
 GoFluent can start with:
 
@@ -848,9 +851,7 @@ play
 
 Streaming synthesis can be added when latency becomes important.
 
-Official reference:
-
-https://docs.nvidia.com/nim/speech/latest/tts/
+Reference model: https://huggingface.co/hexgrad/Kokoro-82M
 
 ---
 
@@ -880,7 +881,7 @@ export interface TTSRequest {
 
 # 42. Voice Discovery
 
-If the selected NVIDIA TTS deployment exposes voice discovery, the speech adapter may load supported voices dynamically.
+The Kokoro adapter may expose its locally installed voices dynamically.
 
 The domain should receive normalized voice metadata.
 
@@ -920,7 +921,8 @@ NVIDIA_NIM_BASE_URL
 NVIDIA_NIM_MODEL
 
 NVIDIA_ASR_BASE_URL
-NVIDIA_TTS_BASE_URL
+KOKORO_MODEL_DIR
+KOKORO_DEFAULT_VOICE
 ```
 
 Not every value must be required.
@@ -1046,8 +1048,8 @@ As of August 2026, current official NVIDIA documentation supports the following 
 6. `/v1/models` is available for model discovery.
 7. NVIDIA Speech NIM provides ASR.
 8. ASR currently exposes REST, gRPC, and WebSocket interface options.
-9. NVIDIA Speech NIM provides TTS.
-10. TTS supports offline and streaming-oriented workflows depending on the deployment/interface.
+9. Local Kokoro provides TTS.
+10. TTS audio is synthesized locally and cached for replay.
 
 These facts justify provider- and capability-driven integration.
 

@@ -80,7 +80,7 @@ The pedagogical document `RESEARCH.md` is the pedagogical source of truth; `PRD.
 **Goal:** make audio a first-class modality (P1 of the PRD).
 
 **Key deliverables:**
-- `TextToSpeechProvider` abstraction + NVIDIA Speech NIM adapter (full synthesis, cache keyed by text+voice+speed hash) — PRD §21, `ARCHITECTURE.md` §49, `NVIDIA_NIM.md` §40–42.
+- `TextToSpeechProvider` abstraction + local Kokoro adapter (full synthesis, cache keyed by text+voice+speed hash) — PRD §21, `ARCHITECTURE.md` §49, `NVIDIA_NIM.md` §40–42.
 - `AudioPlayer` abstraction isolating OS playback (avoid Linux dependencies like PulseAudio/ffplay without a fallback) — `ARCHITECTURE.md` §50, §68.
 - Listening modes: normal, slow, sentence-by-sentence, with/without transcript, replay — PRD §20.
 - "Listen first, then reveal text" flow — PRD §19.
