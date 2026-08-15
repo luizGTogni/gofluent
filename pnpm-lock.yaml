@@ -50,6 +50,9 @@ importers:
       '@gofluent/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@gofluent/speech':
+        specifier: workspace:*
+        version: link:../../packages/speech
       ink:
         specifier: ^5.1.0
         version: 5.2.1(@types/react@18.3.31)(react@18.3.1)
@@ -106,6 +109,9 @@ importers:
       '@gofluent/shared':
         specifier: workspace:*
         version: link:../shared
+      '@gofluent/speech':
+        specifier: workspace:*
+        version: link:../speech
     devDependencies:
       typescript:
         specifier: ^5.7.0

@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Box, Text, useInput } from "ink";
-import { completeReviewEncounter, generateStoryActivity, type DailyJourneyPlan, type TargetLexeme } from "@gofluent/application";
+import {
+  completeReviewEncounter, generateStoryActivity, LISTENING_MODES, speedForMode, splitIntoSentences,
+  synthesizeCachedAudio, type DailyJourneyPlan, type ListeningMode, type TargetLexeme,
+} from "@gofluent/application";
 import type { StoryComprehensionQuestion } from "@gofluent/ai";
 import type { Content, LearningSession, SessionActivity } from "@gofluent/core";
 import type { AppServices } from "../app/bootstrap.js";
@@ -18,16 +21,31 @@ function planOf(session: LearningSession): DailyJourneyPlan | undefined {
   return plan as DailyJourneyPlan | undefined;
 }
 
-type Phase = "LOADING" | "READING" | "QUESTIONS" | "RETELL" | "DONE";
+type Phase = "LOADING" | "LISTENING" | "READING" | "QUESTIONS" | "RETELL" | "DONE";
+type PlaybackStatus = "IDLE" | "PLAYING" | "DONE" | "UNAVAILABLE" | "ERROR";
+
+const MODE_LABEL: Record<ListeningMode, string> = {
+  NORMAL: "Normal", SLOW: "Slow", SENTENCE_BY_SENTENCE: "Sentence-by-sentence",
+};
 
 /**
- * Adaptive story flow (PRD §19): listen-first framing is present, but audio
- * playback itself is a Phase 3 concern — here it is a no-op label only.
+ * Adaptive story flow (PRD §19): "listen first, then reveal text". When
+ * speech is unavailable/disabled the LISTENING phase is skipped entirely and
+ * the transcript is shown immediately (NVIDIA_NIM.md §43 — audio failure
+ * must never block reading).
  */
 export function StoryScreen({ services, session, activity, onComplete, onError }: StoryScreenProps): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>("LOADING");
   const [content, setContent] = useState<Content | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
+
+  const [speechAvailable, setSpeechAvailable] = useState<boolean | null>(null);
+  const [listeningMode, setListeningMode] = useState<ListeningMode>("NORMAL");
+  const [transcriptVisible, setTranscriptVisible] = useState(false);
+  const [sentenceIndex, setSentenceIndex] = useState(0);
+  const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>("IDLE");
+  const [playbackNote, setPlaybackNote] = useState<string | undefined>(undefined);
+  const [replayToken, setReplayToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,7 +79,12 @@ export function StoryScreen({ services, session, activity, onComplete, onError }
           });
         }
         setContent(result.content);
-        setPhase("READING");
+
+        const available = services.config.speech.enabled && (await services.tts.isAvailable().catch(() => false));
+        if (cancelled) return;
+        setSpeechAvailable(available);
+        setPhase(available ? "LISTENING" : "READING");
+        setTranscriptVisible(!available);
       } catch (cause) {
         if (!cancelled) onError(cause instanceof Error ? cause.message : String(cause));
       }
@@ -71,9 +94,60 @@ export function StoryScreen({ services, session, activity, onComplete, onError }
     // Intentionally runs once per mounted activity — story generation must not re-fire on unrelated re-renders.
   }, [activity.id]);
 
+  const sentences = content?.bodyText ? splitIntoSentences(content.bodyText) : [];
+  const currentText = listeningMode === "SENTENCE_BY_SENTENCE" ? (sentences[sentenceIndex] ?? "") : (content?.bodyText ?? "");
+
+  useEffect(() => {
+    if (phase !== "LISTENING" || !content || !speechAvailable) return;
+    const contentId = content.id;
+    let cancelled = false;
+    async function playCurrent(): Promise<void> {
+      setPlaybackStatus("PLAYING");
+      setPlaybackNote(undefined);
+      try {
+        const speed = speedForMode(listeningMode, services.config.speech.defaultSpeed);
+        const asset = await synthesizeCachedAudio(services.db, services.tts, {
+          text: currentText, language: "en", voice: services.config.speech.defaultVoice, speed,
+          contentId,
+        });
+        const availability = await services.audioPlayer.isAvailable();
+        if (!availability.available) {
+          if (!cancelled) { setPlaybackStatus("UNAVAILABLE"); setPlaybackNote(availability.reason); }
+          return;
+        }
+        await services.audioPlayer.play({ filePath: asset.filePath });
+        if (!cancelled) setPlaybackStatus("DONE");
+      } catch (cause) {
+        // NVIDIA_NIM.md §43 — TTS/player failure degrades to "no audio", never a thrown error into the TUI.
+        if (!cancelled) { setPlaybackStatus("ERROR"); setPlaybackNote(cause instanceof Error ? cause.message : String(cause)); }
+      }
+    }
+    void playCurrent();
+    return () => { cancelled = true; };
+  }, [phase, speechAvailable, listeningMode, sentenceIndex, replayToken, content?.id]);
+
   const questions = (content?.metadata?.comprehensionQuestions as StoryComprehensionQuestion[] | undefined) ?? [];
 
-  useInput((_input, key) => {
+  useInput((input, key) => {
+    if (phase === "LISTENING") {
+      if (input === "m") {
+        const currentIdx = LISTENING_MODES.indexOf(listeningMode);
+        setListeningMode(LISTENING_MODES[(currentIdx + 1) % LISTENING_MODES.length] as ListeningMode);
+        setSentenceIndex(0);
+        return;
+      }
+      if (input === "t") { setTranscriptVisible((v) => !v); return; }
+      if (input === "r") { setReplayToken((t) => t + 1); return; }
+      if (key.return) {
+        if (listeningMode === "SENTENCE_BY_SENTENCE" && sentenceIndex + 1 < sentences.length) {
+          setSentenceIndex(sentenceIndex + 1);
+          return;
+        }
+        setTranscriptVisible(true);
+        setPhase("READING");
+      }
+      return;
+    }
     if (!key.return) return;
     if (phase === "READING") setPhase(questions.length > 0 ? "QUESTIONS" : "RETELL");
     else if (phase === "QUESTIONS") {
@@ -98,7 +172,20 @@ export function StoryScreen({ services, session, activity, onComplete, onError }
   return (
     <Box flexDirection="column" padding={1}>
       <Text bold>{content.title}</Text>
-      <Text dimColor>Listen (audio arrives in Phase 3) — reading for now.</Text>
+      {phase === "LISTENING" && (
+        <Box flexDirection="column">
+          <Text dimColor>Listening mode: {MODE_LABEL[listeningMode]}{listeningMode === "SENTENCE_BY_SENTENCE" ? ` (${sentenceIndex + 1}/${sentences.length})` : ""}</Text>
+          <Text dimColor>
+            {playbackStatus === "PLAYING" && "Playing audio…"}
+            {playbackStatus === "DONE" && "Playback finished."}
+            {playbackStatus === "UNAVAILABLE" && `Audio unavailable (${playbackNote ?? "no player found"}) — reading still works.`}
+            {playbackStatus === "ERROR" && `Audio error (${playbackNote ?? "unknown"}) — reading still works.`}
+            {playbackStatus === "IDLE" && "Preparing audio…"}
+          </Text>
+          {transcriptVisible && <Text>{currentText}</Text>}
+          <Text dimColor>[m] mode  [t] {transcriptVisible ? "hide" : "show"} transcript  [r] replay  [Enter] continue</Text>
+        </Box>
+      )}
       {phase === "READING" && (
         <Box flexDirection="column">
           <Text>{content.bodyText}</Text>

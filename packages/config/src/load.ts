@@ -35,6 +35,10 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
     },
     speech: {
       enabled: parseOptionalBoolean(env.GOFLUENT_SPEECH_ENABLED) ?? (fileConfig as any).speech?.enabled,
+      kokoroModelDir: env.KOKORO_MODEL_DIR ?? (fileConfig as any).speech?.kokoroModelDir,
+      defaultVoice: env.KOKORO_DEFAULT_VOICE ?? (fileConfig as any).speech?.defaultVoice,
+      defaultSpeed:
+        parseOptionalFloat(env.GOFLUENT_SPEECH_DEFAULT_SPEED) ?? (fileConfig as any).speech?.defaultSpeed,
     },
     learning: {
       dailyMinutes:
@@ -61,6 +65,12 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
 function parseOptionalInt(value: string | undefined): number | undefined {
   if (value === undefined || value.trim() === "") return undefined;
   const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function parseOptionalFloat(value: string | undefined): number | undefined {
+  if (value === undefined || value.trim() === "") return undefined;
+  const parsed = Number.parseFloat(value);
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 

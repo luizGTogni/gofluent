@@ -1,4 +1,5 @@
 import type {
+  AudioAsset, AudioAssetRepository,
   Content, ContentRepository, ContentTargetItem,
   Encounter, EncounterRepository, LearnerProfile, LearnerProfileRepository, LearnerLexemeState, LearnerLexemeStateRepository,
   LearnerInterest, LearnerInterestRepository,
@@ -106,6 +107,14 @@ export class SqliteSessionActivityRepository implements SessionActivityRepositor
   listBySession(sessionId: string): SessionActivity[] { return (this.db.prepare("SELECT * FROM session_activities WHERE session_id=? ORDER BY sequence_number").all(sessionId) as Row[]).map((r) => this.map(r)); }
   upsert(a: SessionActivity): void { this.db.prepare(`INSERT INTO session_activities (id,session_id,activity_type,sequence_number,status,content_id,started_at,completed_at,metadata_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,content_id=excluded.content_id,started_at=excluded.started_at,completed_at=excluded.completed_at,metadata_json=excluded.metadata_json,updated_at=excluded.updated_at`).run(a.id,a.sessionId,a.activityType,a.sequenceNumber,a.status,a.contentId ?? null,a.startedAt ?? null,a.completedAt ?? null,a.metadata ? JSON.stringify(a.metadata) : null,a.createdAt,a.updatedAt); }
   private map(row: Row): SessionActivity { return { id:String(row.id), sessionId:String(row.session_id), activityType:String(row.activity_type) as SessionActivity["activityType"], sequenceNumber:Number(row.sequence_number), status:String(row.status) as SessionActivity["status"], contentId:optionalString(row.content_id), startedAt:optionalString(row.started_at), completedAt:optionalString(row.completed_at), metadata:metadataFrom(row), createdAt:String(row.created_at), updatedAt:String(row.updated_at) }; }
+}
+
+export class SqliteAudioAssetRepository implements AudioAssetRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  get(id: string): AudioAsset | null { const row = this.db.prepare("SELECT * FROM audio_assets WHERE id=?").get(id) as Row | undefined; return row ? this.map(row) : null; }
+  findByCacheKey(textHash: string, voice: string, speed: number, provider: string): AudioAsset | null { const row = this.db.prepare("SELECT * FROM audio_assets WHERE text_hash=? AND voice=? AND speed=? AND provider=? ORDER BY created_at DESC LIMIT 1").get(textHash, voice, speed, provider) as Row | undefined; return row ? this.map(row) : null; }
+  upsert(a: AudioAsset): void { this.db.prepare(`INSERT INTO audio_assets (id,content_id,text_hash,provider,voice,speed,file_path,duration_ms,created_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET file_path=excluded.file_path,duration_ms=excluded.duration_ms`).run(a.id,a.contentId ?? null,a.textHash,a.provider ?? null,a.voice ?? null,a.speed ?? null,a.filePath,a.durationMs ?? null,a.createdAt); }
+  private map(row: Row): AudioAsset { return { id:String(row.id), contentId:optionalString(row.content_id), textHash:String(row.text_hash), provider:optionalString(row.provider), voice:optionalString(row.voice), speed:numberOrUndefined(row.speed), filePath:String(row.file_path), durationMs:numberOrUndefined(row.duration_ms), createdAt:String(row.created_at) }; }
 }
 
 export class SqliteLearnerInterestRepository implements LearnerInterestRepository {

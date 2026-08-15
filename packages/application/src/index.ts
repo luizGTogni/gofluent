@@ -11,3 +11,4 @@ export * from "./journey-planner.js";
 export * from "./session.js";
 export * from "./story-activity.js";
 export * from "./review-activity.js";
+export * from "./listening-activity.js";

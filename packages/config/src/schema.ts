@@ -14,6 +14,9 @@ export const AppConfigSchema = z.object({
   }),
   speech: z.object({
     enabled: z.boolean().default(false),
+    kokoroModelDir: z.string().optional(),
+    defaultVoice: z.string().default("af_heart"),
+    defaultSpeed: z.number().positive().default(1.0),
   }),
   learning: z.object({
     dailyMinutes: z.number().int().positive().default(20),

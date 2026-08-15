@@ -6,6 +6,10 @@ import {
   SqliteLexemeRepository, SqliteReviewRepository, SqliteSessionActivityRepository,
 } from "@gofluent/db";
 import { FakeProvider, NvidiaNimProvider, type LLMProvider } from "@gofluent/ai";
+import {
+  FakeTextToSpeechProvider, KokoroTTSProvider, SystemAudioPlayer,
+  type AudioPlayer, type TextToSpeechProvider,
+} from "@gofluent/speech";
 
 /**
  * Composition root (ARCHITECTURE.md §22, §74): load config, resolve the data
@@ -35,6 +39,9 @@ export interface AppServices {
   provider: LLMProvider;
   model: string;
   repos: AppRepos;
+  tts: TextToSpeechProvider;
+  audioPlayer: AudioPlayer;
+  audioDir: string;
 }
 
 function buildRepos(db: DatabaseSync): AppRepos {
@@ -59,6 +66,16 @@ function createProvider(config: AppConfig): LLMProvider {
   return new FakeProvider();
 }
 
+/** Speech is opt-in (NVIDIA_NIM.md §43) — unconfigured/disabled stays network-and-subprocess-free. */
+function createTtsProvider(config: AppConfig, audioDir: string): TextToSpeechProvider {
+  if (!config.speech.enabled) return new FakeTextToSpeechProvider({ available: false });
+  return new KokoroTTSProvider({
+    modelDir: config.speech.kokoroModelDir,
+    defaultVoice: config.speech.defaultVoice,
+    audioDir,
+  });
+}
+
 function initializeDatabase(db: DatabaseSync): void {
   runMigrations(db);
   const now = new Date().toISOString();
@@ -71,13 +88,16 @@ export function bootstrap(): AppServices {
   const layout = resolveDataDirLayout();
   const db = openDatabase(layout.databaseFile);
   initializeDatabase(db);
-  return { config, db, userId: LOCAL_USER_ID, provider: createProvider(config), model: config.ai.model, repos: buildRepos(db) };
+  return {
+    config, db, userId: LOCAL_USER_ID, provider: createProvider(config), model: config.ai.model, repos: buildRepos(db),
+    tts: createTtsProvider(config, layout.audioDir), audioPlayer: new SystemAudioPlayer(), audioDir: layout.audioDir,
+  };
 }
 
 function defaultConfig(): AppConfig {
   return {
     ai: { provider: "fake", baseUrl: "https://example.test", model: "fake-model" },
-    speech: { enabled: false },
+    speech: { enabled: false, defaultVoice: "af_heart", defaultSpeed: 1.0 },
     learning: { dailyMinutes: 20, newItemsPerSession: 8 },
     dataDir: ":memory:",
   };
@@ -88,5 +108,8 @@ export function createInMemoryServices(): AppServices {
   const config = defaultConfig();
   const db = openDatabase(":memory:");
   initializeDatabase(db);
-  return { config, db, userId: LOCAL_USER_ID, provider: new FakeProvider(), model: config.ai.model, repos: buildRepos(db) };
+  return {
+    config, db, userId: LOCAL_USER_ID, provider: new FakeProvider(), model: config.ai.model, repos: buildRepos(db),
+    tts: new FakeTextToSpeechProvider({ available: false }), audioPlayer: new SystemAudioPlayer({ commandExists: async () => false }), audioDir: "/tmp/gofluent-test-audio",
+  };
 }

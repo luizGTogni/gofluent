@@ -15,7 +15,8 @@
     "@gofluent/db": "workspace:*",
     "@gofluent/learning-engine": "workspace:*",
     "@gofluent/lexical-engine": "workspace:*",
-    "@gofluent/shared": "workspace:*"
+    "@gofluent/shared": "workspace:*",
+    "@gofluent/speech": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

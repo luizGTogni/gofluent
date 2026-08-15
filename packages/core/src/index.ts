@@ -3,3 +3,4 @@ export * from "./enums.js";
 export * from "./learner-model.js";
 export * from "./content-model.js";
 export * from "./session-model.js";
+export * from "./audio-model.js";
