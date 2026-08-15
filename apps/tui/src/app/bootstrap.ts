@@ -1,4 +1,4 @@
-import { loadConfig, resolveDataDirLayout, type AppConfig } from "@gofluent/config";
+import { loadConfig, resolveConfigFilePath, resolveDataDirLayout, type AppConfig } from "@gofluent/config";
 import { ensureDeviceIdentity, openDatabase, runMigrations, seedBossChallenges, seedInitialLexemes, seedWorlds, type DatabaseSync } from "@gofluent/db";
 import {
   SqliteBossChallengeAttemptRepository, SqliteBossChallengeRepository,
@@ -59,6 +59,8 @@ export interface AppServices {
   deviceId: string;
   currentVersion: string;
   updateChecker: UpdateChecker | null;
+  /** Where SettingsScreen → API Keys saves credentials (ARCHITECTURE.md §59 — the on-disk half of layered config). */
+  configFilePath: string;
 }
 
 function buildRepos(db: DatabaseSync): AppRepos {
@@ -155,6 +157,7 @@ export function bootstrap(): AppServices {
     asr: createAsrProvider(config),
     deviceId: ensureDeviceIdentity(new SqliteDeviceIdentityRepository(db), new Date().toISOString()).deviceId,
     currentVersion: GOFLUENT_VERSION, updateChecker: createUpdateChecker(config, GOFLUENT_VERSION),
+    configFilePath: resolveConfigFilePath(),
   };
 }
 
@@ -180,5 +183,6 @@ export function createInMemoryServices(): AppServices {
     asr: new FakeSpeechToTextProvider({ available: false }),
     deviceId: ensureDeviceIdentity(new SqliteDeviceIdentityRepository(db), new Date().toISOString()).deviceId,
     currentVersion: GOFLUENT_VERSION, updateChecker: null,
+    configFilePath: "/tmp/gofluent-test-config/config.json",
   };
 }

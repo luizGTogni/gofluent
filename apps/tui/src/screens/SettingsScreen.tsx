@@ -6,11 +6,12 @@ import { SelectList } from "../components/SelectList.js";
 export interface SettingsScreenProps {
   services: AppServices;
   onOpenProfiles: () => void;
+  onOpenApiKeys: () => void;
   onBack: () => void;
 }
 
 /** Minimal settings view — full settings editing is out of Phase 2 scope. */
-export function SettingsScreen({ services, onOpenProfiles, onBack }: SettingsScreenProps): React.JSX.Element {
+export function SettingsScreen({ services, onOpenProfiles, onOpenApiKeys, onBack }: SettingsScreenProps): React.JSX.Element {
   useInput((_input, key) => { if (key.escape) onBack(); });
 
   return (
@@ -23,8 +24,16 @@ export function SettingsScreen({ services, onOpenProfiles, onBack }: SettingsScr
       <Text>Device ID: {services.deviceId}</Text>
       <Box marginTop={1}>
         <SelectList
-          items={[{ label: "Profiles", value: "profiles" as const }, { label: "Back", value: "back" as const }]}
-          onSelect={([value]) => { if (value === "profiles") onOpenProfiles(); else onBack(); }}
+          items={[
+            { label: "Profiles", value: "profiles" as const },
+            { label: "API Keys", value: "apiKeys" as const },
+            { label: "Back", value: "back" as const },
+          ]}
+          onSelect={([value]) => {
+            if (value === "profiles") onOpenProfiles();
+            else if (value === "apiKeys") onOpenApiKeys();
+            else onBack();
+          }}
         />
       </Box>
     </Box>

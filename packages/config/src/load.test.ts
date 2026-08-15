@@ -1,5 +1,9 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "./load.js";
+import { saveStoredConfig } from "./store.js";
 import { ConfigurationError } from "@gofluent/core";
 
 describe("loadConfig", () => {
@@ -55,5 +59,34 @@ describe("loadConfig", () => {
   it("does not require an API key (missing credential is a valid state)", () => {
     const config = loadConfig({ env: { GOFLUENT_DATA_DIR: "/tmp/gofluent-test" } });
     expect(config.ai.apiKey).toBeUndefined();
+  });
+
+  describe("with a saved config file", () => {
+    let dir: string;
+
+    function configFilePath(): string {
+      return join(dir, "config.json");
+    }
+
+    it("picks up an API key saved to the config file", () => {
+      dir = mkdtempSync(join(tmpdir(), "gofluent-load-test-"));
+      saveStoredConfig(configFilePath(), { ai: { apiKey: "saved-key" } });
+
+      const config = loadConfig({ env: { GOFLUENT_DATA_DIR: dir }, configFilePath: configFilePath() });
+      expect(config.ai.apiKey).toBe("saved-key");
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it("prefers the env var over a saved key", () => {
+      dir = mkdtempSync(join(tmpdir(), "gofluent-load-test-"));
+      saveStoredConfig(configFilePath(), { ai: { apiKey: "saved-key" } });
+
+      const config = loadConfig({
+        env: { GOFLUENT_DATA_DIR: dir, NVIDIA_API_KEY: "env-key" },
+        configFilePath: configFilePath(),
+      });
+      expect(config.ai.apiKey).toBe("env-key");
+      rmSync(dir, { recursive: true, force: true });
+    });
   });
 });

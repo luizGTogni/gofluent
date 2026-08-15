@@ -1,30 +1,24 @@
-import { readFileSync } from "node:fs";
 import { ConfigurationError } from "@gofluent/core";
 import { AppConfigSchema, type AppConfig } from "./schema.js";
-import { resolveDataDir } from "./paths.js";
+import { resolveConfigFilePath, resolveDataDir } from "./paths.js";
+import { readStoredConfig } from "./store.js";
 
 /**
  * Layered configuration: defaults → config file → environment variables
  * (ARCHITECTURE.md §59). Env vars win because secrets should prefer them.
+ * The config file (e.g. a saved API key) defaults to the standard data-dir
+ * location so keys saved from the TUI are picked up automatically; pass
+ * configFilePath explicitly (or "" ) to opt out, e.g. in tests.
  */
 export interface LoadConfigOptions {
   env?: NodeJS.ProcessEnv;
   configFilePath?: string;
 }
 
-function readConfigFile(path: string | undefined): Record<string, unknown> {
-  if (!path) return {};
-  try {
-    const raw = readFileSync(path, "utf-8");
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch (cause) {
-    throw new ConfigurationError(`Failed to read config file at ${path}`, { cause });
-  }
-}
-
 export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
   const env = options.env ?? process.env;
-  const fileConfig = readConfigFile(options.configFilePath);
+  const configFilePath = options.configFilePath ?? resolveConfigFilePath(env);
+  const fileConfig = configFilePath ? readStoredConfig(configFilePath) : {};
 
   const merged = {
     ai: {

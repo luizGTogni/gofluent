@@ -43,3 +43,8 @@ export function resolveDataDirLayout(env: NodeJS.ProcessEnv = process.env): Data
     configDir: child("config"),
   };
 }
+
+/** Where the on-disk half of the layered config (ARCHITECTURE.md §59) — including saved API keys — lives. */
+export function resolveConfigFilePath(env: NodeJS.ProcessEnv = process.env): string {
+  return `${resolveDataDirLayout(env).configDir}/config.json`;
+}

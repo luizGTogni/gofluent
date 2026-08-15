@@ -23,6 +23,7 @@ export type Route =
   | "PROGRESS"
   | "SETTINGS"
   | "PROFILES"
+  | "API_KEYS"
   | "UPDATE_AVAILABLE"
   | "ERROR";
 

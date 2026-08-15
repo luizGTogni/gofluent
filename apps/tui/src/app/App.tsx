@@ -20,6 +20,7 @@ import { BlindListeningScreen } from "../screens/BlindListeningScreen.js";
 import { ProgressScreen } from "../screens/ProgressScreen.js";
 import { SettingsScreen } from "../screens/SettingsScreen.js";
 import { ProfilesScreen } from "../screens/ProfilesScreen.js";
+import { ApiKeysScreen } from "../screens/ApiKeysScreen.js";
 import { UpdateAvailableScreen } from "../screens/UpdateAvailableScreen.js";
 import { ErrorScreen } from "../screens/ErrorScreen.js";
 import { Fullscreen } from "../components/Fullscreen.js";
@@ -265,12 +266,16 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
         <SettingsScreen
           services={resolvedServices}
           onOpenProfiles={() => dispatch({ type: "NAVIGATE", route: "PROFILES" })}
+          onOpenApiKeys={() => dispatch({ type: "NAVIGATE", route: "API_KEYS" })}
           onBack={() => dispatch({ type: "GO_HOME" })}
         />
       );
 
     case "PROFILES":
       return <ProfilesScreen services={resolvedServices} onBack={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })} />;
+
+    case "API_KEYS":
+      return <ApiKeysScreen services={resolvedServices} onDone={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })} />;
 
     case "UPDATE_AVAILABLE":
       if (!updateInfo) return <SplashScreen onDone={() => {}} />;
