@@ -85,7 +85,12 @@ function buildRepos(db: DatabaseSync): AppRepos {
 /** Only trust NVIDIA NIM when it is actually configured; otherwise stay network-free. */
 function createProvider(config: AppConfig): LLMProvider {
   if (config.ai.provider === "nvidia" && config.ai.apiKey && config.ai.apiKey.trim().length > 0) {
-    return new NvidiaNimProvider({ baseUrl: config.ai.baseUrl, apiKey: config.ai.apiKey, model: config.ai.model });
+    return new NvidiaNimProvider({
+      baseUrl: config.ai.baseUrl,
+      apiKey: config.ai.apiKey,
+      model: config.ai.model,
+      ...(config.ai.reasoningEffort !== "none" ? { reasoningEffort: config.ai.reasoningEffort } : {}),
+    });
   }
   return new FakeProvider();
 }
@@ -163,7 +168,7 @@ export function bootstrap(): AppServices {
 
 function defaultConfig(): AppConfig {
   return {
-    ai: { provider: "fake", baseUrl: "https://example.test", model: "fake-model" },
+    ai: { provider: "fake", baseUrl: "https://example.test", model: "fake-model", reasoningEffort: "none" },
     speech: { enabled: false, defaultVoice: "af_heart", defaultSpeed: 1.0, onlineFallbackEnabled: false, edgeDefaultVoice: "en-US-AriaNeural" },
     asr: { enabled: false, baseUrl: "https://asr.example.test" },
     learning: { dailyMinutes: 20, newItemsPerSession: 8 },

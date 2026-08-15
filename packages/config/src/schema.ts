@@ -11,6 +11,8 @@ export const AppConfigSchema = z.object({
     baseUrl: z.string().url().default("https://integrate.api.nvidia.com"),
     apiKey: z.string().optional(),
     model: z.string().default(""),
+    /** NVIDIA_NIM.md §18-19 — "none" omits reasoning_effort entirely (model's documented default). */
+    reasoningEffort: z.enum(["none", "low", "medium", "high"]).default("none"),
   }),
   speech: z.object({
     enabled: z.boolean().default(false),

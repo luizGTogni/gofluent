@@ -69,6 +69,30 @@ describe("NvidiaNimProvider", () => {
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer secret");
   });
 
+  it("sends reasoning_effort from config on every request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ choices: [{ message: { content: JSON.stringify({ title: "A Story" }) } }] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = new NvidiaNimProvider({
+      baseUrl: "https://example.test",
+      apiKey: "secret",
+      model: "m",
+      reasoningEffort: "high",
+    });
+
+    await provider.generate({
+      model: "m",
+      messages: [],
+      output: zodOutputContract("story", StorySchema, "nvidia"),
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body.reasoning_effort).toBe("high");
+  });
+
   it("normalizes a 401 into INVALID_CREDENTIAL", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ error: "nope" }, 401)));
 

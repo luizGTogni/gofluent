@@ -7,11 +7,12 @@ export interface SettingsScreenProps {
   services: AppServices;
   onOpenProfiles: () => void;
   onOpenApiKeys: () => void;
+  onOpenModelSettings: () => void;
   onBack: () => void;
 }
 
 /** Minimal settings view — full settings editing is out of Phase 2 scope. */
-export function SettingsScreen({ services, onOpenProfiles, onOpenApiKeys, onBack }: SettingsScreenProps): React.JSX.Element {
+export function SettingsScreen({ services, onOpenProfiles, onOpenApiKeys, onOpenModelSettings, onBack }: SettingsScreenProps): React.JSX.Element {
   useInput((_input, key) => { if (key.escape) onBack(); });
 
   return (
@@ -19,6 +20,7 @@ export function SettingsScreen({ services, onOpenProfiles, onOpenApiKeys, onBack
       <Text bold>Settings</Text>
       <Text>AI provider: {services.provider.displayName}</Text>
       <Text>Model: {services.model || "(default)"}</Text>
+      <Text>Reasoning effort: {services.config.ai.reasoningEffort}</Text>
       <Text>Daily minutes goal: {services.config.learning.dailyMinutes}</Text>
       <Text>New items per session: {services.config.learning.newItemsPerSession}</Text>
       <Text>Device ID: {services.deviceId}</Text>
@@ -27,11 +29,13 @@ export function SettingsScreen({ services, onOpenProfiles, onOpenApiKeys, onBack
           items={[
             { label: "Profiles", value: "profiles" as const },
             { label: "API Keys", value: "apiKeys" as const },
+            { label: "Model & Reasoning", value: "model" as const },
             { label: "Back", value: "back" as const },
           ]}
           onSelect={([value]) => {
             if (value === "profiles") onOpenProfiles();
             else if (value === "apiKeys") onOpenApiKeys();
+            else if (value === "model") onOpenModelSettings();
             else onBack();
           }}
         />

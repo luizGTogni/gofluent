@@ -24,6 +24,7 @@ export type Route =
   | "SETTINGS"
   | "PROFILES"
   | "API_KEYS"
+  | "MODEL_SETTINGS"
   | "UPDATE_AVAILABLE"
   | "ERROR";
 

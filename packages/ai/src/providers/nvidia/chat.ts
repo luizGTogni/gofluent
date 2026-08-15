@@ -7,6 +7,7 @@ export function buildChatCompletionBody(
   model: string,
   messages: Message[],
   sampling: SamplingSettings | undefined,
+  reasoningEffort?: "low" | "medium" | "high",
 ): Record<string, unknown> {
   return {
     model,
@@ -15,6 +16,7 @@ export function buildChatCompletionBody(
     ...(sampling?.temperature !== undefined ? { temperature: sampling.temperature } : {}),
     ...(sampling?.topP !== undefined ? { top_p: sampling.topP } : {}),
     ...(sampling?.maxOutputTokens !== undefined ? { max_tokens: sampling.maxOutputTokens } : {}),
+    ...(reasoningEffort !== undefined ? { reasoning_effort: reasoningEffort } : {}),
   };
 }
 

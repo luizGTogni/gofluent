@@ -26,6 +26,7 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
       baseUrl: env.NVIDIA_NIM_BASE_URL ?? (fileConfig as any).ai?.baseUrl,
       apiKey: env.NVIDIA_API_KEY ?? (fileConfig as any).ai?.apiKey,
       model: env.NVIDIA_NIM_MODEL ?? (fileConfig as any).ai?.model,
+      reasoningEffort: env.GOFLUENT_AI_REASONING_EFFORT ?? (fileConfig as any).ai?.reasoningEffort,
     },
     speech: {
       enabled: parseOptionalBoolean(env.GOFLUENT_SPEECH_ENABLED) ?? (fileConfig as any).speech?.enabled,

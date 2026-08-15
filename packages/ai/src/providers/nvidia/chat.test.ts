@@ -30,6 +30,14 @@ describe("buildChatCompletionBody", () => {
     const body = buildChatCompletionBody("m", [], undefined);
     expect(body).toEqual({ model: "m", messages: [], stream: false });
   });
+
+  it("includes reasoning_effort when set, omits it otherwise", () => {
+    const withEffort = buildChatCompletionBody("m", [], undefined, "high");
+    expect(withEffort).toEqual({ model: "m", messages: [], stream: false, reasoning_effort: "high" });
+
+    const withoutEffort = buildChatCompletionBody("m", [], undefined);
+    expect(withoutEffort).not.toHaveProperty("reasoning_effort");
+  });
 });
 
 describe("parseChatCompletionResponse", () => {

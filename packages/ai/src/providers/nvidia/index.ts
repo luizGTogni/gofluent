@@ -38,7 +38,7 @@ export class NvidiaNimProvider implements LLMProvider {
     }
 
     const model = request.model || this.config.model;
-    const body = buildChatCompletionBody(model, request.messages, request.sampling);
+    const body = buildChatCompletionBody(model, request.messages, request.sampling, this.config.reasoningEffort);
 
     const raw = await nvidiaRequest(
       this.config,

@@ -7,6 +7,8 @@ export interface NvidiaConfig {
   apiKey?: string;
   model: string;
   timeoutMs?: number;
+  /** NVIDIA_NIM.md §18 — sent as `reasoning_effort` on every request; undefined omits the field entirely. */
+  reasoningEffort?: "low" | "medium" | "high";
 }
 
 export const DEFAULT_NVIDIA_TIMEOUT_MS = 30_000;
