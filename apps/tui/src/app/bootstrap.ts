@@ -7,7 +7,7 @@ import {
 } from "@gofluent/db";
 import { FakeProvider, NvidiaNimProvider, type LLMProvider } from "@gofluent/ai";
 import {
-  FakeTextToSpeechProvider, KokoroTTSProvider, SystemAudioPlayer,
+  EdgeTTSProvider, FakeTextToSpeechProvider, FallbackTextToSpeechProvider, KokoroTTSProvider, SystemAudioPlayer,
   type AudioPlayer, type TextToSpeechProvider,
 } from "@gofluent/speech";
 
@@ -66,14 +66,27 @@ function createProvider(config: AppConfig): LLMProvider {
   return new FakeProvider();
 }
 
-/** Speech is opt-in (NVIDIA_NIM.md §43) — unconfigured/disabled stays network-and-subprocess-free. */
+/**
+ * Speech is opt-in (NVIDIA_NIM.md §43) — unconfigured/disabled stays
+ * network-and-subprocess-free. When enabled, local Kokoro is tried first;
+ * the online Edge Read Aloud fallback is a separate opt-in
+ * (`speech.onlineFallbackEnabled`) since — unlike Kokoro — it sends learner
+ * text off-device.
+ */
 function createTtsProvider(config: AppConfig, audioDir: string): TextToSpeechProvider {
   if (!config.speech.enabled) return new FakeTextToSpeechProvider({ available: false });
-  return new KokoroTTSProvider({
-    modelDir: config.speech.kokoroModelDir,
-    defaultVoice: config.speech.defaultVoice,
-    audioDir,
-  });
+
+  const providers: TextToSpeechProvider[] = [
+    new KokoroTTSProvider({
+      modelDir: config.speech.kokoroModelDir,
+      defaultVoice: config.speech.defaultVoice,
+      audioDir,
+    }),
+  ];
+  if (config.speech.onlineFallbackEnabled) {
+    providers.push(new EdgeTTSProvider({ defaultVoice: config.speech.edgeDefaultVoice, audioDir }));
+  }
+  return new FallbackTextToSpeechProvider(providers);
 }
 
 function initializeDatabase(db: DatabaseSync): void {
@@ -97,7 +110,7 @@ export function bootstrap(): AppServices {
 function defaultConfig(): AppConfig {
   return {
     ai: { provider: "fake", baseUrl: "https://example.test", model: "fake-model" },
-    speech: { enabled: false, defaultVoice: "af_heart", defaultSpeed: 1.0 },
+    speech: { enabled: false, defaultVoice: "af_heart", defaultSpeed: 1.0, onlineFallbackEnabled: false, edgeDefaultVoice: "en-US-AriaNeural" },
     learning: { dailyMinutes: 20, newItemsPerSession: 8 },
     dataDir: ":memory:",
   };

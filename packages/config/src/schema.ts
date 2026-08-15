@@ -17,6 +17,9 @@ export const AppConfigSchema = z.object({
     kokoroModelDir: z.string().optional(),
     defaultVoice: z.string().default("af_heart"),
     defaultSpeed: z.number().positive().default(1.0),
+    /** Opt-in only: sends learner text to Microsoft's Edge Read Aloud service, unlike on-device Kokoro (NVIDIA_NIM.md §40, §43). */
+    onlineFallbackEnabled: z.boolean().default(false),
+    edgeDefaultVoice: z.string().default("en-US-AriaNeural"),
   }),
   learning: z.object({
     dailyMinutes: z.number().int().positive().default(20),

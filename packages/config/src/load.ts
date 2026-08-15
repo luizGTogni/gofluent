@@ -39,6 +39,10 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
       defaultVoice: env.KOKORO_DEFAULT_VOICE ?? (fileConfig as any).speech?.defaultVoice,
       defaultSpeed:
         parseOptionalFloat(env.GOFLUENT_SPEECH_DEFAULT_SPEED) ?? (fileConfig as any).speech?.defaultSpeed,
+      onlineFallbackEnabled:
+        parseOptionalBoolean(env.GOFLUENT_SPEECH_ONLINE_FALLBACK) ??
+        (fileConfig as any).speech?.onlineFallbackEnabled,
+      edgeDefaultVoice: env.EDGE_TTS_DEFAULT_VOICE ?? (fileConfig as any).speech?.edgeDefaultVoice,
     },
     learning: {
       dailyMinutes:
