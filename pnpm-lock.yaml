@@ -76,6 +76,15 @@ importers:
       '@gofluent/core':
         specifier: workspace:*
         version: link:../core
+      '@gofluent/db':
+        specifier: workspace:*
+        version: link:../db
+      '@gofluent/learning-engine':
+        specifier: workspace:*
+        version: link:../learning-engine
+      '@gofluent/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       typescript:
         specifier: ^5.7.0

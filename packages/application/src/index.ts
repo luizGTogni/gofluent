@@ -4,4 +4,4 @@
  * Intentionally empty in Phase 0 — the package exists so dependency
  * boundaries and workspace wiring are established before feature code.
  */
-export {};
+export * from "./register-encounter.js";
