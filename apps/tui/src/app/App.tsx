@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useReducer } from "react";
 import type { BossChallenge, LearningSession, SessionActivity, World } from "@gofluent/core";
+import type { UpdateInfo } from "@gofluent/updater";
 import { initialNavigationState, navigationReducer } from "../navigation/state.js";
 import { SplashScreen } from "../screens/SplashScreen.js";
 import { OnboardingScreen } from "../screens/OnboardingScreen.js";
@@ -18,6 +19,8 @@ import { MediaPrepScreen } from "../screens/MediaPrepScreen.js";
 import { BlindListeningScreen } from "../screens/BlindListeningScreen.js";
 import { ProgressScreen } from "../screens/ProgressScreen.js";
 import { SettingsScreen } from "../screens/SettingsScreen.js";
+import { ProfilesScreen } from "../screens/ProfilesScreen.js";
+import { UpdateAvailableScreen } from "../screens/UpdateAvailableScreen.js";
 import { ErrorScreen } from "../screens/ErrorScreen.js";
 import { createInMemoryServices, type AppServices } from "./bootstrap.js";
 
@@ -39,10 +42,24 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
   const [speakScenario, setSpeakScenario] = useState("Everyday conversation practice");
   const [blindListeningTopic, setBlindListeningTopic] = useState<string | null>(null);
   const [mediaPrepTitle, setMediaPrepTitle] = useState<string | undefined>(undefined);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateChecked, setUpdateChecked] = useState(false);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   function onError(message: string): void {
     dispatch({ type: "ERROR_OCCURRED", message });
   }
+
+  // UPDATER.md §8, §12 — check begins asynchronously once Home is reached
+  // (never before/during onboarding, journey, story, review, or conversation),
+  // and failures never surface to the learner (§9 non-blocking failure).
+  React.useEffect(() => {
+    if (state.route !== "HOME" || updateChecked || !resolvedServices.updateChecker) return;
+    setUpdateChecked(true);
+    resolvedServices.updateChecker.checkForUpdate()
+      .then((info) => setUpdateInfo(info))
+      .catch(() => undefined);
+  }, [state.route, updateChecked, resolvedServices]);
 
   const activeActivity = journey?.activities.find((a) => a.id === journey.activeActivityId);
   React.useEffect(() => {
@@ -79,6 +96,8 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
           onOpenImmersion={() => dispatch({ type: "NAVIGATE", route: "IMMERSION" })}
           onOpenProgress={() => dispatch({ type: "NAVIGATE", route: "PROGRESS" })}
           onOpenSettings={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })}
+          updateInfo={updateDismissed ? null : updateInfo}
+          onViewUpdate={() => dispatch({ type: "NAVIGATE", route: "UPDATE_AVAILABLE" })}
           onError={onError}
         />
       );
@@ -238,7 +257,28 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
       return <ProgressScreen services={resolvedServices} onBack={() => dispatch({ type: "GO_HOME" })} />;
 
     case "SETTINGS":
-      return <SettingsScreen services={resolvedServices} onBack={() => dispatch({ type: "GO_HOME" })} />;
+      return (
+        <SettingsScreen
+          services={resolvedServices}
+          onOpenProfiles={() => dispatch({ type: "NAVIGATE", route: "PROFILES" })}
+          onBack={() => dispatch({ type: "GO_HOME" })}
+        />
+      );
+
+    case "PROFILES":
+      return <ProfilesScreen services={resolvedServices} onBack={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })} />;
+
+    case "UPDATE_AVAILABLE":
+      if (!updateInfo) return <SplashScreen onDone={() => {}} />;
+      return (
+        <UpdateAvailableScreen
+          updateInfo={updateInfo}
+          onNotNow={() => {
+            setUpdateDismissed(true);
+            dispatch({ type: "GO_HOME" });
+          }}
+        />
+      );
 
     case "VOCAB_DETAIL":
       return <SplashScreen onDone={() => {}} />;

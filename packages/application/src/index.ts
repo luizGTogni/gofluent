@@ -21,3 +21,4 @@ export * from "./boss-challenge-activity.js";
 export * from "./media-preparation-activity.js";
 export * from "./immersion-feed.js";
 export * from "./blind-listening-activity.js";
+export * from "./profile-activity.js";

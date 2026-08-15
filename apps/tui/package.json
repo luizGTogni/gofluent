@@ -20,6 +20,7 @@
     "@gofluent/db": "workspace:*",
     "@gofluent/shared": "workspace:*",
     "@gofluent/speech": "workspace:*",
+    "@gofluent/updater": "workspace:*",
     "ink": "^5.1.0",
     "react": "^18.3.0"
   },

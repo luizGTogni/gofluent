@@ -13,6 +13,8 @@ describe("loadConfig", () => {
     expect(config.asr.baseUrl).toBe("https://ai.api.nvidia.com/v1/speech");
     expect(config.learning.dailyMinutes).toBe(20);
     expect(config.learning.newItemsPerSession).toBe(8);
+    expect(config.updates.checkOnStartup).toBe(true);
+    expect(config.updates.githubOwner).toBeUndefined();
     expect(config.dataDir).toBe("/tmp/gofluent-test");
   });
 
@@ -25,6 +27,9 @@ describe("loadConfig", () => {
         GOFLUENT_DAILY_MINUTES: "45",
         GOFLUENT_ASR_ENABLED: "true",
         NVIDIA_ASR_BASE_URL: "https://asr.example.test",
+        GOFLUENT_CHECK_UPDATES: "false",
+        GOFLUENT_UPDATE_GITHUB_OWNER: "acme",
+        GOFLUENT_UPDATE_GITHUB_REPO: "gofluent",
       },
     });
 
@@ -34,6 +39,9 @@ describe("loadConfig", () => {
     expect(config.asr.enabled).toBe(true);
     expect(config.asr.baseUrl).toBe("https://asr.example.test");
     expect(config.asr.apiKey).toBe("secret-key");
+    expect(config.updates.checkOnStartup).toBe(false);
+    expect(config.updates.githubOwner).toBe("acme");
+    expect(config.updates.githubRepo).toBe("gofluent");
   });
 
   it("throws ConfigurationError on invalid values", () => {

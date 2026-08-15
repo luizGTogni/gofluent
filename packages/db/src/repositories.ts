@@ -11,6 +11,8 @@ import type {
   World, WorldRepository, WorldProgress, WorldProgressRepository,
   BossChallenge, BossChallengeRepository, BossChallengeAttempt, BossChallengeAttemptRepository,
   MediaPreparation, MediaPreparationRepository,
+  DeviceIdentity, DeviceIdentityRepository, SyncState, SyncStateRepository,
+  SettingsRepository,
 } from "@gofluent/core";
 import type { DatabaseSyncInstance } from "./sqlite/node-sqlite.js";
 
@@ -247,5 +249,45 @@ export class SqliteMediaPreparationRepository implements MediaPreparationReposit
     return { id: String(row.id), learnerId: String(row.learner_id), title: String(row.title), transcriptExcerpt: String(row.transcript_excerpt), language: String(row.language),
       estimatedComprehension: Number(row.estimated_comprehension), highValueLexemeIds: JSON.parse(String(row.high_value_lexeme_ids_json)) as string[],
       preparedCount: Number(row.prepared_count), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  }
+}
+
+export class SqliteDeviceIdentityRepository implements DeviceIdentityRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  get(): DeviceIdentity | null {
+    const row = this.db.prepare("SELECT * FROM device_identity LIMIT 1").get() as Row | undefined;
+    return row ? { deviceId: String(row.device_id), createdAt: String(row.created_at) } : null;
+  }
+  create(identity: DeviceIdentity): void {
+    this.db.prepare("INSERT OR IGNORE INTO device_identity (device_id,created_at) VALUES (?,?)").run(identity.deviceId, identity.createdAt);
+  }
+}
+
+export class SqliteSyncStateRepository implements SyncStateRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  get(entityType: string, entityId: string): SyncState | null {
+    const row = this.db.prepare("SELECT * FROM sync_state WHERE entity_type=? AND entity_id=?").get(entityType, entityId) as Row | undefined;
+    return row ? this.map(row) : null;
+  }
+  upsert(s: SyncState): void {
+    this.db.prepare(`INSERT INTO sync_state (id,entity_type,entity_id,device_id,sync_version,deleted_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(entity_type,entity_id) DO UPDATE SET device_id=excluded.device_id,sync_version=excluded.sync_version,deleted_at=excluded.deleted_at,updated_at=excluded.updated_at`).run(s.id,s.entityType,s.entityId,s.deviceId,s.syncVersion,s.deletedAt ?? null,s.updatedAt);
+  }
+  listSince(syncVersion: number, limit: number): SyncState[] {
+    return (this.db.prepare("SELECT * FROM sync_state WHERE sync_version > ? ORDER BY sync_version LIMIT ?").all(syncVersion, limit) as Row[]).map((r) => this.map(r));
+  }
+  private map(row: Row): SyncState {
+    return { id: String(row.id), entityType: String(row.entity_type), entityId: String(row.entity_id), deviceId: String(row.device_id),
+      syncVersion: Number(row.sync_version), deletedAt: optionalString(row.deleted_at), updatedAt: String(row.updated_at) };
+  }
+}
+
+export class SqliteSettingsRepository implements SettingsRepository {
+  constructor(private readonly db: DatabaseSyncInstance) {}
+  get(key: string): unknown | null {
+    const row = this.db.prepare("SELECT value_json FROM settings WHERE key=?").get(key) as { value_json: string } | undefined;
+    return row ? (JSON.parse(row.value_json) as unknown) : null;
+  }
+  set(key: string, value: unknown, updatedAt: string): void {
+    this.db.prepare("INSERT INTO settings (key,value_json,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json,updated_at=excluded.updated_at").run(key, JSON.stringify(value), updatedAt);
   }
 }

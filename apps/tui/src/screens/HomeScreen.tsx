@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Box, Text } from "ink";
 import { findInProgressSession, listSessionActivities } from "@gofluent/application";
 import type { LearningSession, SessionActivity } from "@gofluent/core";
+import type { UpdateInfo } from "@gofluent/updater";
 import type { AppServices } from "../app/bootstrap.js";
 import { startNewDailyJourneySession } from "../app/journey.js";
 import { SelectList } from "../components/SelectList.js";
@@ -16,11 +17,14 @@ export interface HomeScreenProps {
   onOpenImmersion: () => void;
   onOpenProgress: () => void;
   onOpenSettings: () => void;
+  /** UPDATER.md §12 — surfaced only on Home, never mid-activity. */
+  updateInfo?: UpdateInfo | null | undefined;
+  onViewUpdate: () => void;
   onError: (message: string) => void;
 }
 
 /** Home hub branches into Journey/Review/Speak/Import/Worlds/Immersion/Progress/Settings (ARCHITECTURE.md §21, PRD §64). */
-export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenSpeak, onOpenImport, onOpenWorlds, onOpenImmersion, onOpenProgress, onOpenSettings, onError }: HomeScreenProps): React.JSX.Element {
+export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenSpeak, onOpenImport, onOpenWorlds, onOpenImmersion, onOpenProgress, onOpenSettings, updateInfo, onViewUpdate, onError }: HomeScreenProps): React.JSX.Element {
   const inProgress = useMemo(() => findInProgressSession(services.db, services.userId), [services]);
   const dueCount = useMemo(() => services.repos.reviews.listDue(services.userId, new Date().toISOString(), 200).length, [services]);
 
@@ -46,11 +50,13 @@ export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenSpeak
     { label: "Immersion Feed", value: "immersion" as const },
     { label: "Progress", value: "progress" as const },
     { label: "Settings", value: "settings" as const },
+    ...(updateInfo ? [{ label: `Update available: ${updateInfo.latestVersion}`, value: "update" as const }] : []),
   ];
 
   return (
     <Box flexDirection="column" padding={1}>
       <Text bold>Home</Text>
+      {updateInfo && <Text dimColor>GoFluent {updateInfo.latestVersion} is available (you're using {updateInfo.currentVersion}).</Text>}
       <SelectList
         items={items}
         onSelect={([value]) => {
@@ -62,6 +68,7 @@ export function HomeScreen({ services, onOpenJourney, onQuickReview, onOpenSpeak
           else if (value === "immersion") onOpenImmersion();
           else if (value === "progress") onOpenProgress();
           else if (value === "settings") onOpenSettings();
+          else if (value === "update") onViewUpdate();
         }}
       />
     </Box>

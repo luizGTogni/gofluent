@@ -57,6 +57,11 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
         parseOptionalInt(env.GOFLUENT_NEW_ITEMS_PER_SESSION) ??
         (fileConfig as any).learning?.newItemsPerSession,
     },
+    updates: {
+      checkOnStartup: parseOptionalBoolean(env.GOFLUENT_CHECK_UPDATES) ?? (fileConfig as any).updates?.checkOnStartup,
+      githubOwner: env.GOFLUENT_UPDATE_GITHUB_OWNER ?? (fileConfig as any).updates?.githubOwner,
+      githubRepo: env.GOFLUENT_UPDATE_GITHUB_REPO ?? (fileConfig as any).updates?.githubRepo,
+    },
     dataDir: env.GOFLUENT_DATA_DIR ?? (fileConfig as any).dataDir ?? resolveDataDir(env),
   };
 

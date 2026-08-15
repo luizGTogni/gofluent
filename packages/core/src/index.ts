@@ -9,3 +9,5 @@ export * from "./imported-content-model.js";
 export * from "./world-model.js";
 export * from "./boss-challenge-model.js";
 export * from "./media-preparation-model.js";
+export * from "./sync-model.js";
+export * from "./settings-model.js";

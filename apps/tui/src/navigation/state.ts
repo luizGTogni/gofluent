@@ -22,6 +22,8 @@ export type Route =
   | "VOCAB_DETAIL"
   | "PROGRESS"
   | "SETTINGS"
+  | "PROFILES"
+  | "UPDATE_AVAILABLE"
   | "ERROR";
 
 export interface NavigationState {

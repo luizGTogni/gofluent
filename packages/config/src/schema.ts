@@ -32,6 +32,13 @@ export const AppConfigSchema = z.object({
     dailyMinutes: z.number().int().positive().default(20),
     newItemsPerSession: z.number().int().positive().default(8),
   }),
+  updates: z.object({
+    /** UPDATER.md §10 — checked once per startup, in the background, never blocking. */
+    checkOnStartup: z.boolean().default(true),
+    /** Unset until a GitHub repo is registered (ROADMAP risk #8) — update checks stay a no-op until configured. */
+    githubOwner: z.string().optional(),
+    githubRepo: z.string().optional(),
+  }),
   dataDir: z.string().min(1),
 });
 

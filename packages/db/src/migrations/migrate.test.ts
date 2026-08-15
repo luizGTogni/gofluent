@@ -27,14 +27,16 @@ const EXPECTED_TABLES = [
   "boss_challenges",
   "boss_challenge_attempts",
   "media_preparation",
+  "device_identity",
+  "sync_state",
 ];
 
 describe("runMigrations", () => {
-  it("creates all vertical-slice tables from 0001_initial.sql through 0006_media_preparation.sql", () => {
+  it("creates all vertical-slice tables from 0001_initial.sql through 0007_sync_state.sql", () => {
     const db = openDatabase(":memory:");
     const applied = runMigrations(db);
 
-    expect(applied).toEqual(["0001_initial", "0002_audio_assets", "0003_learner_errors", "0004_imported_content", "0005_worlds", "0006_media_preparation"]);
+    expect(applied).toEqual(["0001_initial", "0002_audio_assets", "0003_learner_errors", "0004_imported_content", "0005_worlds", "0006_media_preparation", "0007_sync_state"]);
 
     const rows = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
