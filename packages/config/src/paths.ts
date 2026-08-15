@@ -33,12 +33,13 @@ export interface DataDirLayout {
 
 export function resolveDataDirLayout(env: NodeJS.ProcessEnv = process.env): DataDirLayout {
   const root = resolveDataDir(env);
+  const child = (name: string) => `${root}/${name}`;
   return {
     root,
-    databaseFile: join(root, "gofluent.db"),
-    cacheDir: join(root, "cache"),
-    audioDir: join(root, "audio"),
-    logsDir: join(root, "logs"),
-    configDir: join(root, "config"),
+    databaseFile: child("gofluent.db"),
+    cacheDir: child("cache"),
+    audioDir: child("audio"),
+    logsDir: child("logs"),
+    configDir: child("config"),
   };
 }
