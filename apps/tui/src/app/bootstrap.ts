@@ -166,6 +166,22 @@ export function bootstrap(): AppServices {
   };
 }
 
+/**
+ * Re-reads config.json (env vars still win, ARCHITECTURE.md §59) and rebuilds
+ * just the AI-provider-dependent pieces — called after Settings/first-run
+ * setup saves a key or model so the change applies immediately, no restart.
+ */
+export function reloadAiConfig(previous: AppServices): AppServices {
+  const config = loadConfig();
+  return {
+    ...previous,
+    config,
+    provider: createProvider(config),
+    model: config.ai.model,
+    asr: createAsrProvider(config),
+  };
+}
+
 function defaultConfig(): AppConfig {
   return {
     ai: { provider: "fake", baseUrl: "https://example.test", model: "fake-model", reasoningEffort: "none" },

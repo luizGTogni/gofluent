@@ -7,22 +7,30 @@ async function pressEnter(stdin: { write: (input: string) => void }): Promise<vo
   await new Promise((resolve) => setTimeout(resolve, 20));
 }
 
+/** createInMemoryServices() has no API key, so Splash routes into the Setup gate first — Esc skips it. */
+async function skipSetup(stdin: { write: (input: string) => void }, lastFrame: () => string | undefined): Promise<void> {
+  await vi.waitFor(() => expect(lastFrame()).toContain("GoFluent Setup"), { timeout: 2000 });
+  stdin.write("\x1B");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+}
+
 describe("App", () => {
-  it("shows the Splash screen first, then advances to Onboarding automatically", async () => {
+  it("shows the Splash screen first, then advances to Setup automatically", async () => {
     const { lastFrame, unmount } = render(<App />);
 
     expect(lastFrame()).toContain("GoFluent");
 
     await vi.waitFor(() => {
-      expect(lastFrame()).toContain("Welcome to GoFluent");
+      expect(lastFrame()).toContain("GoFluent Setup");
     }, { timeout: 2000 });
 
     unmount();
   });
 
-  it("walks Onboarding → Placement → Home end to end", async () => {
+  it("walks Setup → Onboarding → Placement → Home end to end", async () => {
     const { lastFrame, stdin, unmount } = render(<App />);
 
+    await skipSetup(stdin, lastFrame);
     await vi.waitFor(() => expect(lastFrame()).toContain("Welcome to GoFluent"), { timeout: 2000 });
     await pressEnter(stdin); // native language -> daily minutes
     // Each step swaps in a freshly mounted SelectList, whose useInput listener

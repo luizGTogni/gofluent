@@ -6,6 +6,8 @@ import type { AppServices } from "../app/bootstrap.js";
 export interface ApiKeysScreenProps {
   services: AppServices;
   onDone: () => void;
+  /** Called right after a successful save so the caller can hot-reload the provider (see reloadAiConfig). */
+  onSaved?: () => void;
 }
 
 type Phase = "EDIT" | "SAVED";
@@ -22,13 +24,14 @@ function maskKey(key: string | undefined): string {
  * to the on-disk config file, so learners don't need to set an env var.
  * A saved key still loses to an env var at load time (ARCHITECTURE.md §59).
  */
-export function ApiKeysScreen({ services, onDone }: ApiKeysScreenProps): React.JSX.Element {
+export function ApiKeysScreen({ services, onDone, onSaved }: ApiKeysScreenProps): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>("EDIT");
   const [typed, setTyped] = useState("");
 
   function save(value: string): void {
     const trimmed = value.trim();
     saveStoredConfig(services.configFilePath, { ai: { apiKey: trimmed }, asr: { apiKey: trimmed } });
+    onSaved?.();
     setPhase("SAVED");
   }
 
@@ -47,7 +50,7 @@ export function ApiKeysScreen({ services, onDone }: ApiKeysScreenProps): React.J
     return (
       <Box flexDirection="column" padding={1}>
         <Text bold>API Keys</Text>
-        <Text>Saved. Restart GoFluent for the new key to take effect.</Text>
+        <Text>Saved.</Text>
         <Text dimColor>Press Enter to continue.</Text>
       </Box>
     );

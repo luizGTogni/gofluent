@@ -6,6 +6,7 @@
  */
 export type Route =
   | "SPLASH"
+  | "SETUP"
   | "ONBOARDING"
   | "PLACEMENT"
   | "HOME"

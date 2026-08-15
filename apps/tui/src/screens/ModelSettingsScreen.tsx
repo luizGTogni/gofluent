@@ -7,6 +7,8 @@ import { SelectList } from "../components/SelectList.js";
 export interface ModelSettingsScreenProps {
   services: AppServices;
   onDone: () => void;
+  /** Called right after a successful save so the caller can hot-reload the provider (see reloadAiConfig). */
+  onSaved?: () => void;
 }
 
 type Phase = "MODEL" | "EFFORT" | "SAVED";
@@ -24,7 +26,7 @@ const EFFORT_LEVELS = [
  * the chosen model — an unsupported model/effort combo surfaces as a
  * provider error at generation time, same as any other invalid request.
  */
-export function ModelSettingsScreen({ services, onDone }: ModelSettingsScreenProps): React.JSX.Element {
+export function ModelSettingsScreen({ services, onDone, onSaved }: ModelSettingsScreenProps): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>("MODEL");
   const [model, setModel] = useState(services.config.ai.model);
 
@@ -40,7 +42,7 @@ export function ModelSettingsScreen({ services, onDone }: ModelSettingsScreenPro
     return (
       <Box flexDirection="column" padding={1}>
         <Text bold>Model &amp; Reasoning</Text>
-        <Text>Saved. Restart GoFluent for the new settings to take effect.</Text>
+        <Text>Saved.</Text>
         <Text dimColor>Press Enter to continue.</Text>
         <SelectListDismiss onDone={onDone} />
       </Box>
@@ -58,6 +60,7 @@ export function ModelSettingsScreen({ services, onDone }: ModelSettingsScreenPro
             items={EFFORT_LEVELS}
             onSelect={([value]) => {
               saveStoredConfig(services.configFilePath, { ai: { model: model.trim(), reasoningEffort: value } });
+              onSaved?.();
               setPhase("SAVED");
             }}
           />

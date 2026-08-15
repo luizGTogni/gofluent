@@ -22,10 +22,11 @@ import { SettingsScreen } from "../screens/SettingsScreen.js";
 import { ProfilesScreen } from "../screens/ProfilesScreen.js";
 import { ApiKeysScreen } from "../screens/ApiKeysScreen.js";
 import { ModelSettingsScreen } from "../screens/ModelSettingsScreen.js";
+import { SetupScreen } from "../screens/SetupScreen.js";
 import { UpdateAvailableScreen } from "../screens/UpdateAvailableScreen.js";
 import { ErrorScreen } from "../screens/ErrorScreen.js";
 import { Fullscreen } from "../components/Fullscreen.js";
-import { createInMemoryServices, type AppServices } from "./bootstrap.js";
+import { createInMemoryServices, reloadAiConfig, type AppServices } from "./bootstrap.js";
 
 export interface AppProps {
   services?: AppServices;
@@ -38,7 +39,8 @@ interface JourneyState {
 }
 
 export function App({ services }: AppProps = {}): React.JSX.Element {
-  const resolvedServices = useMemo(() => services ?? createInMemoryServices(), [services]);
+  const initialServices = useMemo(() => services ?? createInMemoryServices(), [services]);
+  const [resolvedServices, setResolvedServices] = useState<AppServices>(initialServices);
   const [state, dispatch] = useReducer(navigationReducer, initialNavigationState);
   const [journey, setJourney] = useState<JourneyState | null>(null);
   const [activeChallenge, setActiveChallenge] = useState<{ world: World; bossChallenge: BossChallenge } | null>(null);
@@ -52,6 +54,12 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
   function onError(message: string): void {
     dispatch({ type: "ERROR_OCCURRED", message });
   }
+
+  function onCredentialsSaved(): void {
+    setResolvedServices((prev) => reloadAiConfig(prev));
+  }
+
+  const hasApiKey = Boolean(resolvedServices.config.ai.apiKey && resolvedServices.config.ai.apiKey.trim().length > 0);
 
   // UPDATER.md §8, §12 — check begins asynchronously once Home is reached
   // (never before/during onboarding, journey, story, review, or conversation),
@@ -79,7 +87,20 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
   function renderRoute(): React.JSX.Element {
   switch (state.route) {
     case "SPLASH":
-      return <SplashScreen onDone={() => dispatch({ type: "SPLASH_DONE" })} />;
+      return (
+        <SplashScreen
+          onDone={() => dispatch(hasApiKey ? { type: "SPLASH_DONE" } : { type: "NAVIGATE", route: "SETUP" })}
+        />
+      );
+
+    case "SETUP":
+      return (
+        <SetupScreen
+          services={resolvedServices}
+          onSaved={onCredentialsSaved}
+          onDone={() => dispatch({ type: "SPLASH_DONE" })}
+        />
+      );
 
     case "ONBOARDING":
       return <OnboardingScreen services={resolvedServices} onDone={() => dispatch({ type: "ONBOARDING_DONE" })} onError={onError} />;
@@ -277,10 +298,22 @@ export function App({ services }: AppProps = {}): React.JSX.Element {
       return <ProfilesScreen services={resolvedServices} onBack={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })} />;
 
     case "API_KEYS":
-      return <ApiKeysScreen services={resolvedServices} onDone={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })} />;
+      return (
+        <ApiKeysScreen
+          services={resolvedServices}
+          onSaved={onCredentialsSaved}
+          onDone={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })}
+        />
+      );
 
     case "MODEL_SETTINGS":
-      return <ModelSettingsScreen services={resolvedServices} onDone={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })} />;
+      return (
+        <ModelSettingsScreen
+          services={resolvedServices}
+          onSaved={onCredentialsSaved}
+          onDone={() => dispatch({ type: "NAVIGATE", route: "SETTINGS" })}
+        />
+      );
 
     case "UPDATE_AVAILABLE":
       if (!updateInfo) return <SplashScreen onDone={() => {}} />;

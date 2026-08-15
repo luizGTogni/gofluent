@@ -9,8 +9,13 @@ async function pressEnter(stdin: { write: (input: string) => void }): Promise<vo
   await new Promise((resolve) => setTimeout(resolve, 20));
 }
 
-/** Mirrors App.test.tsx's known-good Onboarding → Placement → Home walkthrough. */
+/** Mirrors App.test.tsx's known-good Setup → Onboarding → Placement → Home walkthrough. */
 async function walkToHome(stdin: { write: (input: string) => void }, lastFrame: () => string | undefined): Promise<void> {
+  // createInMemoryServices() has no API key, so Splash routes into the Setup gate first — Esc skips it.
+  await vi.waitFor(() => expect(lastFrame()).toContain("GoFluent Setup"), { timeout: 2000 });
+  stdin.write("\x1B");
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
   await vi.waitFor(() => expect(lastFrame()).toContain("Welcome to GoFluent"), { timeout: 2000 });
   await pressEnter(stdin); // native language -> daily minutes
   await vi.waitFor(() => expect(lastFrame()).toContain("How many minutes a day"), { timeout: 2000 });
