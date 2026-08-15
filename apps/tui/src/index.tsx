@@ -7,13 +7,15 @@ const LEAVE_ALT_SCREEN = "\x1b[?1049l";
 const HIDE_CURSOR = "\x1b[?25l";
 const SHOW_CURSOR = "\x1b[?25h";
 
-try {
-  bootstrap();
-} catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`GoFluent failed to start: ${message}\n`);
-  process.exit(1);
-}
+const services = (() => {
+  try {
+    return bootstrap();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`GoFluent failed to start: ${message}\n`);
+    process.exit(1);
+  }
+})();
 
 if (process.stdout.isTTY) {
   process.stdout.write(ENTER_ALT_SCREEN + HIDE_CURSOR);
@@ -26,4 +28,4 @@ if (process.stdout.isTTY) {
   process.on("SIGTERM", () => process.exit(0));
 }
 
-render(<App />);
+render(<App services={services} />);
