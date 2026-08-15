@@ -16,8 +16,9 @@ export function PlacementScreen({ services, onDone, onError }: PlacementScreenPr
   const [answers, setAnswers] = useState<PlacementAnswer[]>([]);
   const question = PLACEMENT_QUESTIONS[index];
 
-  function answer(selectedOptionIndex: number): void {
-    const next = [...answers, { questionId: question!.id, selectedOptionIndex }];
+  /** null selectedOptionIndex ("I don't know") records no answer — scorePlacement/runPlacementAssessment already treat a missing answer as SKIPPED. */
+  function answer(selectedOptionIndex: number | null): void {
+    const next = selectedOptionIndex === null ? answers : [...answers, { questionId: question!.id, selectedOptionIndex }];
     if (index + 1 < PLACEMENT_QUESTIONS.length) {
       setAnswers(next);
       setIndex(index + 1);
@@ -49,8 +50,11 @@ export function PlacementScreen({ services, onDone, onError }: PlacementScreenPr
       <Text>{question.prompt}</Text>
       <SelectList
         key={question.id}
-        items={question.options.map((label, optionIndex) => ({ label, value: optionIndex }))}
-        onSelect={([value]) => answer(value ?? 0)}
+        items={[
+          ...question.options.map((label, optionIndex) => ({ label, value: optionIndex as number | null })),
+          { label: "I don't know", value: null },
+        ]}
+        onSelect={([value]) => answer(value ?? null)}
       />
     </Box>
   );
