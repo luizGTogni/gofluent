@@ -25,7 +25,9 @@ async function walkToHome(stdin: { write: (input: string) => void }, lastFrame: 
   stdin.write(" "); // toggle first interest
   await vi.waitFor(() => expect(lastFrame()).toContain("[x] travel"), { timeout: 2000 });
   await new Promise((resolve) => setTimeout(resolve, 50));
-  await pressEnter(stdin); // confirm interests -> summary
+  await pressEnter(stdin); // confirm interests -> custom interests
+  await vi.waitFor(() => expect(lastFrame()).toContain("Any other interests"), { timeout: 2000 });
+  await pressEnter(stdin); // leave custom interests blank -> summary
   await pressEnter(stdin); // confirm summary -> completes onboarding
 
   await vi.waitFor(() => expect(lastFrame()).toContain("Placement"), { timeout: 2000 });

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
 import { completeOnboarding } from "@gofluent/application";
 import type { AppServices } from "../app/bootstrap.js";
 import { SelectList } from "../components/SelectList.js";
@@ -14,7 +14,7 @@ const NATIVE_LANGUAGES = ["Portuguese", "Spanish", "French", "German", "Other"];
 const DAILY_MINUTES_OPTIONS = [10, 15, 20, 30, 45];
 const INTEREST_OPTIONS = ["travel", "cooking", "technology", "movies", "sports", "business", "music", "science"];
 
-type Step = "LANGUAGE" | "MINUTES" | "INTERESTS" | "SUMMARY";
+type Step = "LANGUAGE" | "MINUTES" | "INTERESTS" | "CUSTOM_INTERESTS" | "SUMMARY";
 
 /** Native language, goals, interests (PRD §9.1-9.5). Self-assessment happens in the Placement screen (PRD §9.6). */
 export function OnboardingScreen({ services, onDone, onError }: OnboardingScreenProps): React.JSX.Element {
@@ -22,6 +22,23 @@ export function OnboardingScreen({ services, onDone, onError }: OnboardingScreen
   const [nativeLanguage, setNativeLanguage] = useState<string | null>(null);
   const [dailyMinutes, setDailyMinutes] = useState<number | null>(null);
   const [interests, setInterests] = useState<string[]>([]);
+  const [customInterestsText, setCustomInterestsText] = useState("");
+
+  function addCustomInterests(): void {
+    const custom = customInterestsText
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    setInterests((prev) => [...prev, ...custom.filter((c) => !prev.includes(c))]);
+    setStep("SUMMARY");
+  }
+
+  useInput((input, key) => {
+    if (step !== "CUSTOM_INTERESTS") return;
+    if (key.return) { addCustomInterests(); return; }
+    if (key.backspace || key.delete) { setCustomInterestsText((t) => t.slice(0, -1)); return; }
+    if (input && !key.ctrl && !key.meta) setCustomInterestsText((t) => t + input);
+  });
 
   function finish(): void {
     try {
@@ -66,8 +83,17 @@ export function OnboardingScreen({ services, onDone, onError }: OnboardingScreen
             items={INTEREST_OPTIONS.map((label) => ({ label, value: label }))}
             mode="multi"
             minSelected={1}
-            onSelect={(values) => { setInterests(values); setStep("SUMMARY"); }}
+            onSelect={(values) => { setInterests(values); setStep("CUSTOM_INTERESTS"); }}
           />
+        </Box>
+      )}
+      {step === "CUSTOM_INTERESTS" && (
+        <Box flexDirection="column">
+          <Text>Any other interests not on the list? Comma-separated, or leave blank.</Text>
+          <Box marginTop={1}>
+            <Text>&gt; {customInterestsText}</Text>
+          </Box>
+          <Text dimColor>Enter to continue.</Text>
         </Box>
       )}
       {step === "SUMMARY" && (
