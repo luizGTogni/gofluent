@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { saveStoredConfig } from "@gofluent/config";
 import type { Model } from "@gofluent/ai";
@@ -36,9 +36,14 @@ export function ModelSettingsScreen({ services, onDone, onSaved }: ModelSettings
   const [model, setModel] = useState(services.config.ai.model);
   const [availableModels, setAvailableModels] = useState<Model[]>([]);
 
+  // Fetch once against whichever provider was current on mount — onSaved (see
+  // reloadAiConfig) can hand this screen a brand-new provider instance mid-flow
+  // (e.g. right after saving the effort), and re-running this on that identity
+  // change would silently bounce the learner back to LIST after they'd moved on.
+  const providerRef = useRef(services.provider);
   useEffect(() => {
     let cancelled = false;
-    services.provider
+    providerRef.current
       .listModels()
       .then((models) => {
         if (cancelled) return;
@@ -51,7 +56,7 @@ export function ModelSettingsScreen({ services, onDone, onSaved }: ModelSettings
     return () => {
       cancelled = true;
     };
-  }, [services.provider]);
+  }, []);
 
   useInput((input, key) => {
     if (phase !== "MODEL") return;

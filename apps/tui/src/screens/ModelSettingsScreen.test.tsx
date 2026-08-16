@@ -129,4 +129,31 @@ describe("ModelSettingsScreen", () => {
 
     unmount();
   });
+
+  it("does not bounce back to the model list when services.provider gets a new identity mid-flow (reloadAiConfig)", async () => {
+    const services = {
+      ...createInMemoryServices(),
+      configFilePath,
+      provider: new FakeProvider({ models: [fakeModel("model-a"), fakeModel("model-b")] }),
+    };
+    const { lastFrame, stdin, unmount, rerender } = render(<ModelSettingsScreen services={services} onDone={() => {}} />);
+
+    await vi.waitFor(() => expect(lastFrame()).toContain("Models available"), { timeout: 2000 });
+    stdin.write("j"); // throwaway keystroke absorbs the resubscription race (see SpeakScreen.test.tsx)
+    await tick();
+    stdin.write("\r"); // pick "model-a"
+
+    await vi.waitFor(() => expect(lastFrame()).toContain("Reasoning effort"), { timeout: 2000 });
+
+    // Simulate App's onCredentialsSaved handing this screen a services object
+    // with a brand-new provider instance (reloadAiConfig), same as what
+    // ApiKeysScreen's onSaved triggers earlier in the Setup flow.
+    const reloaded = { ...services, provider: new FakeProvider({ models: [fakeModel("model-a"), fakeModel("model-b")] }) };
+    rerender(<ModelSettingsScreen services={reloaded} onDone={() => {}} />);
+    await tick(20);
+
+    expect(lastFrame()).toContain("Reasoning effort"); // still on EFFORT, not bounced back to LIST
+
+    unmount();
+  });
 });

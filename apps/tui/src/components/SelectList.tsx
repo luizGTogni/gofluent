@@ -12,10 +12,14 @@ export interface SelectListProps<T> {
   mode?: "single" | "multi";
   minSelected?: number;
   onSelect: (values: T[]) => void;
+  /** Caps how many rows render at once (default 10) — a list longer than the terminal's height corrupts Ink's diffing across renders (it assumes no scroll happened), so long lists must scroll within a fixed window instead of printing every row. */
+  maxVisible?: number;
 }
 
+const DEFAULT_MAX_VISIBLE = 10;
+
 /** Minimal keyboard-driven list picker shared by onboarding/placement/home menus — no extra Ink deps. */
-export function SelectList<T>({ items, mode = "single", minSelected = 1, onSelect }: SelectListProps<T>): React.JSX.Element {
+export function SelectList<T>({ items, mode = "single", minSelected = 1, onSelect, maxVisible = DEFAULT_MAX_VISIBLE }: SelectListProps<T>): React.JSX.Element {
   const [cursor, setCursor] = useState(0);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
@@ -39,18 +43,26 @@ export function SelectList<T>({ items, mode = "single", minSelected = 1, onSelec
     }
   });
 
+  const windowStart = Math.max(0, Math.min(cursor - Math.floor(maxVisible / 2), items.length - maxVisible));
+  const windowEnd = Math.min(items.length, windowStart + maxVisible);
+  const hiddenAbove = windowStart;
+  const hiddenBelow = items.length - windowEnd;
+
   return (
     <Box flexDirection="column">
-      {items.map((item, index) => {
+      {hiddenAbove > 0 && <Text dimColor>↑ {hiddenAbove} more</Text>}
+      {items.slice(windowStart, windowEnd).map((item, offset) => {
+        const index = windowStart + offset;
         const isCursor = index === cursor;
         const isChecked = mode === "multi" && selected.has(index);
         const marker = mode === "multi" ? (isChecked ? "[x]" : "[ ]") : isCursor ? ">" : " ";
         return (
-          <Text key={item.label} {...(isCursor ? { color: "cyan" as const } : {})}>
+          <Text key={index} {...(isCursor ? { color: "cyan" as const } : {})}>
             {marker} {item.label}
           </Text>
         );
       })}
+      {hiddenBelow > 0 && <Text dimColor>↓ {hiddenBelow} more</Text>}
       {mode === "multi" && <Text dimColor>Space to toggle, Enter to confirm (min {minSelected}).</Text>}
     </Box>
   );
