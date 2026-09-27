@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DIFFICULTIES, DIFFICULTY, scoreExercise, TIER_COPY, TIER_LABEL, type Difficulty, type Result, type Tier } from "@/lib/engine";
-import { loadContent, pickSession } from "@/lib/content";
+import { buildSession, loadContent } from "@/lib/content";
+import { afterAttempt, dueList, whenLabel, type ReviewState } from "@/lib/review";
+import { loadReview, putReview } from "@/lib/reviewStore";
 import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
 import { ExerciseView } from "./ExerciseView";
@@ -10,7 +12,7 @@ import { MyWords } from "./MyWords";
 import { SaveChunks } from "./SaveChunks";
 import { WordCards } from "./WordCards";
 
-type Summary = { tier: Tier; points: number; combo: number; result: Result };
+type Summary = { tier: Tier; points: number; combo: number; result: Result; review?: string };
 type Screen = "intro" | "play" | "end" | "words";
 
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -20,6 +22,8 @@ export function Session() {
   const [exercises, setExercises] = useState<Exercise[]>(EXERCISES);
   const remote = useRef<Exercise[] | null>(null);
   const total = exercises.length;
+  const [review, setReview] = useState<Map<string, ReviewState>>(new Map());
+  const [reviewKeys, setReviewKeys] = useState<Set<string>>(new Set());
   const [index, setIndex] = useState(0);
   const [replay, setReplay] = useState(0);
   const [audioTick, setAudioTick] = useState(0);
@@ -44,6 +48,14 @@ export function Session() {
     const nextCombo = result.typedErrors === 0 ? combo + 1 : 0;
     const { tier, points } = scoreExercise(exercise.words, result, nextCombo, difficulty);
     const s: Summary = { tier, points, combo: nextCombo, result };
+    const key = sentenceOf(exercise);
+    const now = new Date();
+    const updated = afterAttempt(review.get(key), result.typedErrors === 0 && !result.helped, key, now);
+    if (updated) {
+      putReview(updated);
+      setReview((m) => new Map(m).set(key, updated));
+      s.review = updated.box === 0 ? "This one will come back for review." : `Back for review ${whenLabel(updated.dueAt, now)}.`;
+    }
     setCombo(nextCombo);
     setScore((v) => v + points);
     setSummary(s);
@@ -72,13 +84,26 @@ export function Session() {
   }, [summary, index]);
 
   useEffect(() => {
+    if (screen !== "intro") return;
+    loadReview().then((list) => setReview(new Map(list.map((r) => [r.phrase, r]))));
+  }, [screen]);
+
+  useEffect(() => {
     loadContent().then((c) => {
       if (c.source === "remote") remote.current = c.exercises;
     });
   }, []);
 
   const start = () => {
-    setExercises(pickSession(remote.current ?? EXERCISES));
+    const pool = remote.current ?? EXERCISES;
+    const byText = new Map(pool.map((e) => [sentenceOf(e), e]));
+    const dueEx = dueList(review.values(), new Date())
+      .map((r) => byText.get(r.phrase))
+      .filter((e): e is Exercise => Boolean(e));
+    const session = buildSession(pool, dueEx);
+    const dueTexts = new Set(dueEx.map(sentenceOf));
+    setReviewKeys(new Set(session.map(sentenceOf).filter((t) => dueTexts.has(t))));
+    setExercises(session);
     setIndex(0);
     setReplay(0);
     setScore(0);
@@ -89,6 +114,8 @@ export function Session() {
     setScreen("play");
   };
 
+  const dueCount = dueList(review.values(), new Date()).length;
+
   if (screen === "words") return <MyWords onBack={() => setScreen("intro")} />;
 
   if (screen === "intro") {
@@ -98,6 +125,11 @@ export function Session() {
         <img src="/logo.svg" alt="GoFluent" className="logo" />
         <h1 className="hero">Make English part of your every day.</h1>
         <p className="muted">Listen. Type. Every key is practice. {total} short exercises today.</p>
+        {dueCount > 0 && (
+          <p className="muted">
+            <b className="accent">{dueCount}</b> {dueCount === 1 ? "sentence is" : "sentences are"} ready for review.
+          </p>
+        )}
         <div className="levels" role="radiogroup" aria-label="Difficulty">
           {DIFFICULTIES.map((d) => (
             <button
@@ -170,6 +202,7 @@ export function Session() {
               <i className="dot" /> {summary ? "Well done" : "Your turn to type"}
             </span>
             <div className="bar-actions">
+              {reviewKeys.has(sentenceOf(exercise)) && <span className="level-badge review-badge">Review</span>}
               <span className="level-badge">{DIFFICULTY[difficulty].label}</span>
               <button
                 type="button"
@@ -224,6 +257,7 @@ export function Session() {
               {TIER_COPY[summary.tier]} <b className="accent">+{summary.points}</b>
               {summary.combo > 0 && ` · Nice · Combo ${summary.combo}`}
             </p>
+            {summary.review && <p className="muted review-note">{summary.review}</p>}
             <SaveChunks exercise={exercise} />
             <div className="footer">
               <span />

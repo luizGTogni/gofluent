@@ -29,6 +29,15 @@ export function pickSession(pool: Exercise[], n = 10): Exercise[] {
   return chosen.sort((a, b) => size(a) - size(b));
 }
 
+const MAX_REVIEW = 4;
+
+/** Due review phrases first (capped), the rest filled with new content, easiest first. */
+export function buildSession(pool: Exercise[], due: Exercise[], n = 10): Exercise[] {
+  const review = due.slice(0, MAX_REVIEW);
+  const fresh = pickSession(pool.filter((e) => !review.includes(e)), n - review.length);
+  return [...review, ...fresh].sort((a, b) => a.words.length - b.words.length);
+}
+
 export type Content = { exercises: Exercise[]; source: "remote" | "local" };
 
 const local: Content = { exercises: EXERCISES, source: "local" };

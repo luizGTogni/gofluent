@@ -3,11 +3,12 @@
 import { useState } from "react";
 import type { Exercise } from "@/lib/exercises";
 import { sentenceOf } from "@/lib/exercises";
+import { enrollIfMissing } from "@/lib/reviewStore";
 import { saveItem, type SaveResult } from "@/lib/saved";
 import { supabaseConfigured } from "@/lib/supabase";
 
 const MESSAGE: Record<SaveResult, string> = {
-  saved: "Saved. It will be waiting in My words.",
+  saved: "Saved. This sentence will come back for review.",
   duplicate: "Already in My words.",
   error: "Couldn't save right now. Try again.",
   offline: "Saving isn't set up yet.",
@@ -36,15 +37,15 @@ export function SaveChunks({ exercise }: { exercise: Exercise }) {
   const save = async () => {
     if (!range) return;
     setBusy(true);
-    setResult(
-      await saveItem({
-        text: selected,
-        sentence: sentenceOf(exercise),
-        translation: exercise.translation,
-        start: range[0],
-        end: range[1],
-      }),
-    );
+    const outcome = await saveItem({
+      text: selected,
+      sentence: sentenceOf(exercise),
+      translation: exercise.translation,
+      start: range[0],
+      end: range[1],
+    });
+    if (outcome === "saved") await enrollIfMissing(sentenceOf(exercise));
+    setResult(outcome);
     setBusy(false);
   };
 

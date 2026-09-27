@@ -560,3 +560,12 @@ button {
   font-size: 13px;
   margin-top: 4px;
 }
+
+.review-badge {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.review-note {
+  margin-top: 6px;
+  font-size: 13px;
+}
