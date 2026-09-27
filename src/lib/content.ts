@@ -61,18 +61,28 @@ export function buildSession(pool: Exercise[], due: Exercise[], tricky: Map<stri
 export type Content = { exercises: Exercise[]; source: "remote" | "local" };
 
 const local: Content = { exercises: EXERCISES, source: "local" };
+const PAGE = 1000;
 
 /** Loads phrases from Supabase; falls back to the bundled content on any problem. */
 export async function loadContent(): Promise<Content> {
   const db = getPublicClient();
   if (!db) return local;
   try {
-    const { data, error } = await db
-      .from("phrases")
-      .select("text, translation, planet, phrase_words(word_index, words(text, ipa, pos))")
-      .order("level")
-      .order("sort_order");
-    if (error || !data?.length) return local;
+    // The API returns at most 1000 rows per request, so read the library in pages.
+    const data: unknown[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data: page, error } = await db
+        .from("phrases")
+        .select("text, translation, planet, phrase_words(word_index, words(text, ipa, pos))")
+        .order("level")
+        .order("sort_order")
+        .order("id")
+        .range(from, from + PAGE - 1);
+      if (error) return local;
+      data.push(...page);
+      if (page.length < PAGE) break;
+    }
+    if (!data.length) return local;
 
     const exercises: Exercise[] = [];
     for (const row of data as unknown as Row[]) {

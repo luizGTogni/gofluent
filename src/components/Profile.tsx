@@ -12,6 +12,7 @@ import { localDay } from "@/lib/streak";
 import { BADGES } from "@/lib/badges";
 import { loadBadges, unlockedBadges } from "@/lib/badgeStore";
 import { plural } from "@/lib/format";
+import { checkAdmin } from "@/lib/adminStore";
 import { StreakCard } from "./StreakCard";
 import { OrbitHistory } from "./Heatmap";
 import { Avatar } from "./Avatar";
@@ -43,6 +44,7 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
   const [account, setAccount] = useState<Account | null>(null);
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
   const [badges, setBadges] = useState<Set<string>>(new Set());
+  const [admin, setAdmin] = useState(false);
   const walletRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -50,6 +52,7 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
     getProfile().then(setProfile);
     setBadges(unlockedBadges());
     loadBadges().then(setBadges);
+    checkAdmin().then((ok) => setAdmin(ok === true));
   }, []);
 
   const rank = rankOf(player.rp);
@@ -70,9 +73,16 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
         <button type="button" className="link icon-text" onClick={onBack}>
           <ArrowLeft /> Back
         </button>
-        <button type="button" className="link" onClick={leave}>
-          Sign out
-        </button>
+        <span style={{ display: "flex", gap: 16 }}>
+          {admin && (
+            <a href="/admin" className="link">
+              Admin
+            </a>
+          )}
+          <button type="button" className="link" onClick={leave}>
+            Sign out
+          </button>
+        </span>
       </div>
 
       <div className="profile-grid">

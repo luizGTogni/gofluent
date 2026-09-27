@@ -1,0 +1,73 @@
+/* Content admin: plain and dense, on the app's colors (globals.css :root). */
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+  color: var(--text);
+  font-family: var(--font);
+}
+.h1 { font-size: 26px; margin: 0; }
+.h2 { font-size: 18px; margin: 0; }
+.h3 { font-size: 15px; margin: 18px 0 6px; }
+.muted { color: var(--muted); font-size: 13px; }
+.ok { color: var(--ok); font-size: 13px; }
+.bad { color: var(--bad); font-size: 13px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 12px 0; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 0; }
+.tab, .tabOn, .chip, .chipOn {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.tabOn, .chipOn { border-color: var(--accent); background: var(--accent-soft); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip b, .chipOn b { margin-left: 4px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); flex: 1 1 220px; margin: 8px 0; }
+.check { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 14px; }
+.input, .textarea {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 14px;
+  min-width: 0;
+  width: 100%;
+}
+/* Only side by side in a row; in a column (.field) a flex-basis would become the height. */
+.row > .input { flex: 1 1 200px; width: auto; }
+.field > .input { flex: none; height: auto; }
+.input:focus, .textarea:focus { outline: none; border-color: var(--accent); }
+.textarea { font-family: var(--font-geist-mono), monospace; resize: vertical; }
+.primary, .secondary {
+  border-radius: 8px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid var(--accent);
+}
+.primary { background: var(--accent); color: var(--bg); font-weight: 600; }
+.secondary { background: transparent; color: var(--accent); }
+.primary:disabled, .secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+.linkBtn { background: none; border: 0; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; padding: 0 4px; }
+.linkBtn:hover { color: var(--text); }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 6px; border-bottom: 1px solid var(--line); }
+.table td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.rowBad td { background: rgba(255, 107, 122, 0.06); }
+.page code { font-family: var(--font-geist-mono), monospace; font-size: 12px; color: var(--accent); }
