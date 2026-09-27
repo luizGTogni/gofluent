@@ -215,3 +215,69 @@ export const Moon = (p: IconProps) => (
     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
   </Icon>
 );
+
+export const Search = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m21 21-4.3-4.3" />
+  </Icon>
+);
+
+/** Friends. */
+export const Users = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </Icon>
+);
+
+/** The friends leaderboard. */
+export const Trophy = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8 21h8" />
+    <path d="M12 17v4" />
+    <path d="M7 4h10v5a5 5 0 0 1-10 0Z" />
+    <path d="M7 4H4a1 1 0 0 0-1 1v1a4 4 0 0 0 4 4" />
+    <path d="M17 4h3a1 1 0 0 1 1 1v1a4 4 0 0 1-4 4" />
+  </Icon>
+);
+
+/** Send a friend request. */
+export const UserPlus = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M19 8v6" />
+    <path d="M22 11h-6" />
+  </Icon>
+);
+
+/** Friends already. */
+export const UserCheck = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="m16 11 2 2 4-4" />
+  </Icon>
+);
+
+/** More actions (unfriend, block, report). */
+export const MoreHorizontal = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </Icon>
+);
+
+/** Remove or block a player. */
+export const UserX = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="m17 8 5 5" />
+    <path d="m22 8-5 5" />
+  </Icon>
+);

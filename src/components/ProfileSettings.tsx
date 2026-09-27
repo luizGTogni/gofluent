@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import {
   BIO_MAX,
   getProfileSettings,
+  listBlocked,
   regenerateFriendCode,
   saveProfileSettings,
+  unblockUser,
   type AllowRequests,
+  type BlockedRow,
   type ProfileSettings as Settings,
   type Visibility,
 } from "@/lib/social";
@@ -42,6 +45,10 @@ export function ProfileSettings({ onBack }: Props) {
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [confirmNewCode, setConfirmNewCode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [blocked, setBlocked] = useState<BlockedRow[] | null>(null);
+  const [unblocking, setUnblocking] = useState<string | null>(null);
+
+  const loadBlocked = () => listBlocked().then((r) => setBlocked(r.ok ? r.data : []));
 
   useEffect(() => {
     getProfileSettings().then((s) => {
@@ -49,7 +56,15 @@ export function ProfileSettings({ onBack }: Props) {
       setDraft(s);
       setLoading(false);
     });
+    loadBlocked();
   }, []);
+
+  const unblock = async (username: string) => {
+    setUnblocking(username);
+    await unblockUser(username);
+    setUnblocking(null);
+    loadBlocked();
+  };
 
   const set = (patch: Partial<Draft>) => {
     setDraft((d) => (d ? { ...d, ...patch } : d));
@@ -212,6 +227,22 @@ export function ProfileSettings({ onBack }: Props) {
                 </label>
               ))}
             </fieldset>
+
+            {blocked && blocked.length > 0 && (
+              <fieldset className="profile-card settings-group">
+                <legend className="settings-legend">Blocked</legend>
+                <div className="social-list">
+                  {blocked.map((b) => (
+                    <div key={b.username} className="social-row social-row-actions">
+                      <span className="social-row-name">@{b.username}</span>
+                      <button type="button" className="check ghost settings-small" disabled={unblocking === b.username} onClick={() => unblock(b.username)}>
+                        Unblock
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </fieldset>
+            )}
 
             <div className="settings-actions">
               <button type="button" className="check" onClick={save} disabled={busy || !dirty || bioLength > BIO_MAX}>

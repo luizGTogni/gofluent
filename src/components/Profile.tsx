@@ -17,7 +17,7 @@ import { StreakCard } from "./StreakCard";
 import { OrbitHistory } from "./Heatmap";
 import { Avatar } from "./Avatar";
 import { Currency } from "./Currency";
-import { Alert, ArrowLeft, ArrowRight, Bookmark, Lock, Store, Target } from "./icons";
+import { Alert, ArrowLeft, ArrowRight, Bookmark, Lock, Store, Target, Users } from "./icons";
 import { Medal } from "./icons/Medal";
 import { Stars } from "./icons/Stars";
 
@@ -35,13 +35,14 @@ type Props = {
   onShop: () => void;
   onSettings: () => void;
   onAchievements: () => void;
+  onFriends: () => void;
   /** Starts a session from the orbit card; false while there's nothing to play. */
   canStudy: boolean;
   onStudy: () => void;
   onSignedOut: () => void;
 };
 
-export function Profile({ player, wallet, calendar, planetStats, trickyCount, onBack, onWords, onTricky, onQuests, onShop, onSettings, onAchievements, canStudy, onStudy, onSignedOut }: Props) {
+export function Profile({ player, wallet, calendar, planetStats, trickyCount, onBack, onWords, onTricky, onQuests, onShop, onSettings, onAchievements, onFriends, canStudy, onStudy, onSignedOut }: Props) {
   const [account, setAccount] = useState<Account | null>(null);
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
   const [admin, setAdmin] = useState(false);
@@ -171,6 +172,16 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
       </section>
 
       <nav className="profile-links">
+        {profile && (
+          <button type="button" className="profile-link" onClick={onFriends}>
+            <span className="icon-text">
+              <Users /> Friends
+            </span>
+            <span className="muted icon-text">
+              Requests, search, leaderboard <ArrowRight />
+            </span>
+          </button>
+        )}
         <button type="button" className="profile-link" onClick={onQuests}>
           <span className="icon-text">
             <Target /> Missions

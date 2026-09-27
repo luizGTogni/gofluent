@@ -31,6 +31,13 @@ export type IconName =
   | "bulb-off"
   | "sunrise"
   | "moon"
+  | "search"
+  | "users"
+  | "trophy"
+  | "user-plus"
+  | "user-check"
+  | "user-x"
+  | "more-horizontal"
   // game identity, filled in their brand colour
   | "coin"
   | "crystal"

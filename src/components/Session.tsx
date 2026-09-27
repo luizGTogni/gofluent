@@ -65,6 +65,10 @@ import { AuthGate } from "./AuthGate";
 import { MyWords } from "./MyWords";
 import { Profile } from "./Profile";
 import { ProfileSettings } from "./ProfileSettings";
+import { Friends } from "./Friends";
+import { Leaderboard } from "./Leaderboard";
+import { PublicProfile } from "./PublicProfile";
+import { HomeLeaderboardCard } from "./HomeLeaderboardCard";
 import { Achievements } from "./Achievements";
 import { Promotion } from "./Promotion";
 import { TopBar } from "./TopBar";
@@ -98,7 +102,7 @@ type Summary = {
   oxygenNote?: string;
 };
 type Auth = "loading" | "gate" | "guest" | "member";
-type Screen = "intro" | "modes" | "play" | "end" | "words" | "tricky" | "profile" | "settings" | "achievements" | "quests" | "shop";
+type Screen = "intro" | "modes" | "play" | "end" | "words" | "tricky" | "profile" | "settings" | "achievements" | "quests" | "shop" | "friends" | "leaderboard" | "public-profile";
 
 const SUMMARY_SETTLE_MS = 300;
 
@@ -123,6 +127,9 @@ const writeGuest = (on: boolean) => {
 
 export function Session() {
   const [screen, setScreen] = useState<Screen>("intro");
+  const [viewingUsername, setViewingUsername] = useState<string | null>(null);
+  const [profileOrigin, setProfileOrigin] = useState<Screen>("friends");
+  const [addCode, setAddCode] = useState<string | null>(null);
   const [exercises, setExercises] = useState<Exercise[]>(EXERCISES);
   const [library, setLibrary] = useState<Exercise[]>(EXERCISES);
   // The planet picked on the journey or in Free mode; the stop you're on when it can't be played.
@@ -196,6 +203,19 @@ export function Session() {
     }
     getAccount().then((a) => setAuth(a ? "member" : readGuest() ? "guest" : "gate"));
   }, []);
+
+  // An invite link (/?add=<friend code>): jump to Friends > Add with the code ready to search.
+  useEffect(() => {
+    if (auth !== "member") return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("add");
+    if (!code) return;
+    setAddCode(code);
+    setScreen("friends");
+    params.delete("add");
+    const qs = params.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [auth]);
 
   useEffect(() => {
     if (screen !== "play" || summary) return;
@@ -817,6 +837,7 @@ export function Session() {
         onShop={() => setScreen("shop")}
         onSettings={() => setScreen("settings")}
         onAchievements={() => setScreen("achievements")}
+        onFriends={() => setScreen("friends")}
         canStudy={Boolean(continueId)}
         onStudy={() => start("classic")}
         onSignedOut={() => {
@@ -835,6 +856,21 @@ export function Session() {
   if (screen === "tricky") return <TrickyWords stats={[...wordStats.values()]} onBack={() => setScreen("profile")} />;
 
   if (screen === "words") return <MyWords onBack={() => setScreen("profile")} />;
+
+  const openProfile = (from: Screen) => (username: string) => {
+    setViewingUsername(username);
+    setProfileOrigin(from);
+    setScreen("public-profile");
+  };
+
+  if (screen === "friends")
+    return <Friends onBack={() => setScreen("profile")} onLeaderboard={() => setScreen("leaderboard")} onOpenProfile={openProfile("friends")} initialQuery={addCode} />;
+
+  if (screen === "leaderboard")
+    return <Leaderboard onBack={() => setScreen("friends")} onOpenProfile={openProfile("leaderboard")} />;
+
+  if (screen === "public-profile" && viewingUsername)
+    return <PublicProfile username={viewingUsername} onBack={() => setScreen(profileOrigin)} />;
 
   if (screen === "intro") {
     return (
@@ -923,6 +959,7 @@ export function Session() {
                 </button>
               </div>
               <DailyMissions quests={quests} onClaim={claim} onAll={() => setScreen("quests")} />
+              <HomeLeaderboardCard onOpen={() => setScreen("leaderboard")} />
             </div>
             <h1 className="home-tagline">Follow your journey through the learning space</h1>
           </>
@@ -961,6 +998,7 @@ export function Session() {
               onMissions={() => setScreen("quests")}
               onShop={() => setScreen("shop")}
             />
+            <HomeLeaderboardCard onOpen={() => setScreen("leaderboard")} />
           </aside>
         )}
         </div>

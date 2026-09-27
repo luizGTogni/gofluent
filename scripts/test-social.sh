@@ -28,10 +28,12 @@ user() { echo "('$1', '{\"username\": \"$2\", \"full_name\": \"$3\"}')"; }
 
 # A and B sign up before the migration, so its backfill has profiles to cover; C after.
 psql_ < scripts/ledger-test/stubs.sql
-for f in supabase/migrations/*.sql; do [[ "$f" == *0021_* ]] || psql_ < "$f" >/dev/null; done
+MARK=supabase/migrations/0021_social_privacy.sql
+for f in supabase/migrations/*.sql; do [[ "$f" < "$MARK" ]] && psql_ < "$f" >/dev/null; done
 sql "insert into auth.users (id, raw_user_meta_data) values $(user "$A" ana 'Ana Lima'), $(user "$B" bruno 'Bruno Reis')"
-psql_ < supabase/migrations/0021_social_privacy.sql >/dev/null
+psql_ < "$MARK" >/dev/null
 sql "insert into auth.users (id, raw_user_meta_data) values $(user "$C" carla 'Carla Dias')"
+for f in supabase/migrations/*.sql; do [[ "$f" > "$MARK" ]] && psql_ < "$f" >/dev/null; done
 
 echo "== friend codes"
 check "backfilled and made on sign-up, all distinct" "3 3" "$(sql "select count(friend_code) || ' ' || count(distinct friend_code) from profiles")"
