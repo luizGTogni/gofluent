@@ -38,7 +38,8 @@ import { getProfile, signOut, syncTimeZone } from "@/lib/auth";
 import { coinsForXp, CRYSTALS_PER_CEFR_UP, CRYSTALS_PER_RANK_UP, dailyInterest, milestoneReward, type Wallet } from "@/lib/economy";
 import {
   addFrozenDay,
-  addStudySeconds,
+  emptyCalendar,
+  recordStudy,
   interestAppliedToday,
   loadCalendar,
   loadWallet,
@@ -136,7 +137,7 @@ export function Session() {
   // The latest wallet, readable synchronously, so rewards are computed before any setState.
   const walletRef = useRef(wallet);
   const [quests, setQuests] = useState<QuestProgress[]>([]);
-  const [calendar, setCalendar] = useState<StudyCalendar>({ checked: new Set(), frozen: new Set(), lastInterestDay: null });
+  const [calendar, setCalendar] = useState<StudyCalendar>(emptyCalendar);
   const [freezeNote, setFreezeNote] = useState<string | null>(null);
   const checkedInToday = useRef(false);
   const [fullName, setFullName] = useState<string | undefined>();
@@ -272,7 +273,12 @@ export function Session() {
       setPlanetStats(nextPlanetStats);
 
       // Economy: coins for the XP just earned, plus today's check-in and its streak effects.
-      addStudySeconds(Math.max(1, Math.round(result.elapsedMs / 1000)));
+      recordStudy(Math.max(1, Math.round(result.elapsedMs / 1000)), gain.total);
+      setCalendar((c) => {
+        const day = localDay(now);
+        const was = c.volume.get(day) ?? { phrases: 0, xp: 0 };
+        return { ...c, volume: new Map(c.volume).set(day, { phrases: was.phrases + 1, xp: was.xp + gain.total }) };
+      });
       let coinGain = coinsForXp(gain.total);
       let crystalGain = (change === "promotion" ? CRYSTALS_PER_RANK_UP : 0) + (cefrUp ? CRYSTALS_PER_CEFR_UP : 0);
       let freezeGain = 0;
@@ -589,6 +595,8 @@ export function Session() {
         onTricky={() => setScreen("tricky")}
         onQuests={() => setScreen("quests")}
         onShop={() => setScreen("shop")}
+        canStudy={Boolean(continueId)}
+        onStudy={() => start("classic")}
         onSignedOut={() => {
           setReview(new Map());
           setWordStats(new Map());

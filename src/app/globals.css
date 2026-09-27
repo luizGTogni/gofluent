@@ -1313,34 +1313,250 @@ button.card:hover {
   color: var(--gold);
 }
 
-.heatmap {
-  display: flex;
-  width: 100%;
-  gap: 3px;
-  padding: 4px 2px;
+/* orbit calendar: fixed-size cells (not stretched), Monday-first rows, weeks as columns.
+   --cell/--gap/--label are mirrored in Heatmap.tsx, which fits the number of weeks to the width. */
+.streak-card {
+  --cell: 12px;
+  --gap: 3px;
+  --label: 28px;
 }
-.heatmap-col {
+.heatmap {
+  position: relative;
+  width: 100%;
   display: flex;
-  flex: 1 1 0;
   flex-direction: column;
-  gap: 3px;
-  min-width: 0;
+  gap: var(--gap);
+  font-size: 10px;
+  color: var(--muted);
+}
+.heatmap-months,
+.heatmap-row {
+  display: grid;
+  grid-template-columns: calc(var(--label) - var(--gap)) repeat(var(--weeks), var(--cell));
+  gap: var(--gap);
+}
+.heatmap-months span {
+  white-space: nowrap;
+  overflow: visible;
+  line-height: 1;
+}
+.heatmap-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+.heatmap-daylabel {
+  font-size: 9px;
+  line-height: var(--cell);
 }
 .heatmap-cell {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1;
-  border-radius: 2px;
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 3px;
   background: var(--panel-2);
+  outline-offset: 1px;
 }
-.heatmap-cell.empty {
-  background: transparent;
+.heatmap-grid .heatmap-cell {
+  cursor: pointer;
 }
-.heatmap-cell.on {
+.heatmap-cell.l1,
+.week-day.l1 {
+  background: rgba(88, 214, 160, 0.32);
+}
+.heatmap-cell.l2,
+.week-day.l2 {
+  background: rgba(88, 214, 160, 0.55);
+}
+.heatmap-cell.l3,
+.week-day.l3 {
+  background: rgba(88, 214, 160, 0.78);
+}
+.heatmap-cell.l4,
+.week-day.l4 {
   background: var(--ok);
 }
-.heatmap-cell.frozen {
-  box-shadow: 0 0 0 1.5px var(--accent) inset;
+/* a day a Streak Shield covered: hatched, not just a ring */
+.heatmap-cell.shield,
+.week-day.shield {
+  background-image: repeating-linear-gradient(135deg, #6fc8ff 0 2px, transparent 2px 4px);
+}
+/* days still to come this week: drawn, but dashed and dim */
+.heatmap-cell.future,
+.week-day.future {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  opacity: 0.6;
+}
+/* today, studied or not; it pulses gently until it's secured */
+.heatmap-cell.today,
+.week-day.today {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.heatmap-cell.today.pending,
+.week-day.today.pending {
+  animation: today-pulse 2s ease-in-out infinite;
+}
+@keyframes today-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--accent); }
+  50% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(242, 194, 107, 0.25); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heatmap-cell.today.pending,
+  .week-day.today.pending {
+    animation: none;
+  }
+}
+.heatmap-pop {
+  position: absolute;
+  z-index: 10;
+  transform: translate(-50%, -100%);
+  width: max-content;
+  max-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+  text-align: left;
+  pointer-events: none;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.heatmap-pop.below {
+  transform: translate(-50%, 0);
+}
+.heatmap-pop b::first-letter {
+  text-transform: uppercase;
+}
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.heatmap-legend .legend-sep {
+  margin: 0 4px;
+}
+
+/* a new orbit: this week as seven big days */
+.week-strip {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.week-strip li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.week-day {
+  width: min(40px, 100%);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--panel-2);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 14px;
+}
+.week-day.l3,
+.week-day.l4 {
+  color: #0f2a1f;
+}
+/* in the big week view a shield reads better as a ringed badge than as hatching */
+.week-day.shield {
+  background-image: none;
+  box-shadow: inset 0 0 0 2px #6fc8ff;
+}
+.week-name {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* the orbit card around it */
+.streak-card {
+  gap: 12px;
+}
+.streak-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.streak-now {
+  font-size: 18px;
+}
+.streak-now b {
+  font-size: 34px;
+  line-height: 1;
+  color: var(--accent);
+}
+.streak-next {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  margin: 0;
+}
+.streak-today {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+.streak-today.done {
+  border-color: var(--ok);
+  background: rgba(88, 214, 160, 0.08);
+  color: var(--ok);
+  font-weight: 600;
+}
+.streak-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.streak-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.streak-summary dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+.streak-summary dd {
+  margin: 0;
+  font-weight: 600;
+}
+.streak-shields {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+  font-size: 13px;
+}
+.profile-wallet {
+  margin-top: 0;
 }
 
 /* top bar */
@@ -2780,8 +2996,8 @@ kbd {
   .profile-col + .profile-col {
     grid-column: span 7;
   }
-  .profile .heatmap {
-    max-width: 420px;
+  .streak-card {
+    --cell: 14px;
   }
   /* the rails are narrow at 1024px: stack what sits side by side */
   @container (max-width: 250px) {
