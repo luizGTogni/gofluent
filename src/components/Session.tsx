@@ -148,7 +148,7 @@ export function Session() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="GoFluent" className="logo" />
         <h1 className="hero">Make English part of your every day.</h1>
-        <p className="muted">Listen. Type. Every key is practice. {total} short exercises today.</p>
+        <p className="muted">Listen. Type. Every key is practice. Today&apos;s mission: {total} short exercises.</p>
         {dueCount > 0 && (
           <p className="muted">
             <b className="accent">{dueCount}</b> {dueCount === 1 ? "sentence is" : "sentences are"} ready for review.
@@ -196,7 +196,7 @@ export function Session() {
       <main className="shell center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="GoFluent" className="logo" />
-        <h1 className="hero">Session complete</h1>
+        <h1 className="hero">Mission complete</h1>
         <div className="stats">
           <div>
             <b>{score}</b>
