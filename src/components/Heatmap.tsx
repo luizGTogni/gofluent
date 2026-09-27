@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { gridWeeks, intensity, longDate, monthLabels, shortDate, WEEKDAYS_PT, type DayVolume } from "@/lib/heatmap";
+import { gridWeeks, historyDays, intensity, longDate, monthLabels, shortDate, WEEKDAYS, type DayVolume } from "@/lib/heatmap";
 import { plural } from "@/lib/format";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
   today: string;
 };
 
-// Cell geometry, mirrored in globals.css (.streak-card: --cell, --gap, --label).
+// Cell geometry, mirrored in globals.css (.orbit-history: --cell, --gap, --label).
 const GAP = 3;
 const LABEL = 28;
 const cellSize = () => (window.matchMedia("(min-width: 1024px)").matches ? 14 : 12);
@@ -118,7 +118,7 @@ export function Heatmap({ checked, frozen, volume, today }: Props) {
         onKeyDown={onKeyDown}
         onMouseLeave={() => setPop(null)}
       >
-        {WEEKDAYS_PT.map((name, d) => (
+        {WEEKDAYS.map((name, d) => (
           <div key={d} role="row" className="heatmap-row">
             <span className="heatmap-daylabel" aria-hidden>
               {d % 2 === 0 && d < 5 ? name : ""}
@@ -167,33 +167,28 @@ export function Heatmap({ checked, frozen, volume, today }: Props) {
   );
 }
 
-/** A new orbit (under two weeks of history): this week as seven big days, Monday to Sunday. */
-export function WeekStrip({ week, checked, frozen, volume, today }: Props & { week: string[] }) {
+/** The full calendar only earns its space once there are two weeks of history. */
+const HISTORY_FROM_DAYS = 14;
+
+/** The orbit calendar as its own card, under the orbit card; nothing until two weeks of history. */
+export function OrbitHistory(props: Props) {
+  if (historyDays(props.checked, props.frozen, props.today) < HISTORY_FROM_DAYS) return null;
   return (
-    <ol className="week-strip" aria-label="This week">
-      {week.map((day, i) => {
-        const studied = checked.has(day);
-        const s: DayState = { day, future: day > today, studied, shield: frozen.has(day), level: intensity(studied, volume.get(day)), v: volume.get(day) };
-        return (
-          <li key={day} aria-label={describe(s, today).label}>
-            <span
-              className={[
-                "week-day",
-                `l${s.level}`,
-                s.future ? "future" : "",
-                s.shield ? "shield" : "",
-                day === today ? `today ${studied ? "" : "pending"}` : "",
-              ].join(" ")}
-              aria-hidden
-            >
-              {studied ? "✓" : s.shield ? "🛡️" : ""}
-            </span>
-            <span className="week-name" aria-hidden>
-              {WEEKDAYS_PT[i]}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
+    <section className="profile-card orbit-history" aria-label="Orbit history">
+      <div className="profile-card-head">
+        <b>Orbit history</b>
+      </div>
+      <Heatmap {...props} />
+      <div className="heatmap-legend" aria-hidden>
+        <span>Less</span>
+        {[0, 1, 2, 3, 4].map((l) => (
+          <span key={l} className={`heatmap-cell l${l}`} />
+        ))}
+        <span>More</span>
+        <span className="legend-sep">·</span>
+        <span className="heatmap-cell shield" />
+        <span>🛡️ Shield</span>
+      </div>
+    </section>
   );
 }

@@ -1315,7 +1315,7 @@ button.card:hover {
 
 /* orbit calendar: fixed-size cells (not stretched), Monday-first rows, weeks as columns.
    --cell/--gap/--label are mirrored in Heatmap.tsx, which fits the number of weeks to the width. */
-.streak-card {
+.orbit-history {
   --cell: 12px;
   --gap: 3px;
   --label: 28px;
@@ -1359,41 +1359,33 @@ button.card:hover {
 .heatmap-grid .heatmap-cell {
   cursor: pointer;
 }
-.heatmap-cell.l1,
-.week-day.l1 {
+.heatmap-cell.l1 {
   background: rgba(88, 214, 160, 0.32);
 }
-.heatmap-cell.l2,
-.week-day.l2 {
+.heatmap-cell.l2 {
   background: rgba(88, 214, 160, 0.55);
 }
-.heatmap-cell.l3,
-.week-day.l3 {
+.heatmap-cell.l3 {
   background: rgba(88, 214, 160, 0.78);
 }
-.heatmap-cell.l4,
-.week-day.l4 {
+.heatmap-cell.l4 {
   background: var(--ok);
 }
 /* a day a Streak Shield covered: hatched, not just a ring */
-.heatmap-cell.shield,
-.week-day.shield {
+.heatmap-cell.shield {
   background-image: repeating-linear-gradient(135deg, #6fc8ff 0 2px, transparent 2px 4px);
 }
 /* days still to come this week: drawn, but dashed and dim */
-.heatmap-cell.future,
-.week-day.future {
+.heatmap-cell.future {
   background: transparent;
   border: 1px dashed var(--line-strong);
   opacity: 0.6;
 }
 /* today, studied or not; it pulses gently until it's secured */
-.heatmap-cell.today,
-.week-day.today {
+.heatmap-cell.today {
   box-shadow: 0 0 0 2px var(--accent);
 }
-.heatmap-cell.today.pending,
-.week-day.today.pending {
+.heatmap-cell.today.pending {
   animation: today-pulse 2s ease-in-out infinite;
 }
 @keyframes today-pulse {
@@ -1401,8 +1393,7 @@ button.card:hover {
   50% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px rgba(242, 194, 107, 0.25); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .heatmap-cell.today.pending,
-  .week-day.today.pending {
+  .heatmap-cell.today.pending {
     animation: none;
   }
 }
@@ -1443,118 +1434,420 @@ button.card:hover {
   margin: 0 4px;
 }
 
-/* a new orbit: this week as seven big days */
-.week-strip {
-  list-style: none;
-  margin: 4px 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-}
-.week-strip li {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.week-day {
-  width: min(40px, 100%);
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--panel-2);
-  color: var(--text);
-  font-weight: 800;
-  font-size: 14px;
-}
-.week-day.l3,
-.week-day.l4 {
-  color: #0f2a1f;
-}
-/* in the big week view a shield reads better as a ringed badge than as hatching */
-.week-day.shield {
-  background-image: none;
-  box-shadow: inset 0 0 0 2px #6fc8ff;
-}
-.week-name {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-/* the orbit card around it */
+/* the orbit card: one headline (the streak and the next milestone), one action, the rest quiet.
+   Every row has a fixed height, so securing the day (or starting an orbit) never moves the page. */
 .streak-card {
-  gap: 12px;
+  gap: 14px;
 }
-.streak-head {
+.orbit-head {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  min-height: 64px;
 }
-.streak-now {
-  font-size: 18px;
+.orbit-ring {
+  position: relative;
+  flex: none;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
 }
-.streak-now b {
-  font-size: 34px;
+.orbit-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.orbit-ring-track,
+.orbit-ring-fill {
+  fill: none;
+  stroke-width: 5;
+}
+.orbit-ring-track {
+  stroke: var(--line);
+}
+.orbit-ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+.orbit-ring-num {
+  position: relative;
+  font-size: 22px;
+  font-weight: 800;
   line-height: 1;
   color: var(--accent);
+  font-variant-numeric: tabular-nums;
 }
-.streak-next {
+.orbit-ring-num.empty {
+  font-size: 24px;
+}
+.orbit-title {
+  flex: 1 1 190px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-  margin: 0;
+  gap: 4px;
 }
-.streak-today {
+.orbit-name {
+  margin: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin: 0;
-  padding: 10px 14px;
-  border: 1px solid var(--accent);
-  border-radius: 12px;
-  background: var(--accent-soft);
-  font-size: 14px;
-}
-.streak-today.done {
-  border-color: var(--ok);
-  background: rgba(88, 214, 160, 0.08);
-  color: var(--ok);
-  font-weight: 600;
-}
-.streak-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: baseline;
   gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.orbit-name b {
+  font-size: 16px;
+}
+.orbit-name .muted {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.orbit-next {
   margin: 0;
-}
-.streak-summary div {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.streak-summary dt {
-  font-size: 11px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
   color: var(--muted);
 }
-.streak-summary dd {
-  margin: 0;
-  font-weight: 600;
+.orbit-rewards {
+  display: inline-flex;
+  gap: 4px;
 }
-.streak-shields {
+.orbit-reward {
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.orbit-actions {
+  flex: none;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
+}
+/* today's status: one slot, the same size whether it asks or confirms */
+.orbit-slot {
+  width: 148px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.orbit-study {
+  border: 0;
+  background: var(--accent);
+  color: #1d1408;
+}
+.orbit-study:hover:not(:disabled) {
+  background: #f7d38f;
+}
+.orbit-study:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.orbit-study:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.orbit-secured {
+  border: 1px solid var(--ok);
+  border-radius: 999px;
+  background: rgba(88, 214, 160, 0.12);
+  color: var(--ok);
+}
+.orbit-shields {
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* days around today: small fixed circles, as many upcoming days as the width holds (StreakCard.tsx
+   mirrors --day and --day-gap); covered neighbours are chained */
+.orbit-week {
+  --dot: 30px;
+  --day: 36px;
+  --day-gap: 4px;
+  list-style: none;
   margin: 0;
+  padding: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  gap: var(--day-gap);
+}
+.orbit-day {
+  position: relative;
+  flex: none;
+  width: var(--day);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.orbit-day-name,
+.orbit-day-num {
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--muted);
+}
+.orbit-day-num {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.orbit-day.today .orbit-day-name,
+.orbit-day.today .orbit-day-num {
+  color: var(--accent);
+  font-weight: 700;
+}
+.orbit-dot {
+  position: relative;
+  z-index: 1;
+  width: var(--dot);
+  height: var(--dot);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 800;
+}
+.orbit-day.done .orbit-dot {
+  background: var(--ok);
+  color: #0f2a1f;
+}
+.orbit-day.shield .orbit-dot {
+  background: #16304a;
+  box-shadow: inset 0 0 0 2px #6fc8ff;
   font-size: 13px;
 }
+.orbit-day.missed .orbit-dot {
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+}
+.orbit-day.unstarted .orbit-dot::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line);
+}
+/* days still to come: drawn, but dashed and dim */
+.orbit-day.upcoming .orbit-dot {
+  border: 1.5px dashed var(--line-strong);
+  font-size: 13px;
+}
+.orbit-day.upcoming .orbit-day-name,
+.orbit-day.upcoming .orbit-day-num {
+  opacity: 0.6;
+}
+.orbit-day.pending .orbit-dot {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  animation: orbit-pulse 2s ease-in-out infinite;
+}
+@keyframes orbit-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--accent); }
+  50% { box-shadow: inset 0 0 0 2px var(--accent), 0 0 0 5px rgba(242, 194, 107, 0.22); }
+}
+.orbit-link {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--dot) / 2 - 3px);
+  width: calc(var(--day) + var(--day-gap));
+  height: 6px;
+  background: rgba(88, 214, 160, 0.7);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.orbit-link.on {
+  transform: scaleX(1);
+}
+
+/* milestones: start, 7, 30, 100, 365 evenly spaced; the accent line is where the streak is */
+.orbit-track {
+  padding: 0 12px;
+}
+.orbit-track-inner {
+  position: relative;
+  height: 38px;
+}
+.orbit-track-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 9px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.orbit-track-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.orbit-track-you {
+  position: absolute;
+  z-index: 1;
+  top: 10.5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(242, 194, 107, 0.25);
+  transform: translate(-50%, -50%);
+}
+.orbit-ms-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.orbit-ms {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translateX(-50%);
+}
+.orbit-ms-dot {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--panel);
+  font-size: 11px;
+}
+.orbit-ms-dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.orbit-ms.reached .orbit-ms-dot {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #1d1408;
+  font-weight: 800;
+}
+.orbit-ms-label {
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--muted);
+}
+.orbit-ms-tip {
+  position: absolute;
+  z-index: 10;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.orbit-ms.last .orbit-ms-tip {
+  left: auto;
+  right: -8px;
+  transform: none;
+}
+.orbit-ms.open .orbit-ms-tip,
+.orbit-ms:has(.orbit-ms-dot:focus-visible) .orbit-ms-tip {
+  display: flex;
+}
+
+.orbit-stats {
+  margin: 0;
+  min-height: 18px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the day just secured, replayed once: today fills, the chain reaches it, the ring moves on,
+   and the day's rewards fly to the wallet (skipped under reduced motion, in StreakCard.tsx) */
+.streak-card.replay .orbit-ring-fill {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s;
+}
+.streak-card.replay .orbit-link {
+  transition: transform 0.35s ease-out 0.15s;
+}
+.streak-card.after .orbit-day.today .orbit-dot {
+  animation: orbit-fill 0.45s ease-out;
+}
+.streak-card.after .orbit-ring {
+  animation: orbit-glow 1.2s ease-out 0.4s;
+}
+.streak-card.after .orbit-ring-num {
+  animation: orbit-pop 0.5s ease-out 0.5s;
+}
+@keyframes orbit-fill {
+  from { transform: scale(0.4); opacity: 0.4; }
+  70% { transform: scale(1.12); opacity: 1; }
+  to { transform: scale(1); }
+}
+@keyframes orbit-glow {
+  0% { box-shadow: 0 0 0 0 rgba(242, 194, 107, 0.45); }
+  100% { box-shadow: 0 0 0 16px rgba(242, 194, 107, 0); }
+}
+@keyframes orbit-pop {
+  50% { transform: scale(1.25); }
+}
+.orbit-fly {
+  position: fixed;
+  z-index: 50;
+  padding: 3px 9px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--gold);
+  background: var(--panel-2);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0;
+  animation: orbit-fly 0.9s cubic-bezier(0.5, 0, 0.75, 0) both;
+}
+@keyframes orbit-fly {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  25% { opacity: 1; transform: translate(-50%, calc(-50% - 22px)) scale(1); }
+  100% { opacity: 0.2; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orbit-day.pending .orbit-dot {
+    animation: none;
+  }
+}
+
 .profile-wallet {
   margin-top: 0;
 }
@@ -2996,7 +3289,7 @@ kbd {
   .profile-col + .profile-col {
     grid-column: span 7;
   }
-  .streak-card {
+  .orbit-history {
     --cell: 14px;
   }
   /* the rails are narrow at 1024px: stack what sits side by side */

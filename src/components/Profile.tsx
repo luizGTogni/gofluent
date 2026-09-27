@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cefrBands, cefrEstimate, type PlanetStat } from "@/lib/planetStats";
 import { getAccount, getProfile, signOut, type Account, type Profile as ProfileInfo } from "@/lib/auth";
 import type { Wallet } from "@/lib/economy";
@@ -13,6 +13,7 @@ import { BADGES } from "@/lib/badges";
 import { loadBadges, unlockedBadges } from "@/lib/badgeStore";
 import { plural } from "@/lib/format";
 import { StreakCard } from "./StreakCard";
+import { OrbitHistory } from "./Heatmap";
 import { Avatar } from "./Avatar";
 
 type Props = {
@@ -37,6 +38,7 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
   const [account, setAccount] = useState<Account | null>(null);
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
   const [badges, setBadges] = useState<Set<string>>(new Set());
+  const walletRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getAccount().then(setAccount);
@@ -78,7 +80,7 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
         </div>
       </div>
 
-      <div className="wallet-row profile-wallet">
+      <div ref={walletRef} className="wallet-row profile-wallet">
         <button type="button" className="chip-mini chip-link" onClick={onShop} title="Earned on every phrase you finish">
           🪙 {wallet.coins} Lunar Coins
         </button>
@@ -117,7 +119,8 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
       </div>
 
       <div className="profile-col">
-      <StreakCard calendar={calendar} today={today} shields={wallet.freezes} canStudy={canStudy} onStudy={onStudy} onShop={onShop} />
+      <StreakCard calendar={calendar} today={today} shields={wallet.freezes} canStudy={canStudy} onStudy={onStudy} onShop={onShop} walletRef={walletRef} />
+      <OrbitHistory checked={calendar.checked} frozen={calendar.frozen} volume={calendar.volume} today={today} />
 
       <section className="profile-card">
         <div className="profile-card-head">
