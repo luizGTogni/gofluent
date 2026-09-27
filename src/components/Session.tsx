@@ -80,7 +80,8 @@ export function Session() {
   if (screen === "intro") {
     return (
       <main className="shell center">
-        <div className="brand">GoFluent</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="GoFluent" className="logo" />
         <h1 className="hero">Make English part of your every day.</h1>
         <p className="muted">Listen. Type. Every key is practice. {total} short exercises today.</p>
         <div className="levels" role="radiogroup" aria-label="Difficulty">
@@ -112,7 +113,8 @@ export function Session() {
     const missed = [...new Set(history.flatMap((h) => h.result.missed))];
     return (
       <main className="shell center">
-        <div className="brand">GoFluent</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="GoFluent" className="logo" />
         <h1 className="hero">Session complete</h1>
         <div className="stats">
           <div>

@@ -46,10 +46,9 @@ button {
   text-align: center;
   gap: 18px;
 }
-.brand {
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--accent);
+.logo {
+  height: 56px;
+  width: auto;
 }
 .hero {
   font-size: clamp(28px, 5vw, 44px);
