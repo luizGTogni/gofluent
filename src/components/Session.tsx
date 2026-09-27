@@ -13,43 +13,50 @@ import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
 import { PLANET_BY_ID, PLANETS, STARTER_PLANETS, type PlanetId } from "@/lib/planets";
 import { cefrBands, cefrEstimate, continuePlanet, isSolid, journeyIndex, markEntered, recordResult, type PlanetStat } from "@/lib/planetStats";
 import { CELESTIAL_PATH } from "@/lib/bodies";
-import { loadPlanetStats, putPlanetStat } from "@/lib/planetStore";
+import { loadPlanetStats } from "@/lib/planetStore";
 import { speak, stopSpeech } from "@/lib/speech";
-import { loadPlayer, savePlayer } from "@/lib/playerStore";
+import { loadPlayer } from "@/lib/playerStore";
 import { effectiveRp, rankChange, rankOf } from "@/lib/ranks";
 import type { Title } from "@/lib/titles";
 import { addXp, emptyPlayer, levelFromXp, levelProgress, phraseXp, type PlayerState, type XpBreakdown } from "@/lib/xp";
 import { extendedUnlocked, modeUnlocked, type Accent } from "@/lib/unlocks";
-import { addDays, computeStreak, gapToFreeze, localDay, localHour, milestoneHit } from "@/lib/streak";
+import { addDays, computeStreak, localDay, localHour, milestoneHit } from "@/lib/streak";
 import { pickDifficulty } from "@/lib/adaptive";
 import { MODES, SURVIVAL_LIVES, TIME_ATTACK_SECONDS, type GameMode } from "@/lib/modes";
 import { ModePicker } from "./ModePicker";
 import { daysStudiedInWeek, weekKey, type QuestDef } from "@/lib/quests";
-import { claimQuest, loadQuests, progressFor, putQuests, tickQuests, withRow, type QuestProgress, type QuestTick } from "@/lib/questStore";
-import { bumpNoHintCount, loadBadges, unlockedBadges, unlockBadge } from "@/lib/badgeStore";
+import { addOp, loadQuests, maxOp, opTick, progressFor, tickQuests, withRow, type QuestOp, type QuestProgress } from "@/lib/questStore";
+import { loadBadges, noHintCount, unlockedBadges } from "@/lib/badgeStore";
 import { BADGE_BY_ID, type BadgeId } from "@/lib/badges";
-import { addGains, badgeReward, emptyGains, questReward, streakReward, type Reward, type RewardDraft, type SessionGains } from "@/lib/rewards";
+import { addGains, badgeReward, emptyGains, questReward, streakReward, type Amounts, type Reward, type RewardDraft, type SessionGains } from "@/lib/rewards";
 import { bestFor, loadBests, putBest } from "@/lib/recordStore";
 import { QuestBoard } from "./QuestBoard";
-import { FREEZE_COST } from "@/lib/shop";
-import { loadInventory, useOxygen } from "@/lib/shopStore";
+import { FREEZE_COST, OXYGEN_COST } from "@/lib/shop";
+import { getOxygen, loadInventory } from "@/lib/shopStore";
 import { Shop } from "./Shop";
 import { Currency } from "./Currency";
 import { ArrowRight, Close, Combo, Comeback, Compass, Heart, HeartEmpty, Lock, Oxygen, Play, Shield, Storm, Target, Timer, Volume } from "./icons";
 import { Stars } from "./icons/Stars";
 import { getProfile, signOut, syncTimeZone } from "@/lib/auth";
-import { coinsForXp, CRYSTALS_PER_CEFR_UP, CRYSTALS_PER_RANK_UP, dailyInterest, milestoneReward, type Wallet } from "@/lib/economy";
+import { coinsForXp, CRYSTALS_PER_CEFR_UP, CRYSTALS_PER_RANK_UP, milestoneReward, type Wallet } from "@/lib/economy";
+import { emptyCalendar, loadCalendar, loadWallet, type StudyCalendar } from "@/lib/economyStore";
 import {
-  addFrozenDay,
-  emptyCalendar,
-  recordStudy,
-  interestAppliedToday,
-  loadCalendar,
-  loadWallet,
-  markInterestApplied,
-  saveWallet,
-  type StudyCalendar,
-} from "@/lib/economyStore";
+  advanceQuests as sendQuests,
+  applyDaily,
+  claimQuest,
+  completePhrase,
+  enterPlanet,
+  flushOutbox,
+  grantReward,
+  LedgerError,
+  ledgerIdle,
+  newEventId,
+  onOutboxDelivered,
+  purchase,
+  spendOxygen,
+  type PhraseResult,
+  type ShopItem,
+} from "@/lib/ledger";
 import { ExerciseView } from "./ExerciseView";
 import { AuthGate } from "./AuthGate";
 import { MyWords } from "./MyWords";
@@ -143,7 +150,13 @@ export function Session() {
   const [quests, setQuests] = useState<QuestProgress[]>([]);
   const [calendar, setCalendar] = useState<StudyCalendar>(emptyCalendar);
   const [freezeNote, setFreezeNote] = useState<string | null>(null);
-  const checkedInToday = useRef(false);
+  // A quiet line when a save was refused or couldn't reach the server.
+  const [syncNote, setSyncNote] = useState<string | null>(null);
+  // The idempotency key of the phrase on screen: made once per attempt, so resubmitting it (a
+  // retry, the outbox) can only ever count it once.
+  const [attemptId, setAttemptId] = useState("");
+  // Oxygen tanks spent this run that the server hasn't confirmed yet (the cache lags behind them).
+  const tanksPending = useRef(0);
   const [fullName, setFullName] = useState<string | undefined>();
   const [mode, setMode] = useState<GameMode>("classic");
   const [lives, setLives] = useState(SURVIVAL_LIVES);
@@ -203,37 +216,92 @@ export function Session() {
   };
   const dismissToast = (id: number) => setToasts((t) => t.filter((r) => r.id !== id));
 
-  /** Applies mission progress, saves it, and announces any mission that just reached its target. */
-  const advanceQuests = (ticks: QuestTick[], now: Date) => {
-    const { rows, touched, reached } = tickQuests(quests, ticks, now);
+  /** Mission progress shown at once, announcing any mission that just reached its target. The
+   * same ticks go to the server with the intent that caused them. */
+  const tickLocally = (ops: QuestOp[], now: Date) => {
+    const { rows, touched, reached } = tickQuests(quests, ops.map(opTick), now);
     if (!touched.length) return;
     setQuests(rows);
-    putQuests(touched);
     for (const def of reached) celebrate(questReward(def));
-  };
-
-  /**
-   * The claim moment: shown as claimed at once, paid only if the server confirms this was the
-   * claim that flipped it (idempotent per user, quest and period). Returns whether it paid.
-   */
-  const claim = async (def: QuestDef, periodKey: string): Promise<boolean> => {
-    setQuests((rows) => withRow(rows, { ...progressFor(rows, def.id, periodKey), claimed: true }));
-    if (!(await claimQuest(def.id, periodKey))) return false;
-    commitWallet((w) => ({ ...w, coins: w.coins + def.coins, crystals: w.crystals + (def.crystals ?? 0) }));
-    if (screen === "play" || screen === "end") setGains((g) => addGains(g, { coins: def.coins, crystals: def.crystals }));
-    return true;
   };
 
   const showWallet = (w: Wallet) => {
     walletRef.current = w;
     setWallet(w);
   };
-  /** Applies a change to the wallet: local state first, then persisted. */
-  const commitWallet = (change: (w: Wallet) => Wallet): Wallet => {
-    const next = change(walletRef.current);
-    showWallet(next);
-    saveWallet(next);
-    return next;
+  /** An optimistic change to the wallet, shown until the server's answer replaces it. */
+  const bumpWallet = (d: Amounts) => {
+    const w = walletRef.current;
+    showWallet({ coins: w.coins + (d.coins ?? 0), crystals: w.crystals + (d.crystals ?? 0), freezes: w.freezes + (d.freezes ?? 0) });
+  };
+  /** The server's wallet, unless other intents are still on their way: its answer would then
+   * predate them and undo what they already show. The last one to land settles it. */
+  const settleWallet = (w: Wallet) => {
+    if (ledgerIdle()) showWallet(w);
+  };
+
+  /** Back to the server's state: after a refusal, or when the outbox delivers. */
+  const resync = () => {
+    loadPlayer().then(setPlayer);
+    loadWallet().then(showWallet);
+    loadQuests().then(setQuests);
+    loadPlanetStats().then((list) => setPlanetStats(new Map(list.map((p) => [p.planet, p]))));
+    loadCalendar().then(setCalendar);
+  };
+  const failed = (e: unknown) => {
+    console.error(e);
+    setSyncNote(e instanceof LedgerError && e.message.startsWith("You're offline") ? e.message : "Couldn't save that. Showing your saved progress.");
+    resync();
+  };
+
+  /** The server's answer to a phrase, once nothing newer is in flight. */
+  const settlePhrase = (r: PhraseResult) => {
+    if (r.replayed || !ledgerIdle()) return;
+    setPlayer(r.player);
+    showWallet(r.wallet);
+    setPlanetStats((m) => new Map(m).set(r.planet.planet, r.planet));
+    setQuests((rows) => r.quests.reduce(withRow, rows));
+    setCalendar((c) => ({ ...c, volume: new Map(c.volume).set(r.day.day, { phrases: r.day.phrases, xp: r.day.xp }) }));
+  };
+
+  /**
+   * The claim moment: shown as claimed at once; the server flips it and pays in one step, at
+   * most once per user, quest and period. Returns whether this claim paid.
+   */
+  const claim = async (def: QuestDef, periodKey: string): Promise<boolean> => {
+    const mark = (claimed: boolean) => setQuests((rows) => withRow(rows, { ...progressFor(rows, def.id, periodKey), claimed }));
+    mark(true);
+    try {
+      const r = await claimQuest(def.id, periodKey);
+      if (!r?.claimed) return false;
+      if (ledgerIdle()) showWallet(r.wallet);
+      else bumpWallet(r.reward ?? {});
+      if (screen === "play" || screen === "end") setGains((g) => addGains(g, { coins: def.coins, crystals: def.crystals }));
+      return true;
+    } catch (e) {
+      mark(false);
+      failed(e);
+      return false;
+    }
+  };
+
+  /** Buys one item: charged at once, then settled (or undone) by the server's answer. */
+  const buy = async (item: ShopItem): Promise<boolean> => {
+    const price = item === "oxygen" ? OXYGEN_COST : FREEZE_COST;
+    if (walletRef.current.coins < price) return false;
+    bumpWallet({ coins: -price, freezes: item === "freeze" ? 1 : 0 });
+    try {
+      const r = await purchase(newEventId(), item);
+      if (r?.ok) {
+        settleWallet(r.wallet);
+        return true;
+      }
+      setSyncNote(r?.reason === "insufficient_funds" ? "Not enough Lunar Coins for that." : "That item isn't available.");
+      resync();
+    } catch (e) {
+      failed(e);
+    }
+    return false;
   };
 
   const complete = (result: Result) => {
@@ -256,7 +324,6 @@ export function Session() {
       const rpNow = effectiveRp(player, now);
       const before = rankOf(rpNow);
       const after = addXp({ ...player, rp: rpNow }, gain.total, now);
-      savePlayer(after);
       setPlayer(after);
       s.xp = gain;
       const levelBefore = levelFromXp(player.xp);
@@ -273,28 +340,26 @@ export function Session() {
       const cefrAfter = cefrEstimate(cefrBands(nextPlanetStats.values(), rankAfter.index));
       const cefrUp = Boolean(cefrAfter && cefrAfter !== cefrBefore);
       if (cefrUp) s.cefrNote = `New estimated English level: ${cefrAfter}.`;
-      putPlanetStat(planetStat);
       setPlanetStats(nextPlanetStats);
 
-      // Economy: coins for the XP just earned, plus today's check-in and its streak effects.
-      recordStudy(Math.max(1, Math.round(result.elapsedMs / 1000)), gain.total);
+      // Economy: coins for the XP just earned, plus today's check-in and its streak effects. All
+      // shown now; the server applies the same deltas and its answer replaces them.
+      const today = localDay(now);
       setCalendar((c) => {
-        const day = localDay(now);
-        const was = c.volume.get(day) ?? { phrases: 0, xp: 0 };
-        return { ...c, volume: new Map(c.volume).set(day, { phrases: was.phrases + 1, xp: was.xp + gain.total }) };
+        const was = c.volume.get(today) ?? { phrases: 0, xp: 0 };
+        return { ...c, checked: new Set(c.checked).add(today), volume: new Map(c.volume).set(today, { phrases: was.phrases + 1, xp: was.xp + gain.total }) };
       });
+      // Once-ever rewards this phrase earned, by their deterministic keys: the server pays each once.
+      const grants: string[] = [];
+      if (change === "promotion") grants.push(`rank:${rankAfter.index}`);
+      if (cefrUp) grants.push(`cefr:${cefrAfter}`);
       let coinGain = coinsForXp(gain.total);
       let crystalGain = (change === "promotion" ? CRYSTALS_PER_RANK_UP : 0) + (cefrUp ? CRYSTALS_PER_CEFR_UP : 0);
       let freezeGain = 0;
-      let checkedForQuests = calendar.checked;
-      if (!checkedInToday.current) {
-        checkedInToday.current = true;
-        const today = localDay(now);
+      const checkedForQuests = new Set(calendar.checked).add(today);
+      if (!calendar.checked.has(today)) {
         const before = computeStreak(calendar.checked, calendar.frozen, today).current;
-        const nextChecked = new Set(calendar.checked).add(today);
-        checkedForQuests = nextChecked;
-        setCalendar((c) => ({ ...c, checked: nextChecked }));
-        const after = computeStreak(nextChecked, calendar.frozen, today).current;
+        const after = computeStreak(checkedForQuests, calendar.frozen, today).current;
         const hit = milestoneHit(before, after);
         if (hit) {
           const reward = milestoneReward(hit);
@@ -302,6 +367,8 @@ export function Session() {
           crystalGain += reward.crystals;
           freezeGain += reward.freezes;
           celebrate(streakReward(hit, reward));
+          // Keyed by the streak's first day, so each streak pays each milestone once.
+          grants.push(`milestone:${hit}:${addDays(today, 1 - after)}`);
         }
       }
 
@@ -325,45 +392,70 @@ export function Session() {
       const wk = weekKey(now);
       const newWords = changed.filter((c) => !wordStats.has(c.word)).length;
       const runLength = history.length + 1; // phrases solved in this run, this one included
-      advanceQuests(
-        [
-          { id: "d_five_clean", count: (n) => Math.max(n, nextCombo) },
-          ...(reviewKeys.has(key) ? [{ id: "d_review_eight", count: (n: number) => n + 1 }] : []),
-          { id: "w_five_days", count: () => daysStudiedInWeek(checkedForQuests, wk) },
-          { id: "w_new_words", count: (n) => n + newWords },
-          ...(tier === "perfect" ? [{ id: "w_perfect", count: (n: number) => n + 1 }] : []),
-          ...(mode === "timeAttack" ? [{ id: "w_time_attack", count: (n: number) => Math.max(n, runLength) }] : []),
-          ...(mode === "survival" ? [{ id: "w_survival", count: (n: number) => Math.max(n, runLength) }] : []),
-          ...(mode === "boss" ? [{ id: "w_storm", count: () => 1 }] : []),
-          ...(mode === "blind" ? [{ id: "w_blind", count: (n: number) => n + 1 }] : []),
-        ],
-        now,
-      );
+      const ops: QuestOp[] = [
+        maxOp("d_five_clean", nextCombo),
+        ...(reviewKeys.has(key) ? [addOp("d_review_eight", 1)] : []),
+        maxOp("w_five_days", daysStudiedInWeek(checkedForQuests, wk)), // recounted by the server
+        addOp("w_new_words", newWords),
+        ...(tier === "perfect" ? [addOp("w_perfect", 1)] : []),
+        ...(mode === "timeAttack" ? [maxOp("w_time_attack", runLength)] : []),
+        ...(mode === "survival" ? [maxOp("w_survival", runLength)] : []),
+        ...(mode === "boss" ? [maxOp("w_storm", 1)] : []),
+        ...(mode === "blind" ? [addOp("w_blind", 1)] : []),
+      ];
+      tickLocally(ops, now);
 
-      // One wallet write for everything this phrase earned: XP coins, check-in rewards, level-ups.
       s.coins = coinGain;
       s.crystals = crystalGain;
-      if (coinGain || crystalGain || freezeGain)
-        commitWallet((w) => ({ coins: w.coins + coinGain, crystals: w.crystals + crystalGain, freezes: w.freezes + freezeGain }));
+      bumpWallet({ coins: coinGain, crystals: crystalGain, freezes: freezeGain });
 
       // Mission badges: a handful of concrete, lifetime achievements.
       const unlocked = unlockedBadges();
       const hour = localHour(now);
       const earned: BadgeId[] = [];
       if (s.tier === "perfect") earned.push("first_perfect");
-      if (!result.helped && bumpNoHintCount() >= 100) earned.push("no_hint_100");
+      if (!result.helped && noHintCount() + 1 >= 100) earned.push("no_hint_100");
       if (hour < 7) earned.push("early_bird");
       if (hour >= 23) earned.push("night_owl");
       const fresh = earned.filter((id) => !unlocked.has(id));
       for (const id of fresh) {
-        unlockBadge(id);
+        grants.push(`badge:${id}`);
         celebrate(badgeReward(BADGE_BY_ID.get(id)!));
       }
       setGains((g) => addGains(g, { xp: gain.total, coins: coinGain, crystals: crystalGain, freezes: freezeGain, badges: fresh }));
+
+      // The phrase first, then its rewards: a rank-up is checked against the XP the phrase adds.
+      // Offline, both wait in the outbox in that order.
+      completePhrase({
+        eventId: attemptId,
+        planet: exercise.planet,
+        words: exercise.words.length,
+        xp: gain.total,
+        rpDelta: after.rp - player.rp,
+        solid: isSolid(result),
+        noHint: !result.helped,
+        seconds: Math.max(1, Math.round(result.elapsedMs / 1000)),
+        quests: ops,
+        day: today,
+      })
+        .then(async (r) => {
+          if (r) settlePhrase(r);
+          for (const grant of grants) {
+            const g = await grantReward(grant);
+            if (g) settleWallet(g.wallet);
+          }
+        })
+        .catch(failed);
     }
     if (mode === "survival" && result.typedErrors > 0) {
       let nextLives = lives - 1;
-      if (nextLives <= 0 && useOxygen()) {
+      if (nextLives <= 0 && full && getOxygen() - tanksPending.current > 0) {
+        tanksPending.current++;
+        spendOxygen(newEventId())
+          .then((r) => {
+            if (r) tanksPending.current--;
+          })
+          .catch(failed);
         s.oxygenNote = "Oxygen tank used — back in the game!";
         nextLives = 1;
       }
@@ -379,7 +471,16 @@ export function Session() {
   /** Ends the run. The score lives on only as a personal record per mode, shown on the end screen. */
   const finishSession = (completed: boolean) => {
     stopSpeech();
-    if (full && completed && mode === "classic") advanceQuests([{ id: "d_full_flight", count: () => 1 }], new Date());
+    if (full && completed && mode === "classic") {
+      const now = new Date();
+      const ops = [maxOp("d_full_flight", 1)];
+      tickLocally(ops, now);
+      sendQuests(newEventId(), ops, localDay(now))
+        .then((r) => {
+          if (r && !r.replayed && ledgerIdle()) setQuests((rows) => r.quests.reduce(withRow, rows));
+        })
+        .catch(failed);
+    }
     setPrevBest(full ? bestFor(mode) : null);
     if (full) putBest(mode, score);
     setScreen("end");
@@ -392,6 +493,7 @@ export function Session() {
     else if (index + 1 >= total) finishSession(true);
     else {
       setIndex((i) => i + 1);
+      setAttemptId(newEventId());
       setReplay(0);
     }
   };
@@ -428,32 +530,44 @@ export function Session() {
       setFullName(p?.fullName);
       syncTimeZone(p);
     });
-    // The wallet and calendar load together: a missed day may spend a shield, and interest is
-    // paid on the loaded balance, so both are decided here before anything is set.
+    // The day's streak upkeep runs on the server once per local day (however many tabs or
+    // devices open the app): a shield for a single missed day, then study interest.
     Promise.all([loadWallet(), loadCalendar()]).then(async ([loaded, cal]) => {
-      let w = loaded;
-      const today = localDay(new Date());
-      const gap = gapToFreeze(cal.checked, today);
-      if (gap && w.freezes > 0) {
-        w = { ...w, freezes: w.freezes - 1 };
-        await addFrozenDay(gap);
-        cal.frozen.add(gap);
-        setFreezeNote(`Streak Shield used for ${gap}. Your orbit holds.`);
-      }
-
-      const streakSoFar = computeStreak(cal.checked, cal.frozen, addDays(today, -1)).current;
-      if (streakSoFar > 0 && !(await interestAppliedToday())) {
-        const bonus = dailyInterest(streakSoFar, w.coins);
-        if (bonus > 0) w = { ...w, coins: w.coins + bonus };
-        markInterestApplied();
-      }
-
-      showWallet(w);
-      if (w !== loaded) await saveWallet(w);
+      showWallet(loaded);
       setCalendar(cal);
-      checkedInToday.current = cal.checked.has(today);
+      try {
+        const r = await applyDaily(localDay(new Date()));
+        if (!r) return;
+        const frozenDay = r.frozenDay;
+        if (frozenDay) {
+          setCalendar((c) => ({ ...c, frozen: new Set(c.frozen).add(frozenDay) }));
+          setFreezeNote(`Streak Shield used for ${frozenDay}. Your orbit holds.`);
+        }
+        settleWallet(r.wallet);
+      } catch (e) {
+        // Offline or refused: it runs again next time the app opens today.
+        console.error(e);
+      }
     });
   }, [screen, full]);
+
+  // Intents left in the outbox by a network failure go out now, and whenever the browser is back
+  // online; once delivered, the server's state replaces what was shown.
+  useEffect(() => {
+    if (!full) return;
+    const off = onOutboxDelivered(() => {
+      if (ledgerIdle()) resync();
+    });
+    flushOutbox();
+    return off;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [full]);
+
+  useEffect(() => {
+    if (!syncNote) return;
+    const t = setTimeout(() => setSyncNote(null), 6000);
+    return () => clearTimeout(t);
+  }, [syncNote]);
 
   useEffect(() => {
     loadContent().then((c) => {
@@ -477,8 +591,8 @@ export function Session() {
     if (full) {
       const entered = markEntered(planetStats.get(chosen), chosen, new Date());
       if (entered !== planetStats.get(chosen)) {
-        putPlanetStat(entered);
         setPlanetStats((m) => new Map(m).set(chosen, entered));
+        enterPlanet(chosen).catch(failed);
       }
     }
     const basePool = planetPool.length ? planetPool : pool;
@@ -514,7 +628,9 @@ export function Session() {
     setSummary(null);
     setGains(emptyGains);
     setToasts([]);
-    setStartedWith({ xp: player.xp, quests, checkedIn: checkedInToday.current });
+    setStartedWith({ xp: player.xp, quests, checkedIn: calendar.checked.has(localDay(new Date())) });
+    setAttemptId(newEventId());
+    tanksPending.current = 0;
     setLives(SURVIVAL_LIVES);
     setTimeLeft(TIME_ATTACK_SECONDS);
     setScreen("play");
@@ -570,17 +686,7 @@ export function Session() {
     return (
       <Shop
         wallet={wallet}
-        onSpend={(coins, crystals) => {
-          const w = walletRef.current;
-          if (w.coins < coins || w.crystals < crystals) return false;
-          commitWallet((w) => ({ ...w, coins: w.coins - coins, crystals: w.crystals - crystals }));
-          return true;
-        }}
-        onBuyFreeze={() => {
-          if (walletRef.current.coins < FREEZE_COST) return false;
-          commitWallet((w) => ({ ...w, coins: w.coins - FREEZE_COST, freezes: w.freezes + 1 }));
-          return true;
-        }}
+        onBuy={buy}
         onBack={() => setScreen("intro")}
       />
     );
@@ -776,12 +882,17 @@ export function Session() {
           questsBefore={startedWith.quests}
           questsAfter={quests}
           streak={streak.current}
-          streakExtended={!startedWith.checkedIn && checkedInToday.current}
+          streakExtended={!startedWith.checkedIn && calendar.checked.has(localDay(new Date()))}
           onClaim={claim}
           onContinue={() => setScreen("intro")}
           onPlayAgain={() => start()}
         />
         <RewardToasts rewards={toasts} onDismiss={dismissToast} />
+        {syncNote && (
+          <p className="sync-note" role="status">
+            {syncNote}
+          </p>
+        )}
         {promo && <Promotion title={promo} onContinue={() => setPromo(null)} />}
       </>
     );
@@ -964,6 +1075,11 @@ export function Session() {
       />
       </div>
       <RewardToasts rewards={toasts} onDismiss={dismissToast} />
+      {syncNote && (
+        <p className="sync-note" role="status">
+          {syncNote}
+        </p>
+      )}
       {promo && <Promotion title={promo} onContinue={() => setPromo(null)} />}
     </main>
   );

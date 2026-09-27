@@ -12,7 +12,7 @@ import { Currency } from "@/components/Currency";
 function fixture(today: string, studied: number[], shielded: number[] = []): StudyCalendar {
   const checked = new Set(studied.map((n) => addDays(today, n)));
   const volume = new Map<string, DayVolume>(studied.map((n) => [addDays(today, n), { phrases: 4 + ((n * 7) % 13 + 13) % 13, xp: 40 + ((n * 11) % 30 + 30) % 30 }]));
-  return { checked, frozen: new Set(shielded.map((n) => addDays(today, n))), lastInterestDay: null, volume };
+  return { checked, frozen: new Set(shielded.map((n) => addDays(today, n))), volume };
 }
 const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 

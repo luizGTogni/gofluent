@@ -1141,6 +1141,24 @@ button.card:hover {
   color: #9fd8ff;
 }
 
+/* a save that was refused or couldn't reach the server: quiet, bottom center, gone in a few seconds */
+.sync-note {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: rgba(17, 26, 51, 0.96);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
 /* reward toasts: badges, missions, orbit milestones */
 .toasts {
   position: fixed;

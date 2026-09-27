@@ -46,7 +46,7 @@ state() { # coins, xp, phrases today, planet played, w_perfect count
 echo "== complete_phrase: same key twice"
 E=$(uuid)
 r1=$(phrase "$A" "$E"); r2=$(phrase "$A" "$E")
-check "same result" "$r1" "$r2"
+check "same result, flagged as a replay" "$r1 true" "$(sql "select ('$r2'::jsonb - 'replayed')::text || ' ' || ('$r2'::jsonb ->> 'replayed')")"
 check "applied once (coins,xp,phrases,played,w_perfect)" "20,40,1,1,1" "$(state "$A")"
 check "event recorded once" "1" "$(sql "select count(*) from game_events where user_id = '$A'")"
 check "rp follows xp" "40" "$(sql "select rp from player_stats where user_id = '$A'")"
@@ -60,6 +60,14 @@ check "event id reused for another kind rejected" "rejected" "$(as "$A" "select 
 check "another user's event id rejected" "rejected" "$(phrase "$B" "$E" 2>/dev/null || echo rejected)"
 check "anon cannot call" "rejected" "$(psql_ -c "set role anon; select public.apply_daily(current_date)" 2>/dev/null || echo rejected)"
 check "client can't write the ledger" "rejected" "$(as "$A" "insert into reward_grants (user_id, grant_key) values ('$A', 'rank:9')" 2>/dev/null || echo rejected)"
+
+check "client can't write the wallet (0019)" "0" "$(as "$A" "update wallet set coins = 99999 returning 1" | wc -l)"
+check "client can't write study days (0019)" "rejected" "$(as "$A" "insert into study_days (user_id, day, seconds) values ('$A', '2020-01-01', 1)" 2>/dev/null || echo rejected)"
+
+echo "== enter_planet"
+first=$(as "$A" "select public.enter_planet('mars') ->> 'enteredAt'"); again=$(as "$A" "select public.enter_planet('mars') ->> 'enteredAt'")
+check "entered once, kept" "$first" "$again"
+check "earth stats kept on enter" "1" "$(as "$A" "select public.enter_planet('earth') ->> 'played'")"
 
 echo "== complete_phrase: 10 concurrent, different keys"
 for _ in $(seq 10); do phrase "$B" "$(uuid)" >/dev/null & done; wait
@@ -90,7 +98,7 @@ echo "== purchase"
 sql "update wallet set coins = 50 where user_id = '$A'"
 E=$(uuid)
 p1=$(as "$A" "select public.purchase('$E', 'oxygen', 'oxygen')"); p2=$(as "$A" "select public.purchase('$E', 'oxygen', 'oxygen')")
-check "same key: same result" "$p1" "$p2"
+check "same key: same result" "$p1" "$(sql "select ('$p2'::jsonb - 'replayed')::text")"
 check "same key: charged once" "10,1" "$(sql "select w.coins || ',' || i.oxygen from wallet w join inventory i using (user_id) where user_id = '$A'")"
 sql "update wallet set coins = 80 where user_id = '$A'"
 out=$(for _ in 1 2; do as "$A" "select coalesce(public.purchase('$(uuid)', 'freeze', 'freeze') ->> 'reason', 'ok')" & done; wait)

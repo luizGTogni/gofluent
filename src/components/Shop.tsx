@@ -2,18 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { FREEZE_COST, OXYGEN_COST } from "@/lib/shop";
-import { addOxygen, getOxygen, loadInventory } from "@/lib/shopStore";
+import { getOxygen, loadInventory } from "@/lib/shopStore";
 import type { Wallet } from "@/lib/economy";
+import type { ShopItem } from "@/lib/ledger";
 import { Currency } from "./Currency";
 import { ArrowLeft, Oxygen, Shield } from "./icons";
 
 type Props = {
   wallet: Wallet;
-  /** Deducts currency if the player can afford it; returns whether the purchase went through. */
-  onSpend: (coins: number, crystals: number) => boolean;
-  /** Streak Shields live on the wallet itself (they're already synced), so this spends and grants
-   * the shield in one atomic step rather than going through `onSpend` plus a local counter. */
-  onBuyFreeze: () => boolean;
+  /** Buys one item; the server charges and delivers it in one step. Resolves to whether it went through. */
+  onBuy: (item: ShopItem) => Promise<boolean>;
   onBack: () => void;
 };
 
@@ -36,7 +34,7 @@ function PriceButton({ price, have, onBuy }: { price: number; have: number; onBu
 }
 
 /** The store: oxygen extras (a Survival-mode second wind) and Streak Shields. */
-export function Shop({ wallet, onSpend, onBuyFreeze, onBack }: Props) {
+export function Shop({ wallet, onBuy, onBack }: Props) {
   const [oxygen, setOxygen] = useState(0);
 
   useEffect(() => {
@@ -44,8 +42,8 @@ export function Shop({ wallet, onSpend, onBuyFreeze, onBack }: Props) {
     loadInventory().then((inv) => setOxygen(inv.oxygen));
   }, []);
 
-  const buyOxygen = () => {
-    if (onSpend(OXYGEN_COST, 0)) setOxygen(addOxygen(1));
+  const buyOxygen = async () => {
+    if (await onBuy("oxygen")) setOxygen(getOxygen());
   };
 
   return (
@@ -74,7 +72,7 @@ export function Shop({ wallet, onSpend, onBuyFreeze, onBack }: Props) {
             <b>Streak Shield</b>
             <span className="muted shop-desc">Covers one missed day so your orbit keeps going.</span>
             <span className="muted shop-owned">You have: {wallet.freezes}</span>
-            <PriceButton price={FREEZE_COST} have={wallet.coins} onBuy={onBuyFreeze} />
+            <PriceButton price={FREEZE_COST} have={wallet.coins} onBuy={() => onBuy("freeze")} />
           </div>
         </div>
       </section>
