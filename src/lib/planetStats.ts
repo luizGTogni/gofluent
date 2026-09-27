@@ -26,11 +26,33 @@ export const canEnter = (planet: Planet, rank: Rank, stat: PlanetStat | undefine
 export const MIN_SAMPLE = 10;
 export const PASS_RATE = 0.7;
 
-export type Band = { cefr: Cefr; played: number; solid: number; rate: number; enough: boolean; passed: boolean };
+export type Band = {
+  cefr: Cefr;
+  played: number;
+  solid: number;
+  rate: number;
+  enough: boolean;
+  passed: boolean;
+  /** Counted as passed on rank alone — you haven't ground the phrases to prove it yet, but your
+   * standing already implies it. Evidence can still overtake this once you play enough. */
+  byRank: boolean;
+};
 
-export function cefrBands(stats: Iterable<PlanetStat>): Band[] {
+/** Highest CEFR among planets your rank has already unlocked: a baseline that doesn't force a
+ * fixed phrase count on every band before it counts for something. Level/rank act as one signal;
+ * a gamified placement test is the planned second one, still to come. */
+export function rankCefrFloor(rankIndex: number): Cefr {
+  let floor: Cefr = "A1";
+  for (const p of PLANETS) {
+    if (p.minRank <= rankIndex && CEFR_LEVELS.indexOf(p.cefr) > CEFR_LEVELS.indexOf(floor)) floor = p.cefr;
+  }
+  return floor;
+}
+
+export function cefrBands(stats: Iterable<PlanetStat>, rankIndex?: number): Band[] {
   const byPlanet = new Map([...stats].map((s) => [s.planet, s]));
-  return CEFR_LEVELS.map((cefr) => {
+  const floorIdx = rankIndex !== undefined ? CEFR_LEVELS.indexOf(rankCefrFloor(rankIndex)) : -1;
+  return CEFR_LEVELS.map((cefr, i) => {
     let played = 0;
     let solid = 0;
     for (const p of PLANETS) {
@@ -40,7 +62,9 @@ export function cefrBands(stats: Iterable<PlanetStat>): Band[] {
     }
     const rate = played ? solid / played : 0;
     const enough = played >= MIN_SAMPLE;
-    return { cefr, played, solid, rate, enough, passed: enough && rate >= PASS_RATE };
+    const provenByPlay = enough && rate >= PASS_RATE;
+    const byRank = !provenByPlay && i <= floorIdx;
+    return { cefr, played, solid, rate, enough, passed: provenByPlay || byRank, byRank };
   });
 }
 

@@ -938,7 +938,7 @@ button {
   cursor: not-allowed;
 }
 .planet-emoji {
-  font-size: 30px;
+  flex: 0 0 auto;
 }
 .planet-main {
   display: flex;
@@ -1022,6 +1022,14 @@ button {
 .cefr-band.passed b {
   color: var(--ok);
 }
+.cefr-band.by-rank {
+  border-color: var(--accent);
+  border-style: dashed;
+  background: rgba(126, 158, 255, 0.08);
+}
+.cefr-band.by-rank b {
+  color: var(--accent);
+}
 .cefr-note {
   margin: 0;
   font-size: 12px;
@@ -1062,19 +1070,21 @@ button {
 
 .heatmap {
   display: flex;
+  width: 100%;
   gap: 3px;
-  max-width: 100%;
-  overflow-x: auto;
   padding: 4px 2px;
 }
 .heatmap-col {
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 .heatmap-cell {
-  width: 10px;
-  height: 10px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
   border-radius: 2px;
   background: var(--panel-2);
 }
@@ -1189,41 +1199,147 @@ button {
 .link.small {
   font-size: 13px;
 }
-.courses-row {
+.planet-path {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  gap: 38px;
+  padding: 36px 0 8px;
 }
-.course-card {
-  flex: 0 0 auto;
+.planet-path::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  background: repeating-linear-gradient(to bottom, var(--accent) 0 6px, transparent 6px 16px);
+  opacity: 0.4;
+  transform: translateX(-50%);
+  z-index: 0;
+}
+.planet-path-row {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  width: 100px;
-  padding: 12px 8px;
+  transform: translateX(calc((var(--step, 0) - 1) * 58px));
+}
+.planet-rocket {
+  position: absolute;
+  top: -30px;
+  font-size: 20px;
+  animation: planet-rocket-bob 1.6s ease-in-out infinite;
+}
+@keyframes planet-rocket-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-6deg);
+  }
+}
+.planet-node {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
   color: var(--text);
 }
-.course-card:not(.locked):hover {
+.planet-node:not(.locked):hover {
   border-color: var(--accent);
 }
-.course-card.on {
+.planet-node.on {
   border-color: var(--accent);
   background: var(--accent-soft);
+  box-shadow: 0 0 0 6px rgba(255, 193, 7, 0.15);
 }
-.course-card.locked {
-  opacity: 0.5;
+.planet-node.locked {
+  opacity: 0.85;
 }
-.course-emoji {
-  font-size: 24px;
+.planet-node.locked .planet-orb {
+  opacity: 0.35;
+  filter: grayscale(70%);
 }
-.course-name {
-  font-size: 12px;
+.planet-node-lock {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  background: var(--panel-2);
+  border: 2px solid var(--line);
+  border-radius: 50%;
+}
+.planet-orb {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--orb-hi), var(--orb-lo) 75%);
+  box-shadow:
+    inset -8px -8px 14px rgba(0, 0, 0, 0.35),
+    inset 3px 3px 6px rgba(255, 255, 255, 0.35);
+}
+.planet-orb.ringed {
+  /* The ring sits behind the sphere, tilted like Saturn's — drawn with box-shadow so the orb
+     itself stays a plain circle and the gradient above isn't cut by an overflow. */
+  box-shadow:
+    inset -8px -8px 14px rgba(0, 0, 0, 0.35),
+    inset 3px 3px 6px rgba(255, 255, 255, 0.35),
+    0 0 0 1px transparent;
+  position: relative;
+}
+.planet-orb.ringed::before {
+  content: "";
+  position: absolute;
+  inset: -6px -16px;
+  border: 3px solid var(--orb-hi);
+  border-radius: 50%;
+  transform: rotate(-15deg) scaleY(0.35);
+  opacity: 0.85;
+  z-index: -1;
+}
+.planet-node-name {
+  font-size: 14px;
+  font-weight: 600;
   text-align: center;
+}
+.planet-node.unmapped {
+  border-style: dashed;
+  background: transparent;
+}
+.planet-orb-blank {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--line);
+  opacity: 0.7;
+}
+@media (max-width: 360px) {
+  .planet-node {
+    width: 76px;
+    height: 76px;
+  }
+  .planet-orb {
+    width: 46px;
+    height: 46px;
+  }
+  .planet-path-row {
+    transform: translateX(calc((var(--step, 0) - 1) * 42px));
+  }
 }
 .chip-cefr.small {
   font-size: 10px;
@@ -1244,6 +1360,13 @@ button {
 }
 .profile-avatar {
   font-size: 40px;
+  position: relative;
+  display: inline-flex;
+}
+.profile-avatar-suit {
+  font-size: 16px;
+  margin-left: 2px;
+  align-self: flex-end;
 }
 .profile-title {
   margin: 0;
@@ -1295,9 +1418,336 @@ button {
   border-color: var(--accent);
 }
 
+/* home hero + free-mode entry */
+.home-tagline {
+  margin: 4px 0 0;
+  font-size: clamp(16px, 2.6vw, 20px);
+  font-weight: 600;
+  color: var(--muted);
+  max-width: 26ch;
+}
+.mode-badge {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.progress.lives {
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+/* mode picker */
+.mode-picker {
+  gap: 22px;
+  padding: 24px 0;
+}
+.mode-picker-back {
+  align-self: flex-start;
+}
+.mode-picker-sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.mode-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text);
+}
+.mode-card:hover {
+  border-color: var(--accent);
+}
+.mode-card.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.mode-card .muted {
+  font-size: 12px;
+}
+.mode-icon {
+  font-size: 22px;
+}
+.mode-planets {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+.mode-planet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+.mode-planet .planet-node {
+  width: 60px;
+  height: 60px;
+}
+.mode-planet .planet-orb {
+  width: 40px;
+  height: 40px;
+}
+.mode-planet .planet-node-name {
+  font-size: 12px;
+}
+.mode-planet.on .planet-node {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.15);
+}
+.mode-planet.locked {
+  opacity: 0.6;
+}
+.mode-planet.locked .planet-orb {
+  opacity: 0.35;
+  filter: grayscale(70%);
+}
+
+/* missions */
+.quest-section {
+  width: min(560px, 100%);
+  text-align: left;
+}
+.quest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+.quest-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.quest-card.done {
+  border-color: var(--ok);
+  background: rgba(88, 214, 160, 0.08);
+}
+.quest-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+}
+.quest-desc {
+  font-size: 12px;
+  margin: 0;
+}
+.quest-bar {
+  height: 6px;
+}
+.quest-reward {
+  font-size: 12px;
+}
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+.badge-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 14px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.badge-card.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.badge-card.locked {
+  opacity: 0.55;
+}
+.badge-icon {
+  font-size: 26px;
+}
+.badge-desc {
+  font-size: 11px;
+}
+
 .profile-topbar {
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* shop */
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+.shop-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 16px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.shop-card.owned {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.shop-icon {
+  font-size: 28px;
+}
+.shop-desc {
+  font-size: 12px;
+}
+.shop-owned {
+  font-size: 12px;
+}
+.shop-owned-tag {
+  color: var(--ok);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Desktop: everything above was sized mobile-first and reads small and sparse on a big screen.
+   Bump the base font (most text has no explicit size, so this cascades on its own), then size up
+   the few areas that were called out — the top-right stats strip and the planet path — plus the
+   headings and CTAs, for a fuller, more deliberate desktop layout. */
+@media (min-width: 900px) {
+  body {
+    font-size: 18px;
+  }
+
+  .shell {
+    padding: 28px;
+  }
+  .home-body {
+    gap: 24px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .hero {
+    font-size: clamp(34px, 4vw, 52px);
+  }
+  .home-tagline {
+    font-size: 24px;
+    max-width: 34ch;
+  }
+  .check.big {
+    font-size: 18px;
+    padding: 16px 30px;
+  }
+  .link.small {
+    font-size: 15px;
+  }
+
+  /* top bar / stats strip */
+  .topbar-logo {
+    height: 46px;
+  }
+  .topbar-you {
+    gap: 6px;
+  }
+  .topbar-name-btn {
+    font-size: 17px;
+    padding: 4px 8px;
+  }
+  .topbar-chips {
+    gap: 10px;
+  }
+  .chip-mini {
+    font-size: 14px;
+    padding: 5px 14px;
+  }
+  .topbar-menu {
+    min-width: 200px;
+  }
+  .topbar-menu button {
+    font-size: 16px;
+    padding: 13px 18px;
+  }
+
+  /* planet path */
+  .courses {
+    width: min(980px, 100%);
+  }
+  .planet-path {
+    gap: 52px;
+    padding: 48px 0 16px;
+  }
+  .planet-path-row {
+    transform: translateX(calc((var(--step, 0) - 1) * 84px));
+  }
+  .planet-node {
+    width: 128px;
+    height: 128px;
+    border-width: 3px;
+  }
+  .planet-orb {
+    width: 82px;
+    height: 82px;
+  }
+  .planet-node-lock {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+  }
+  .planet-node-name {
+    font-size: 17px;
+  }
+  .chip-cefr.small {
+    font-size: 12px;
+    padding: 2px 10px;
+  }
+  .planet-rocket {
+    font-size: 26px;
+    top: -38px;
+  }
+
+  .mode-planet .planet-node {
+    width: 76px;
+    height: 76px;
+  }
+  .mode-planet .planet-orb {
+    width: 52px;
+    height: 52px;
+  }
+  .mode-planet .planet-node-name {
+    font-size: 14px;
+  }
+  .mode-grid,
+  .quest-grid,
+  .badge-grid,
+  .shop-grid {
+    gap: 14px;
+  }
+  .mode-card,
+  .quest-card,
+  .badge-card,
+  .shop-card {
+    padding: 18px 20px;
+  }
 }
