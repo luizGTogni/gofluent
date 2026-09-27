@@ -1,6 +1,8 @@
-import { getSupabase, resetSession } from "./supabase";
+import { syncLocalReview } from "./reviewStore";
+import { getPublicClient, getSupabase } from "./supabase";
+import { syncLocalWordStats } from "./wordStore";
 
-export type Account = { email: string | null; isAnonymous: boolean; pendingEmail: string | null };
+export type Account = { email: string };
 export type AuthResult = { ok: true; message?: string } | { ok: false; error: string };
 
 export const MIN_PASSWORD = 8;
@@ -24,44 +26,37 @@ const friendly = (message: string): string => {
   return message;
 };
 
+/** The signed-in account, or null for a guest. */
 export async function getAccount(): Promise<Account | null> {
   const db = await getSupabase();
   if (!db) return null;
   const { data } = await db.auth.getUser();
-  if (!data.user) return null;
-  return {
-    email: data.user.email ?? null,
-    isAnonymous: Boolean(data.user.is_anonymous),
-    pendingEmail: data.user.new_email ?? null,
-  };
+  return data.user?.email ? { email: data.user.email } : null;
 }
 
-/** Turns the current guest into a real account. Everything already saved stays with them. */
+/** Creates an account and uploads the progress this device tracked as a guest. */
 export async function createAccount(email: string, password: string): Promise<AuthResult> {
-  const db = await getSupabase();
+  const db = getPublicClient();
   if (!db) return { ok: false, error: "Accounts aren't set up yet." };
   if (password.length < MIN_PASSWORD) return { ok: false, error: `Use at least ${MIN_PASSWORD} characters.` };
-  const { data, error } = await db.auth.updateUser({ email, password }, { emailRedirectTo: window.location.origin });
+  const { data, error } = await db.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
   if (error) return { ok: false, error: friendly(error.message) };
-  return data.user?.new_email
-    ? { ok: true, message: `Almost there. We sent a confirmation link to ${email}.` }
-    : { ok: true, message: "Your account is ready. Your progress is saved." };
+  if (!data.session) return { ok: true, message: `Almost there. We sent a confirmation link to ${email}. Confirm it, then sign in.` };
+  await Promise.all([syncLocalReview(), syncLocalWordStats()]);
+  return { ok: true, message: "Your account is ready. Progress from this device is saved to it." };
 }
 
 /** Switches to an existing account. This device's guest progress is not merged into it. */
 export async function signIn(email: string, password: string): Promise<AuthResult> {
-  const db = await getSupabase();
+  const db = getPublicClient();
   if (!db) return { ok: false, error: "Accounts aren't set up yet." };
   const { error } = await db.auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: friendly(error.message) };
   clearLocalCaches();
-  resetSession();
   return { ok: true, message: "Welcome back." };
 }
 
 export async function signOut(): Promise<void> {
-  const db = await getSupabase();
-  await db?.auth.signOut();
+  await getPublicClient()?.auth.signOut();
   clearLocalCaches();
-  resetSession();
 }

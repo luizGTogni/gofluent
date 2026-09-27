@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DIFFICULTIES, DIFFICULTY, scoreExercise, TIER_COPY, TIER_LABEL, type Difficulty, type Result, type Tier } from "@/lib/engine";
 import { buildSession, loadContent } from "@/lib/content";
+import { getAccount } from "@/lib/auth";
 import { afterAttempt, dueList, whenLabel, type ReviewState } from "@/lib/review";
 import { loadReview, putReview } from "@/lib/reviewStore";
 import { applyOutcome, isTricky, rate, trickyList, type WordStat } from "@/lib/wordStats";
@@ -29,6 +30,7 @@ export function Session() {
   const [review, setReview] = useState<Map<string, ReviewState>>(new Map());
   const [reviewKeys, setReviewKeys] = useState<Set<string>>(new Set());
   const [practiceKeys, setPracticeKeys] = useState<Set<string>>(new Set());
+  const [signedIn, setSignedIn] = useState(false);
   const [wordStats, setWordStats] = useState<Map<string, WordStat>>(new Map());
   const [index, setIndex] = useState(0);
   const [replay, setReplay] = useState(0);
@@ -101,6 +103,7 @@ export function Session() {
     if (screen !== "intro") return;
     loadReview().then((list) => setReview(new Map(list.map((r) => [r.phrase, r]))));
     loadWordStats().then((list) => setWordStats(new Map(list.map((w) => [w.word, w]))));
+    getAccount().then((a) => setSignedIn(Boolean(a)));
   }, [screen]);
 
   useEffect(() => {
@@ -179,7 +182,7 @@ export function Session() {
             Tricky words{trickyCount > 0 ? ` (${trickyCount})` : ""}
           </button>
           <button type="button" className="link" onClick={() => setScreen("account")}>
-            Account
+            {signedIn ? "Account" : "Sign in"}
           </button>
         </div>
       </main>

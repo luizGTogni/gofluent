@@ -12,6 +12,7 @@ const MESSAGE: Record<SaveResult, string> = {
   duplicate: "Already in My words.",
   error: "Couldn't save right now. Try again.",
   offline: "Saving isn't set up yet.",
+  signedout: "Create an account to save words.",
 };
 
 /** Click a word, or click two words to pick a chunk between them, then save it. */

@@ -41,7 +41,6 @@ export function Account({ onBack }: { onBack: () => void }) {
     refresh();
   };
 
-  const isMember = account && !account.isAnonymous;
 
   return (
     <main className="shell center">
@@ -51,9 +50,7 @@ export function Account({ onBack }: { onBack: () => void }) {
         <p className="muted">Accounts aren&apos;t set up yet. Add your Supabase keys to .env.local.</p>
       ) : account === undefined ? (
         <p className="muted">Loading…</p>
-      ) : account === null ? (
-        <p className="muted">Couldn&apos;t reach your account right now.</p>
-      ) : isMember ? (
+      ) : account ? (
         <>
           <p className="muted">
             Signed in as <b className="missed">{account.email}</b>. Your progress is saved to this account.
@@ -65,11 +62,9 @@ export function Account({ onBack }: { onBack: () => void }) {
       ) : (
         <>
           <p className="muted">
-            {account.pendingEmail
-              ? `Waiting for you to confirm ${account.pendingEmail}. Check your inbox.`
-              : mode === "create"
-                ? "You're studying as a guest. Add an email and password to keep your progress on any device."
-                : "Sign in to an existing account. This device's guest progress won't be merged into it."}
+            {mode === "create"
+              ? "You're studying as a guest, and progress stays on this device. Create an account to keep it on any device and to save words."
+              : "Sign in to an existing account. This device's guest progress won't be merged into it."}
           </p>
           <div className="levels" role="tablist" aria-label="Account">
             {(["create", "signin"] as Mode[]).map((m) => (

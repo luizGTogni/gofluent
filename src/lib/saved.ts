@@ -1,4 +1,4 @@
-import { getSupabase } from "./supabase";
+import { getSupabase, supabaseConfigured } from "./supabase";
 
 export type SavedItem = {
   id: string;
@@ -17,11 +17,11 @@ export type NewItem = {
   end: number;
 };
 
-export type SaveResult = "saved" | "duplicate" | "error" | "offline";
+export type SaveResult = "saved" | "duplicate" | "error" | "offline" | "signedout";
 
 export async function saveItem(item: NewItem): Promise<SaveResult> {
   const db = await getSupabase();
-  if (!db) return "offline";
+  if (!db) return supabaseConfigured ? "signedout" : "offline";
   const { error } = await db.from("saved_items").insert({
     kind: item.start === item.end ? "word" : "chunk",
     text: item.text.toLowerCase(),

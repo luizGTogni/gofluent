@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getAccount } from "@/lib/auth";
 import { deleteSaved, listSaved, type SavedItem } from "@/lib/saved";
 import { supabaseConfigured } from "@/lib/supabase";
 
 export function MyWords({ onBack }: { onBack: () => void }) {
   const [items, setItems] = useState<SavedItem[] | null | undefined>(undefined);
 
+  const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
+
   useEffect(() => {
-    listSaved().then(setItems);
+    getAccount().then((a) => {
+      setSignedIn(Boolean(a));
+      if (a) listSaved().then(setItems);
+    });
   }, []);
 
   const remove = async (id: string) => {
@@ -20,6 +26,10 @@ export function MyWords({ onBack }: { onBack: () => void }) {
       <h1 className="hero">My words</h1>
       {!supabaseConfigured ? (
         <p className="muted">Saving isn&apos;t set up yet. Add your Supabase keys to .env.local.</p>
+      ) : signedIn === undefined ? (
+        <p className="muted">Loading…</p>
+      ) : !signedIn ? (
+        <p className="muted">Create an account, or sign in, to save words and see them here on any device.</p>
       ) : items === undefined ? (
         <p className="muted">Loading…</p>
       ) : items === null ? (
