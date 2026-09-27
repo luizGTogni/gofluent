@@ -59,7 +59,7 @@ export const CELESTIAL_PATH: CelestialBody[] = [
   { id: "sedna", name: "Sedna", pt: "Sedna", fame: "Um dos objetos mais distantes e enigmáticos do sistema solar" },
 
   // Invented planets — not real, kept at the very end of the journey, same as before.
-  { id: "aurelia", name: "Aurelia", pt: "Aurélia", fame: "Greetings and introductions", color: ["#ffe08a", "#a8720a"], planetId: "aurelia" },
+  { id: "aurelia", name: "Aurelia", pt: "Aurélia", fame: "British accent", color: ["#ffe08a", "#a8720a"], planetId: "aurelia" },
   { id: "virelia", name: "Virelia", pt: "Virélia", fame: "Idioms and expressions", color: ["#d9a6ff", "#5b1f8a"], planetId: "virelia" },
   { id: "zenith", name: "Zenith", pt: "Zênite", fame: "Series, films and fast conversation", color: ["#f5f5f5", "#8a8a8a"], planetId: "zenith" },
 ];

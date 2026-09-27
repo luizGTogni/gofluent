@@ -2,15 +2,13 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { CELESTIAL_PATH } from "@/lib/bodies";
-import { canEnter, type PlanetStat } from "@/lib/planetStats";
+import { journeyIndex, stopDone, type PhraseCounts, type PlanetStat } from "@/lib/planetStats";
 import { PLANET_BY_ID, type PlanetId } from "@/lib/planets";
-import type { Rank } from "@/lib/ranks";
-import { TITLES } from "@/lib/titles";
+import { StopGoal } from "./StopGoal";
 
 type Props = {
-  rank: Rank;
   stats: Map<PlanetId, PlanetStat>;
-  counts: Record<PlanetId, number>;
+  counts: PhraseCounts;
   current: PlanetId;
   onSelect: (id: PlanetId) => void;
 };
@@ -38,12 +36,17 @@ function trailThrough(path: HTMLElement): string {
     .join(" ");
 }
 
-/** The full journey, real solar system order first: a rocket marks where you are, playable
- * planets are open or locked by rank, and every other stop is scenery for now — a waypoint with
- * no course behind it yet (most past Saturn don't even have an orb design drawn yet). */
-export function Courses({ rank, stats, counts, current, onSelect }: Props) {
+/**
+ * The main mission: every astro in real solar-system order (the invented planets at the end), one
+ * stop after another. A stop opens once the one before it is finished; a locked stop shows what
+ * that takes. A stop without phrases yet is "coming soon", and the journey waits there until they
+ * arrive. Tapping a locked or empty stop opens a popover. A rocket marks where you are.
+ */
+export function Courses({ stats, counts, current, onSelect }: Props) {
   const pathRef = useRef<HTMLDivElement>(null);
   const [trail, setTrail] = useState("");
+  // The stop whose popover is open (a locked stop's goal, or a coming-soon stop's trivia).
+  const [open, setOpen] = useState<string | null>(null);
 
   // Wide screens swing the path much further side to side, so the straight guide line gives way to
   // a curve drawn through the nodes themselves, redrawn whenever the path resizes.
@@ -57,12 +60,37 @@ export function Courses({ rank, stats, counts, current, onSelect }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // On wide screens the journey is the page's centerpiece: open it where the rocket is.
+  // Open the journey where the rocket is: centered on wide screens; on phones only as far as
+  // needed, so the actions above the path stay in view when they can.
   useEffect(() => {
-    if (!window.matchMedia(DESKTOP).matches) return;
+    const desktop = window.matchMedia(DESKTOP).matches;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    pathRef.current?.querySelector(".planet-rocket")?.parentElement?.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    pathRef.current
+      ?.querySelector(".planet-rocket")
+      ?.parentElement?.scrollIntoView({ block: desktop ? "center" : "nearest", behavior: reduce ? "auto" : "smooth" });
   }, []);
+
+  // A popover closes on Escape or a tap anywhere outside its stop.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest(`[data-stop="${open}"]`)) setOpen(null);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onDown);
+    };
+  }, [open]);
+
+  const toggle = (id: string) => setOpen((o) => (o === id ? null : id));
+
+  // The stop you're on; the rocket sits there, or on the open planet you picked.
+  const here = journeyIndex(stats, counts);
+  const picked = CELESTIAL_PATH.findIndex((b) => b.planetId === current);
+  const rocketAt = picked >= 0 && picked <= here && (counts[current] ?? 0) > 0 ? picked : here;
 
   return (
     <div className="courses">
@@ -73,46 +101,73 @@ export function Courses({ rank, stats, counts, current, onSelect }: Props) {
           </svg>
         )}
         {CELESTIAL_PATH.map((body, i) => {
+          const style = { "--step": STEPS[i % STEPS.length] } as CSSProperties;
+          const popId = `stop-pop-${body.id}`;
+          const isOpen = open === body.id;
           const planet = body.planetId ? PLANET_BY_ID.get(body.planetId) : undefined;
           const count = planet ? (counts[planet.id] ?? 0) : 0;
           const stat = planet ? stats.get(planet.id) : undefined;
-          const open = planet ? canEnter(planet, rank, stat) && count > 0 : false;
-          const isCurrent = planet ? current === planet.id : false;
-          const style = { "--step": STEPS[i % STEPS.length] } as CSSProperties;
-          const title = !planet
-            ? body.fame
-            : count === 0
-              ? "Coming soon"
-              : !open
-                ? `Reach ${TITLES[planet.minRank].name} to unlock`
-                : planet.topic;
+          const color = planet?.color ?? body.color;
+          const ring = planet?.ring ?? body.ring;
+          const unlocked = i <= here;
+          const playable = unlocked && count > 0;
+          const done = unlocked && stopDone(stat, count);
+          const prev = CELESTIAL_PATH[i - 1];
+          const prevPlanet = prev?.planetId;
+          const prevGoal = prev && (
+            <StopGoal name={prev.name} stat={prevPlanet ? stats.get(prevPlanet) : undefined} count={prevPlanet ? (counts[prevPlanet] ?? 0) : 0} />
+          );
+          const state = playable ? (done ? "finished" : "open") : unlocked ? "phrases coming soon" : `locked, finish ${prev?.name} first`;
           return (
-            <div key={body.id} className={`planet-path-row ${planet ? "" : "scenery"}`} style={style}>
-              {isCurrent && (
+            <div key={body.id} className="planet-path-row" style={style} data-stop={body.id}>
+              {i === rocketAt && (
                 <span className="planet-rocket" aria-hidden>
                   🚀
                 </span>
               )}
               <button
                 type="button"
-                className={`planet-node ${isCurrent ? "on" : ""} ${!open ? "locked" : ""} ${body.color ? "" : "unmapped"}`}
-                disabled={!planet || !open}
-                title={title}
-                onClick={() => planet && onSelect(planet.id)}
-                style={body.color ? ({ "--orb-hi": body.color[0], "--orb-lo": body.color[1] } as CSSProperties) : undefined}
+                className={`planet-node ${i === rocketAt ? "on" : ""} ${unlocked ? "" : "locked"} ${count === 0 ? "soon" : ""}`}
+                style={color ? ({ "--orb-hi": color[0], "--orb-lo": color[1] } as CSSProperties) : undefined}
+                aria-pressed={playable ? i === rocketAt : undefined}
+                aria-expanded={playable ? undefined : isOpen}
+                aria-controls={playable ? undefined : popId}
+                aria-label={`${body.name}, ${state}`}
+                onClick={() => (playable ? onSelect(planet!.id) : toggle(body.id))}
               >
-                {body.color ? (
-                  <span className={`planet-orb ${body.ring ? "ringed" : ""}`} aria-hidden />
-                ) : (
-                  <span className="planet-orb-blank" aria-hidden />
-                )}
-                {!open && (
+                <span className={`planet-orb ${ring ? "ringed" : ""}`} aria-hidden />
+                {!unlocked && (
                   <span className="planet-node-lock" aria-hidden>
                     🔒
                   </span>
                 )}
+                {done && (
+                  <span className="planet-node-lock planet-node-done" aria-hidden>
+                    ✓
+                  </span>
+                )}
+                {unlocked && count === 0 && (
+                  <span className="planet-node-soon" aria-hidden>
+                    Soon
+                  </span>
+                )}
               </button>
               <span className="planet-node-name">{body.name}</span>
+              {playable && !done && <StopGoal name={body.name} stat={stat} count={count} own />}
+              {i === here + 1 && prevGoal}
+              {isOpen && (
+                <div id={popId} className="stop-pop" role="dialog" aria-label={body.name}>
+                  <b>
+                    {body.name} {planet ? <span className="chip-cefr small">{planet.cefr}</span> : <span className="muted">· {body.pt}</span>}
+                  </b>
+                  <span className="muted">{planet ? planet.topic : body.fame}</span>
+                  {unlocked ? (
+                    <span className="stop-pop-note">Phrases for this stop are coming soon. Your journey continues from here once they arrive.</span>
+                  ) : (
+                    prevGoal
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

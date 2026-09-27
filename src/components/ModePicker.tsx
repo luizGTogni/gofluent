@@ -1,13 +1,14 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { canEnter, type PlanetStat } from "@/lib/planetStats";
+import { canEnter, previousStop, type PlanetStat } from "@/lib/planetStats";
 import { PLANET_BY_ID, type PlanetId } from "@/lib/planets";
 import { CELESTIAL_PATH } from "@/lib/bodies";
 import { plural } from "@/lib/format";
 import { MODES, type GameMode } from "@/lib/modes";
+import { MODE_UNLOCKS, modeUnlocked } from "@/lib/unlocks";
+import { RankGoal } from "./RankGoal";
 import type { Rank } from "@/lib/ranks";
-import { TITLES } from "@/lib/titles";
 
 type Props = {
   mode: GameMode;
@@ -15,6 +16,11 @@ type Props = {
   planetId: PlanetId;
   onSelectPlanet: (id: PlanetId) => void;
   rank: Rank;
+  /** Rank points right now, for how far a locked mode is. */
+  rp: number;
+  /** False while the journey stop you're on has no phrases: nothing to play yet. */
+  canStart: boolean;
+  stuckAt: string;
   stats: Map<PlanetId, PlanetStat>;
   counts: Record<PlanetId, number>;
   onStart: () => void;
@@ -50,7 +56,7 @@ function PlanetPreview({ planetId, stat, count }: { planetId: PlanetId; stat?: P
 }
 
 /** "Free mode": pick how to play, then pick a planet, then go. */
-export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank, stats, counts, onStart, onBack }: Props) {
+export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank, rp, canStart, stuckAt, stats, counts, onStart, onBack }: Props) {
   return (
     <main className="shell center mode-picker">
       <button type="button" className="link mode-picker-back" onClick={onBack}>
@@ -61,21 +67,26 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
 
       <div className="mode-layout">
       <section className="mode-grid">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            className={`mode-card ${mode === m.id ? "on" : ""}`}
-            aria-pressed={mode === m.id}
-            onClick={() => onSelectMode(m.id)}
-          >
-            <span className="mode-icon" aria-hidden>
-              {m.icon}
-            </span>
-            <b>{m.name}</b>
-            <span className="muted">{m.blurb}</span>
-          </button>
-        ))}
+        {MODES.map((m) => {
+          const unlocked = modeUnlocked(m.id, rank.index);
+          return (
+            <button
+              key={m.id}
+              type="button"
+              className={`mode-card ${mode === m.id ? "on" : ""} ${unlocked ? "" : "locked"}`}
+              aria-pressed={mode === m.id}
+              disabled={!unlocked}
+              onClick={() => onSelectMode(m.id)}
+            >
+              <span className="mode-icon" aria-hidden>
+                {m.icon}
+              </span>
+              <b>{m.name}</b>
+              <span className="muted">{m.blurb}</span>
+              {!unlocked && <RankGoal rp={rp} index={MODE_UNLOCKS[m.id]} />}
+            </button>
+          );
+        })}
       </section>
 
       <div className="mode-right">
@@ -83,19 +94,19 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
       <div className="mode-planets">
         {PATH_PLANETS.map((p) => {
           const count = counts[p.id] ?? 0;
-          const stat = stats.get(p.id);
-          const open = canEnter(p, rank, stat) && count > 0;
+          const open = canEnter(p, stats, counts) && count > 0;
+          const prev = previousStop(p);
           const style = { "--orb-hi": p.color[0], "--orb-lo": p.color[1] } as CSSProperties;
           // Same node as the journey (Courses.tsx): the orb is the button, the name sits below.
           return (
             <div key={p.id} className="mode-planet">
               <button
                 type="button"
-                className={`planet-node ${planetId === p.id ? "on" : ""} ${!open ? "locked" : ""}`}
+                className={`planet-node ${open && planetId === p.id ? "on" : ""} ${!open ? "locked" : ""}`}
                 disabled={!open}
-                aria-pressed={planetId === p.id}
+                aria-pressed={open && planetId === p.id}
                 aria-label={p.name}
-                title={count === 0 ? "Coming soon" : !open ? `Reach ${TITLES[p.minRank].name} to unlock` : p.topic}
+                title={count === 0 ? "Coming soon" : !open && prev ? `Finish ${prev.name} to unlock` : p.topic}
                 onClick={() => onSelectPlanet(p.id)}
                 style={style}
               >
@@ -112,9 +123,13 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
         })}
       </div>
 
-      <PlanetPreview planetId={planetId} stat={stats.get(planetId)} count={counts[planetId] ?? 0} />
+      {canStart ? (
+        <PlanetPreview planetId={planetId} stat={stats.get(planetId)} count={counts[planetId] ?? 0} />
+      ) : (
+        <p className="muted">You&apos;re at {stuckAt} on your journey. Its phrases are coming soon, and the next stops open after it.</p>
+      )}
 
-      <button type="button" className="check big mode-start" onClick={onStart}>
+      <button type="button" className="check big mode-start" disabled={!canStart} onClick={onStart}>
         Start →
       </button>
       </div>

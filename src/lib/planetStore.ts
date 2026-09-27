@@ -1,5 +1,5 @@
 import type { PlanetStat } from "./planetStats";
-import { isPlanetId, type PlanetId } from "./planets";
+import { COURSE_MOVES_0015, isPlanetId, type PlanetId } from "./planets";
 import { getSupabase } from "./supabase";
 
 const KEY = "gofluent:planets";
@@ -20,9 +20,23 @@ const writeLocal = (stats: PlanetStat[]) => {
   }
 };
 
+const MOVED = "gofluent:planets:moved-0015";
+
+/** Once per device: this cache's stats follow their courses to the planets migration 0015 moved them to. */
+function moveLocalOnce(): void {
+  try {
+    if (localStorage.getItem(MOVED) === "1") return;
+    writeLocal(readLocal().map((s) => ({ ...s, planet: COURSE_MOVES_0015[s.planet] ?? s.planet })));
+    localStorage.setItem(MOVED, "1");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 type Row = { planet: string; played: number; solid: number; entered_at: string | null };
 
 export async function loadPlanetStats(): Promise<PlanetStat[]> {
+  moveLocalOnce();
   const db = await getSupabase();
   if (!db) return readLocal();
   const { data, error } = await db.from("planet_stats").select("planet, played, solid, entered_at");

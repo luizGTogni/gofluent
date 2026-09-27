@@ -1,3 +1,4 @@
+import type { GameMode } from "./modes";
 import { TITLES } from "./titles";
 
 export type Accent = "us" | "gb";
@@ -19,3 +20,16 @@ export const nextSpeedUnlock = (rankIndex: number) => SPEED_UNLOCKS.find((u) => 
 
 export const extendedUnlocked = (rankIndex: number) => rankIndex >= EXTENDED_RANK;
 export const accentUnlocked = (rankIndex: number) => rankIndex >= ACCENT_RANK;
+
+const titleIndex = (name: string) => TITLES.findIndex((t) => t.name === name);
+
+/** The rank each Free mode opens at: the easy-going modes first, the audio-only one last. */
+export const MODE_UNLOCKS: Record<GameMode, number> = {
+  classic: 0,
+  timeAttack: titleIndex("Comet"),
+  survival: titleIndex("Cadet"),
+  boss: titleIndex("Astronaut"),
+  blind: titleIndex("Pilot"),
+};
+
+export const modeUnlocked = (mode: GameMode, rankIndex: number) => rankIndex >= MODE_UNLOCKS[mode];

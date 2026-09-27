@@ -10,15 +10,16 @@ import { loadReview, putReview } from "@/lib/reviewStore";
 import { applyOutcome, isTricky, rate, trickyList, type WordStat } from "@/lib/wordStats";
 import { loadWordStats, putWordStats } from "@/lib/wordStore";
 import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
-import { PLANET_BY_ID, PLANETS, type PlanetId } from "@/lib/planets";
-import { canEnter, cefrBands, cefrEstimate, isSolid, markEntered, recordResult, type PlanetStat } from "@/lib/planetStats";
+import { PLANET_BY_ID, PLANETS, STARTER_PLANETS, type PlanetId } from "@/lib/planets";
+import { cefrBands, cefrEstimate, continuePlanet, isSolid, journeyIndex, markEntered, recordResult, type PlanetStat } from "@/lib/planetStats";
+import { CELESTIAL_PATH } from "@/lib/bodies";
 import { loadPlanetStats, putPlanetStat } from "@/lib/planetStore";
 import { speak, stopSpeech } from "@/lib/speech";
 import { loadPlayer, savePlayer } from "@/lib/playerStore";
 import { effectiveRp, rankChange, rankOf, starsLabel } from "@/lib/ranks";
 import type { Title } from "@/lib/titles";
 import { addXp, emptyPlayer, levelFromXp, levelProgress, phraseXp, type PlayerState, type XpBreakdown } from "@/lib/xp";
-import { extendedUnlocked, type Accent } from "@/lib/unlocks";
+import { extendedUnlocked, modeUnlocked, type Accent } from "@/lib/unlocks";
 import { addDays, computeStreak, gapToFreeze, localDay, localHour, milestoneHit } from "@/lib/streak";
 import { pickDifficulty } from "@/lib/adaptive";
 import { MODES, SURVIVAL_LIVES, TIME_ATTACK_SECONDS, type GameMode } from "@/lib/modes";
@@ -61,7 +62,7 @@ import { RewardToasts } from "./RewardToasts";
 import { SessionEnd } from "./SessionEnd";
 import { SessionSide } from "./SessionSide";
 import { PlayerCard } from "./PlayerCard";
-import { MissionRail } from "./MissionRail";
+import { DailyMissions, MissionRail } from "./MissionRail";
 
 type Summary = {
   tier: Tier;
@@ -105,7 +106,8 @@ export function Session() {
   const [screen, setScreen] = useState<Screen>("intro");
   const [exercises, setExercises] = useState<Exercise[]>(EXERCISES);
   const [library, setLibrary] = useState<Exercise[]>(EXERCISES);
-  const [planetId, setPlanetId] = useState<PlanetId>("earth");
+  // The planet picked on the journey or in Free mode; the stop you're on when it can't be played.
+  const [planetId, setPlanetId] = useState<PlanetId>(PLANETS[0].id);
   const [planetStats, setPlanetStats] = useState<Map<PlanetId, PlanetStat>>(new Map());
   const total = exercises.length;
   const [review, setReview] = useState<Map<string, ReviewState>>(new Map());
@@ -182,6 +184,11 @@ export function Session() {
   const canExtend = extendedUnlocked(rank.index);
   const streak = computeStreak(calendar.checked, calendar.frozen, localDay(nowDate));
   const courseCounts = Object.fromEntries(PLANETS.map((p) => [p.id, library.filter((e) => e.planet === p.id).length])) as Record<PlanetId, number>;
+  // Where "Continue" goes; null while the stop you're on has no phrases yet.
+  const continueId = continuePlanet(planetId, planetStats, courseCounts);
+  const currentStop = CELESTIAL_PATH[journeyIndex(planetStats, courseCounts)];
+  // A mode the rank no longer (or doesn't yet) allow falls back to Classic.
+  const playMode: GameMode = modeUnlocked(mode, rank.index) ? mode : "classic";
 
   const exercise = exercises[index];
 
@@ -442,15 +449,18 @@ export function Session() {
     });
   }, []);
 
-  /** Starts a run in `m` (the picked mode unless a shortcut says otherwise). */
-  const start = (runMode: GameMode = mode) => {
+  /** Starts a run in `requested` (the picked mode unless a shortcut says otherwise). */
+  const start = (requested: GameMode = playMode) => {
+    const runMode = modeUnlocked(requested, rank.index) ? requested : "classic";
+    // Members play the journey: nothing to start until the stop they're on has phrases.
+    if (full && !continueId) return;
     const pool = library;
     setMode(runMode);
-    if (full) setDifficulty(runMode === "blind" ? "extreme" : pickDifficulty(rank.index, planetStats.get(planetId)));
-    // Guests keep to the first two planets; members play the planet they picked (falling back to Earth).
-    const chosen = full && canEnter(PLANET_BY_ID.get(planetId)!, rank, planetStats.get(planetId)) ? planetId : "earth";
+    const chosen = continueId ?? PLANETS[0].id;
+    if (full) setDifficulty(runMode === "blind" ? "extreme" : pickDifficulty(rank.index, planetStats.get(chosen)));
+    // Guests keep to the first two course planets; members play the journey stop picked (or the one they're on).
     const planetPool = pool.filter(
-      (e) => (full ? e.planet === chosen : e.planet === "earth" || e.planet === "aurelia") && (canExtend || e.words.length <= 6),
+      (e) => (full ? e.planet === chosen : STARTER_PLANETS.includes(e.planet)) && (canExtend || e.words.length <= 6),
     );
     if (full) {
       const entered = markEntered(planetStats.get(chosen), chosen, new Date());
@@ -527,11 +537,14 @@ export function Session() {
   if (screen === "modes")
     return (
       <ModePicker
-        mode={mode}
+        mode={playMode}
         onSelectMode={setMode}
         planetId={planetId}
         onSelectPlanet={setPlanetId}
         rank={rank}
+        rp={rpNow}
+        canStart={Boolean(continueId)}
+        stuckAt={currentStop.name}
         stats={planetStats}
         counts={courseCounts}
         onStart={() => start()}
@@ -650,19 +663,26 @@ export function Session() {
 
         {full && (
           <>
-            <button type="button" className="check big narrow-only" onClick={() => setScreen("modes")}>
-              🚀 Free mode
-            </button>
+            <div className="home-actions narrow-only">
+              <button type="button" className="check big home-continue" disabled={!continueId} onClick={() => start("classic")}>
+                {continueId ? `▶ Continue on ${PLANET_BY_ID.get(continueId)!.name}` : `${currentStop.name} · phrases coming soon`}
+              </button>
+              <div className="home-secondary">
+                <button type="button" className="check ghost" onClick={() => setScreen("modes")}>
+                  🚀 Free mode
+                </button>
+                <button type="button" className="check ghost" onClick={() => setScreen("quests")}>
+                  🎯 Missions
+                </button>
+              </div>
+              <DailyMissions quests={quests} onAll={() => setScreen("quests")} />
+            </div>
             <h1 className="home-tagline">Follow your journey through the learning space</h1>
-            <button type="button" className="link small narrow-only" onClick={() => setScreen("quests")}>
-              🎯 Missions
-            </button>
           </>
         )}
 
         {full && (
           <Courses
-            rank={rank}
             stats={planetStats}
             counts={courseCounts}
             current={planetId}
@@ -683,7 +703,8 @@ export function Session() {
         {full && (
           <aside className="home-side home-right">
             <MissionRail
-              planet={PLANET_BY_ID.get(canEnter(PLANET_BY_ID.get(planetId)!, rank, planetStats.get(planetId)) ? planetId : "earth")!}
+              stop={currentStop}
+              planet={continueId ? PLANET_BY_ID.get(continueId)! : null}
               quests={quests}
               onContinue={() => start("classic")}
               onFreeMode={() => setScreen("modes")}

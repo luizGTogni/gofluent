@@ -1553,17 +1553,6 @@ button {
   font-weight: 600;
   text-align: center;
 }
-.planet-node.unmapped {
-  border-style: dashed;
-  background: transparent;
-}
-.planet-orb-blank {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--line);
-  opacity: 0.7;
-}
 @media (max-width: 360px) {
   .planet-node {
     width: 76px;
@@ -1990,6 +1979,126 @@ button {
   }
 }
 
+/* journey stops: every astro is a stop of the main mission. "Coming soon" stops have no phrases
+   yet; a locked stop shows what finishing the previous one takes; a finished stop gets a check. */
+/* a neutral orb for astros without a drawn design; an inline --orb-hi/--orb-lo overrides it */
+.planet-node.soon {
+  --orb-hi: #aab3cf;
+  --orb-lo: #3a4266;
+  border-style: dashed;
+}
+.planet-node.soon .planet-orb {
+  opacity: 0.65;
+}
+.planet-node-soon {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.planet-node-done {
+  color: #0f2a1f;
+  background: var(--ok);
+  border-color: var(--ok);
+  font-weight: 800;
+}
+.stop-pop-note {
+  font-size: 12px;
+  color: var(--accent);
+}
+.planet-node[aria-expanded] {
+  cursor: help;
+}
+/* the open stop's row paints above the rows after it (each row is its own stacking context) */
+.planet-path-row:has(.stop-pop) {
+  z-index: 5;
+}
+.stop-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  width: max-content;
+  max-width: min(220px, 60vw);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  animation: toast-fade 0.15s ease-out;
+}
+.stop-pop b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rank-goal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.rank-goal-text {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rank-goal-bar {
+  width: 84px;
+  height: 4px;
+}
+.stop-pop .rank-goal,
+.mode-card .rank-goal {
+  align-items: flex-start;
+}
+.stop-pop .rank-goal-bar,
+.mode-card .rank-goal-bar {
+  width: 100%;
+}
+.mode-card .rank-goal {
+  width: 100%;
+  margin-top: 4px;
+}
+.mode-card.locked {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.mode-card.locked:hover {
+  border-color: var(--line);
+}
+
+/* home actions on phones: one primary CTA, two equal secondary ones, today's missions */
+.home-actions {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.home-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.home-secondary .check {
+  padding: 12px 10px;
+}
+
 /* ---------------------------------------------------------------------------------------------
    Desktop layouts. Below 1024px nothing here changes the page: the layout wrappers collapse
    (display: contents) and the wide-screen extras (rails, previews, session sidebar) stay hidden.
@@ -2291,27 +2400,6 @@ kbd {
     width: 66px;
     height: 66px;
   }
-  .planet-path-row.scenery .planet-node {
-    width: 58px;
-    height: 58px;
-    border-width: 2px;
-  }
-  .planet-path-row.scenery .planet-orb {
-    width: 34px;
-    height: 34px;
-  }
-  .planet-path-row.scenery .planet-orb.ringed::before {
-    inset: -4px -10px;
-    border-width: 2px;
-  }
-  .planet-path-row.scenery .planet-node-lock {
-    display: none;
-  }
-  .planet-path-row.scenery .planet-node-name {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--muted);
-  }
 
   /* free mode: modes listed on the left, the planet and its preview on the right */
   .mode-layout {
@@ -2335,6 +2423,9 @@ kbd {
   .mode-icon {
     grid-row: span 2;
     font-size: 28px;
+  }
+  .mode-card .rank-goal {
+    grid-column: 2;
   }
   .mode-right {
     grid-column: span 7;
