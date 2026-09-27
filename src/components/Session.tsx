@@ -11,7 +11,7 @@ import { applyOutcome, isTricky, rate, trickyList, type WordStat } from "@/lib/w
 import { loadWordStats, putWordStats } from "@/lib/wordStore";
 import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
 import { PLANET_BY_ID, PLANETS, type PlanetId } from "@/lib/planets";
-import { canEnter, isSolid, markEntered, recordResult, type PlanetStat } from "@/lib/planetStats";
+import { canEnter, cefrBands, cefrEstimate, isSolid, markEntered, recordResult, type PlanetStat } from "@/lib/planetStats";
 import { loadPlanetStats, putPlanetStat } from "@/lib/planetStore";
 import { speak, stopSpeech } from "@/lib/speech";
 import { loadPlayer, savePlayer } from "@/lib/playerStore";
@@ -19,6 +19,18 @@ import { effectiveRp, rankChange, rankOf, starsLabel } from "@/lib/ranks";
 import type { Title } from "@/lib/titles";
 import { addXp, emptyPlayer, levelFromXp, levelProgress, phraseXp, type PlayerState, type XpBreakdown } from "@/lib/xp";
 import { accentUnlocked, availableSpeeds, extendedUnlocked, nextSpeedUnlock, type Accent } from "@/lib/unlocks";
+import { addDays, computeStreak, gapToFreeze, milestoneHit, utcDay } from "@/lib/streak";
+import { coinsForXp, CRYSTALS_PER_CEFR_UP, CRYSTALS_PER_RANK_UP, dailyInterest, milestoneReward, type Wallet } from "@/lib/economy";
+import {
+  addFrozenDay,
+  addStudySeconds,
+  interestAppliedToday,
+  loadCalendar,
+  loadWallet,
+  markInterestApplied,
+  saveWallet,
+  type StudyCalendar,
+} from "@/lib/economyStore";
 import { TITLES } from "@/lib/titles";
 import { ExerciseView } from "./ExerciseView";
 import { Account } from "./Account";
@@ -28,6 +40,7 @@ import { Promotion } from "./Promotion";
 import { StarMap } from "./StarMap";
 import { TrickyWords } from "./TrickyWords";
 import { SaveChunks } from "./SaveChunks";
+import { Heatmap } from "./Heatmap";
 import { WordCards } from "./WordCards";
 
 type Summary = {
@@ -40,6 +53,9 @@ type Summary = {
   xp?: XpBreakdown;
   levelUp?: number;
   starNote?: string;
+  coins?: number;
+  crystalNote?: string;
+  milestoneNote?: string;
 };
 type Auth = "loading" | "gate" | "guest" | "member";
 type Screen = "intro" | "play" | "end" | "words" | "tricky" | "account" | "map";
@@ -92,6 +108,10 @@ export function Session() {
   const [history, setHistory] = useState<Summary[]>([]);
   const [player, setPlayer] = useState<PlayerState>(emptyPlayer);
   const [promo, setPromo] = useState<Title | null>(null);
+  const [wallet, setWallet] = useState<Wallet>({ coins: 0, crystals: 0, freezes: 0 });
+  const [calendar, setCalendar] = useState<StudyCalendar>({ checked: new Set(), frozen: new Set(), lastInterestDay: null });
+  const [freezeNote, setFreezeNote] = useState<string | null>(null);
+  const checkedInToday = useRef(false);
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -117,6 +137,7 @@ export function Session() {
   const nextSpeed = nextSpeedUnlock(rank.index);
   const canAccent = accentUnlocked(rank.index);
   const canExtend = extendedUnlocked(rank.index);
+  const streak = computeStreak(calendar.checked, calendar.frozen, utcDay(nowDate));
 
   const exercise = exercises[index];
 
@@ -143,9 +164,43 @@ export function Session() {
       if (change === "star") s.starNote = `${starsLabel(rankAfter.stars)} ${rankAfter.title.name}`;
       if (change === "promotion") setPromo(rankAfter.title);
 
+      const cefrBefore = cefrEstimate(cefrBands(planetStats.values()));
       const planetStat = recordResult(planetStats.get(exercise.planet), exercise.planet, isSolid(result));
       putPlanetStat(planetStat);
-      setPlanetStats((m) => new Map(m).set(exercise.planet, planetStat));
+      setPlanetStats((m) => {
+        const next = new Map(m).set(exercise.planet, planetStat);
+        const cefrAfter = cefrEstimate(cefrBands(next.values()));
+        if (cefrAfter && cefrAfter !== cefrBefore) s.crystalNote = `New estimated level: ${cefrAfter}. +${CRYSTALS_PER_CEFR_UP} crystals.`;
+        return next;
+      });
+
+      // Economy: coins for the XP just earned, plus today's check-in and its streak effects.
+      addStudySeconds(Math.max(1, Math.round(result.elapsedMs / 1000)));
+      let coinGain = coinsForXp(gain.total);
+      let crystalGain = (change === "promotion" ? CRYSTALS_PER_RANK_UP : 0) + (s.crystalNote ? CRYSTALS_PER_CEFR_UP : 0);
+      let freezeGain = 0;
+      if (!checkedInToday.current) {
+        checkedInToday.current = true;
+        const today = utcDay(now);
+        const before = computeStreak(calendar.checked, calendar.frozen, today).current;
+        const nextChecked = new Set(calendar.checked).add(today);
+        setCalendar((c) => ({ ...c, checked: nextChecked }));
+        const after = computeStreak(nextChecked, calendar.frozen, today).current;
+        const hit = milestoneHit(before, after);
+        if (hit) {
+          const reward = milestoneReward(hit);
+          coinGain += reward.coins;
+          crystalGain += reward.crystals;
+          freezeGain += reward.freezes;
+          s.milestoneNote = `🛰️ ${hit}-day orbit! +${reward.coins} Lunar Coins, +${reward.crystals} Crystals, +${reward.freezes} shield${reward.freezes === 1 ? "" : "s"}.`;
+        }
+      }
+      s.coins = coinGain;
+      setWallet((w) => {
+        const next = { coins: w.coins + coinGain, crystals: w.crystals + crystalGain, freezes: w.freezes + freezeGain };
+        saveWallet(next);
+        return next;
+      });
 
       const changed = applyOutcome(wordStats, result.perWord);
       putWordStats(changed);
@@ -196,6 +251,37 @@ export function Session() {
     loadWordStats().then((list) => setWordStats(new Map(list.map((w) => [w.word, w]))));
     loadPlayer().then(setPlayer);
     loadPlanetStats().then((list) => setPlanetStats(new Map(list.map((p) => [p.planet, p]))));
+    loadWallet().then(setWallet);
+    loadCalendar().then(async (cal) => {
+      const today = utcDay(new Date());
+      const gap = gapToFreeze(cal.checked, today);
+      let nextWallet: Wallet | null = null;
+      if (gap) {
+        setWallet((w) => {
+          if (w.freezes <= 0) return w;
+          nextWallet = { ...w, freezes: w.freezes - 1 };
+          return nextWallet;
+        });
+        if (nextWallet) {
+          await addFrozenDay(gap);
+          await saveWallet(nextWallet);
+          cal.frozen.add(gap);
+          setFreezeNote(`⚡ Energy shield used for ${gap}. Your orbit holds.`);
+        }
+      }
+      setCalendar(cal);
+      checkedInToday.current = cal.checked.has(today);
+
+      const streakSoFar = computeStreak(cal.checked, cal.frozen, addDays(today, -1)).current;
+      if (streakSoFar > 0 && !(await interestAppliedToday())) {
+        const bonus = dailyInterest(streakSoFar, (nextWallet ?? wallet).coins);
+        if (bonus > 0) {
+          setWallet((w) => ({ ...w, coins: w.coins + bonus }));
+          saveWallet({ ...(nextWallet ?? wallet), coins: (nextWallet ?? wallet).coins + bonus });
+        }
+        markInterestApplied();
+      }
+    });
   }, [screen, full]);
 
   useEffect(() => {
@@ -374,6 +460,18 @@ export function Session() {
           </div>
         )}
         {full && (
+          <div className="wallet-card">
+            <span className="orbit">🛰️ {streak.current} day{streak.current === 1 ? "" : "s"} in orbit</span>
+            <span className="wallet-coins">🪙 {wallet.coins}</span>
+            <span className="wallet-crystals">💎 {wallet.crystals}</span>
+            <span className="wallet-freezes" title="Energy shields">
+              ⚡ {wallet.freezes}
+            </span>
+          </div>
+        )}
+        {freezeNote && <p className="muted rank-slip">{freezeNote}</p>}
+        {full && <Heatmap checked={calendar.checked} frozen={calendar.frozen} />}
+        {full && (
           <button type="button" className="destination" onClick={() => setScreen("map")}>
             <span className="planet-emoji" aria-hidden>
               {PLANET_BY_ID.get(planetId)!.emoji}
@@ -541,6 +639,9 @@ export function Session() {
             )}
             {summary.levelUp && <p className="review-note level-up">Level up! You reached level {summary.levelUp}.</p>}
             {summary.starNote && <p className="review-note level-up">New star: {summary.starNote}</p>}
+            {summary.coins !== undefined && summary.coins > 0 && <p className="review-note coin-note">🪙 +{summary.coins} Lunar Coins</p>}
+            {summary.crystalNote && <p className="review-note level-up">{summary.crystalNote}</p>}
+            {summary.milestoneNote && <p className="review-note level-up">{summary.milestoneNote}</p>}
             {summary.review && <p className="muted review-note">{summary.review}</p>}
             {summary.stumbled.length > 0 && (
               <p className="muted review-note">
