@@ -75,6 +75,8 @@ export const COOLDOWN_MS = 10 * 60_000;
 export const DEFAULT_MODELS = ["google/gemma-4-31b-it", "mistralai/mistral-nemotron", "mistralai/mistral-large-2-instruct", "nvidia/nemotron-3-super-120b-a12b"];
 /** Budget for one generation across every model, inside the route's maxDuration (300 s). */
 const TOTAL_MS = 270_000;
+/** A model still thinking after this long gets company: the next one starts too, the first answer wins. */
+export const HEDGE_MS = 20_000;
 
 /**
  * A failed call. `refused` (401/403): that key is bad, for every model. `limited` (429): that key is
@@ -93,26 +95,33 @@ class NimError extends Error {
   get keyIssue() {
     return this.refused || this.status === 429;
   }
+  get serverError() {
+    return this.status >= 500;
+  }
 }
 
-async function chat(apiKey: string, model: string, body: Record<string, unknown>, timeoutMs: number): Promise<string> {
+async function chat(apiKey: string, model: string, body: Record<string, unknown>, timeoutMs: number, cancel?: AbortSignal): Promise<string> {
+  const signal = cancel ? AbortSignal.any([AbortSignal.timeout(timeoutMs), cancel]) : AbortSignal.timeout(timeoutMs);
+  const failed = (e: unknown) =>
+    new NimError(e instanceof Error && e.name === "TimeoutError" ? `timed out after ${Math.round(timeoutMs / 1000)}s` : String(e));
   let res: Response;
   try {
     res = await fetch(NIM_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ model, stream: false, ...body }),
-      signal: AbortSignal.timeout(timeoutMs),
+      signal,
     });
+    if (!res.ok) {
+      const detail = (await res.text()).slice(0, 200);
+      throw new NimError(`${res.status} ${detail}`, res.status);
+    }
+    // The body can stall too: the same signal covers reading it.
+    const data = (await res.json()) as { choices?: { message?: { content?: string | null } }[] };
+    return data.choices?.[0]?.message?.content ?? "";
   } catch (e) {
-    throw new NimError(e instanceof Error && e.name === "TimeoutError" ? `timed out after ${Math.round(timeoutMs / 1000)}s` : String(e));
+    throw e instanceof NimError ? e : failed(e);
   }
-  if (!res.ok) {
-    const detail = (await res.text()).slice(0, 200);
-    throw new NimError(`${res.status} ${detail}`, res.status);
-  }
-  const data = (await res.json()) as { choices?: { message?: { content?: string | null } }[] };
-  return data.choices?.[0]?.message?.content ?? "";
 }
 
 /** The models in their order, but any that failed recently go last (the oldest failure first). */
@@ -124,11 +133,13 @@ export function orderModels(models: string[], failures: Record<string, string>, 
 }
 
 /**
- * Drafts phrases, falling back through the models and keys. For each model, the keys in order: a
- * rate-limited or refused key hands the same model to the next key (NIM limits are per key); a
- * model that errors, times out or replies without phrases hands over to the next model. A refused
- * key is dropped for the rest of the request. Every attempt is reported, to show who answered and
- * to rest the models that failed.
+ * Drafts phrases, racing the models in a staggered way. The first model starts at once; each
+ * HEDGE_MS without an answer (or as soon as one fails) the next one joins, and the first valid reply
+ * wins while the others are cancelled. Within a model, the keys in order: a rate-limited or refused
+ * key hands the same model to the next key (NIM limits are per key), and so does a 5xx; a model that
+ * errors otherwise, times out or replies without phrases ends its lane. A refused key is dropped for the rest of the request.
+ * Every finished attempt is reported, to show who answered and to rest the models that failed;
+ * calls cancelled because another model won aren't failures and aren't reported.
  */
 export async function generatePhrases(
   settings: NimSettings,
@@ -137,11 +148,14 @@ export async function generatePhrases(
   const attempts: Attempt[] = [];
   const deadline = Date.now() + TOTAL_MS;
   const keys = settings.apiKeys.map((key, i) => ({ key, n: i + 1, refused: false }));
-  models: for (const model of orderModels(settings.models, settings.failures)) {
+  const models = orderModels(settings.models, settings.failures);
+  const won = new AbortController();
+
+  const lane = async (model: string): Promise<Generated[] | null> => {
     for (const k of keys) {
       if (k.refused) continue;
       const left = deadline - Date.now();
-      if (left < 15_000) break models;
+      if (left < 15_000 || won.signal.aborted) return null;
       const started = Date.now();
       try {
         const reply = await chat(
@@ -156,21 +170,63 @@ export async function generatePhrases(
             chat_template_kwargs: { thinking: settings.reasoning, enable_thinking: settings.reasoning },
           },
           Math.min(left, settings.reasoning ? 150_000 : 75_000),
+          won.signal,
         );
         const phrases = parseGenerated(reply);
         if (!phrases.length) throw new NimError("reply had no phrases");
+        if (won.signal.aborted) return null;
         attempts.push({ model, key: k.n, ok: true, ms: Date.now() - started });
-        return { phrases, model, attempts };
+        return phrases;
       } catch (e) {
+        if (won.signal.aborted) return null;
         const err = e instanceof NimError ? e : new NimError(String(e));
         attempts.push({ model, key: k.n, ok: false, ms: Date.now() - started, error: err.message, keyIssue: err.keyIssue });
         if (err.refused) k.refused = true;
-        if (!err.keyIssue) continue models;
+        // An overloaded or erroring server may still answer on the next key (seen with NIM's 503).
+        if (!err.keyIssue && !err.serverError) return null;
       }
     }
-    if (keys.every((k) => k.refused)) return { phrases: [], model: null, attempts, error: "NVIDIA NIM refused every saved API key." };
-  }
-  return { phrases: [], model: null, attempts, error: "Every model failed. See the attempts below, or try again in a few minutes." };
+    return null;
+  };
+
+  return new Promise((resolve) => {
+    let next = 0;
+    let running = 0;
+    let settled = false;
+    let hedge: ReturnType<typeof setTimeout> | undefined;
+    const finish = (r: { phrases: Generated[]; model: string | null; error?: string }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hedge);
+      won.abort();
+      resolve({ ...r, attempts });
+    };
+    const giveUp = () =>
+      finish({
+        phrases: [],
+        model: null,
+        error: keys.every((k) => k.refused)
+          ? "NVIDIA NIM refused every saved API key."
+          : "Every model failed. See the attempts below, or try again in a few minutes.",
+      });
+    const launch = () => {
+      clearTimeout(hedge);
+      if (settled) return;
+      if (next >= models.length || deadline - Date.now() < 15_000 || keys.every((k) => k.refused)) {
+        if (running === 0) giveUp();
+        return;
+      }
+      const model = models[next++];
+      running++;
+      lane(model).then((phrases) => {
+        running--;
+        if (phrases) finish({ phrases, model });
+        else launch();
+      });
+      hedge = setTimeout(launch, HEDGE_MS);
+    };
+    launch();
+  });
 }
 
 /** Models to rest after a request: those that failed on their own account, and never answered. */
