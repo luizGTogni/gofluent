@@ -5,14 +5,19 @@ import { BADGES } from "@/lib/badges";
 import { loadBadges, unlockedBadges } from "@/lib/badgeStore";
 import { periodKeyFor, QUESTS, type QuestDef } from "@/lib/quests";
 import { progressFor, type QuestProgress } from "@/lib/questStore";
+import { TITLES, type Rank } from "@/lib/ranks";
+import { currencyLine } from "@/lib/rewards";
+import { MODE_UNLOCKS, modeUnlocked } from "@/lib/unlocks";
+import { ClaimButton, type OnClaim } from "./ClaimButton";
 
-type Props = { rows: QuestProgress[]; onBack: () => void };
+type Props = { rows: QuestProgress[]; rank: Rank; onClaim: OnClaim; onBack: () => void };
 
-export function QuestCard({ q, row }: { q: QuestDef; row: QuestProgress }) {
+export function QuestCard({ q, row, rank, onClaim }: { q: QuestDef; row: QuestProgress; rank: Rank; onClaim: OnClaim }) {
   const pct = Math.min(100, Math.round((row.count / q.target) * 100));
   const done = row.count >= q.target;
+  const locked = q.mode !== undefined && !modeUnlocked(q.mode, rank.index);
   return (
-    <div className={`quest-card ${done ? "done" : ""}`}>
+    <div className={`quest-card ${done ? "done" : ""} ${done && !row.claimed ? "ready" : ""} ${locked ? "locked" : ""}`}>
       <div className="quest-card-head">
         <b>{q.name}</b>
         <span className="muted">
@@ -24,14 +29,20 @@ export function QuestCard({ q, row }: { q: QuestDef; row: QuestProgress }) {
         <span style={{ width: `${pct}%` }} />
       </div>
       <div className="quest-reward muted">
-        {done ? "✅ Claimed" : `🪙 +${q.coins}${q.crystals ? ` · 💎 +${q.crystals}` : ""}`}
+        {done ? (
+          <ClaimButton def={q} periodKey={row.periodKey} claimed={row.claimed} onClaim={onClaim} />
+        ) : locked ? (
+          `🔒 Opens at ${TITLES[MODE_UNLOCKS[q.mode!]].name}`
+        ) : (
+          currencyLine(q)
+        )}
       </div>
     </div>
   );
 }
 
 /** Daily and weekly missions (progress synced, see questStore.ts), plus the mission badges earned so far. */
-export function QuestBoard({ rows, onBack }: Props) {
+export function QuestBoard({ rows, rank, onClaim, onBack }: Props) {
   const [badges, setBadges] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -58,7 +69,7 @@ export function QuestBoard({ rows, onBack }: Props) {
         <h2 className="mode-picker-sub muted">Daily</h2>
         <div className="quest-grid">
           {daily.map((q) => (
-            <QuestCard key={q.id} q={q} row={rowFor(q)} />
+            <QuestCard key={q.id} q={q} row={rowFor(q)} rank={rank} onClaim={onClaim} />
           ))}
         </div>
       </section>
@@ -67,7 +78,7 @@ export function QuestBoard({ rows, onBack }: Props) {
         <h2 className="mode-picker-sub muted">Weekly</h2>
         <div className="quest-grid">
           {weekly.map((q) => (
-            <QuestCard key={q.id} q={q} row={rowFor(q)} />
+            <QuestCard key={q.id} q={q} row={rowFor(q)} rank={rank} onClaim={onClaim} />
           ))}
         </div>
       </section>

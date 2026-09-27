@@ -1,10 +1,12 @@
-// Oxygen tanks and owned spacesuit pieces, synced like the wallet: localStorage caches the latest
+// Oxygen tanks, owned spacesuit pieces and journey cosmetics, synced like the wallet: localStorage caches the latest
 // values (so Survival can spend a tank synchronously), Supabase's inventory row holds the truth.
-import type { SuitId } from "./shop";
+import type { CosmeticKind, SuitId } from "./shop";
 import { getSupabase } from "./supabase";
 
 const OXYGEN_KEY = "gofluent:oxygen";
 const SUITS_KEY = "gofluent:suits";
+const COSMETICS_KEY = "gofluent:cosmetics";
+const EQUIPPED_KEY = "gofluent:equipped";
 const IMPORTED = "gofluent:inventory:imported";
 
 const write = (key: string, value: string) => {
@@ -31,7 +33,20 @@ export function ownedSuits(): Set<SuitId> {
   }
 }
 
-const saveRemote = async (fields: { oxygen?: number; suits?: SuitId[] }) => {
+export type Equipped = Partial<Record<CosmeticKind, string>>;
+
+const readJson = <T,>(key: string, fallback: T): T => {
+  try {
+    return (JSON.parse(localStorage.getItem(key) ?? "null") as T) ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+export const ownedCosmetics = (): Set<string> => new Set(readJson<string[]>(COSMETICS_KEY, []));
+export const equippedCosmetics = (): Equipped => readJson<Equipped>(EQUIPPED_KEY, {});
+
+const saveRemote = async (fields: { oxygen?: number; suits?: SuitId[]; cosmetics?: string[]; trail?: string | null; halo?: string | null }) => {
   const db = await getSupabase();
   if (!db) return;
   const { data } = await db.auth.getUser();
@@ -42,7 +57,7 @@ const saveRemote = async (fields: { oxygen?: number; suits?: SuitId[] }) => {
   if (error) console.error("inventory save failed:", error.message);
 };
 
-type Inventory = { oxygen: number; suits: Set<SuitId> };
+type Inventory = { oxygen: number; suits: Set<SuitId>; cosmetics: Set<string>; equipped: Equipped };
 
 // Loads in flight are shared: the one-time import adds tanks, so two overlapping loads must not both run it.
 let loading: Promise<Inventory> | null = null;
@@ -54,12 +69,12 @@ export function loadInventory(): Promise<Inventory> {
 }
 
 async function fetchInventory(): Promise<Inventory> {
-  const local = { oxygen: getOxygen(), suits: ownedSuits() };
+  const local = { oxygen: getOxygen(), suits: ownedSuits(), cosmetics: ownedCosmetics(), equipped: equippedCosmetics() };
   const db = await getSupabase();
   if (!db) return local;
   const { data: auth } = await db.auth.getUser();
   if (!auth.user) return local;
-  const { data, error } = await db.from("inventory").select("oxygen, suits").maybeSingle();
+  const { data, error } = await db.from("inventory").select("oxygen, suits, cosmetics, trail, halo").maybeSingle();
   if (error) return local;
 
   let oxygen = Number(data?.oxygen ?? 0);
@@ -71,9 +86,13 @@ async function fetchInventory(): Promise<Inventory> {
     if (local.oxygen || local.suits.size) await saveRemote({ oxygen, suits: [...suits] });
     write(IMPORTED, "1");
   }
+  const cosmetics = new Set((data?.cosmetics ?? []) as string[]);
+  const equipped: Equipped = { trail: data?.trail ?? undefined, halo: data?.halo ?? undefined };
   write(OXYGEN_KEY, String(oxygen));
   write(SUITS_KEY, JSON.stringify([...suits]));
-  return { oxygen, suits };
+  write(COSMETICS_KEY, JSON.stringify([...cosmetics]));
+  write(EQUIPPED_KEY, JSON.stringify(equipped));
+  return { oxygen, suits, cosmetics, equipped };
 }
 
 export function addOxygen(n: number): number {
@@ -98,4 +117,20 @@ export function buySuit(id: SuitId): Set<SuitId> {
   write(SUITS_KEY, JSON.stringify([...set]));
   saveRemote({ suits: [...set] });
   return set;
+}
+
+export function buyCosmetic(id: string): Set<string> {
+  const set = ownedCosmetics();
+  set.add(id);
+  write(COSMETICS_KEY, JSON.stringify([...set]));
+  saveRemote({ cosmetics: [...set] });
+  return set;
+}
+
+/** Wears `id` for its kind, or takes that kind off with null (back to the default look). */
+export function equipCosmetic(kind: CosmeticKind, id: string | null): Equipped {
+  const next = { ...equippedCosmetics(), [kind]: id ?? undefined };
+  write(EQUIPPED_KEY, JSON.stringify(next));
+  saveRemote({ [kind]: id });
+  return next;
 }

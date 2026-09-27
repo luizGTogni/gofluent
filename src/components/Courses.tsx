@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { CELESTIAL_PATH } from "@/lib/bodies";
 import { journeyIndex, stopDone, type PhraseCounts, type PlanetStat } from "@/lib/planetStats";
 import { PLANET_BY_ID, type PlanetId } from "@/lib/planets";
+import { COSMETIC_BY_ID } from "@/lib/shop";
+import { equippedCosmetics, type Equipped } from "@/lib/shopStore";
 import { StopGoal } from "./StopGoal";
 
 type Props = {
@@ -47,6 +49,13 @@ export function Courses({ stats, counts, current, onSelect }: Props) {
   const [trail, setTrail] = useState("");
   // The stop whose popover is open (a locked stop's goal, or a coming-soon stop's trivia).
   const [open, setOpen] = useState<string | null>(null);
+  // The trail colour and halo the learner wears (store cosmetics), from the inventory cache.
+  const [look, setLook] = useState<Equipped>({});
+  useEffect(() => setLook(equippedCosmetics()), []);
+  const lookVars = {
+    "--trail": look.trail ? COSMETIC_BY_ID.get(look.trail)?.color : undefined,
+    "--halo": look.halo ? COSMETIC_BY_ID.get(look.halo)?.color : undefined,
+  } as CSSProperties;
 
   // Wide screens swing the path much further side to side, so the straight guide line gives way to
   // a curve drawn through the nodes themselves, redrawn whenever the path resizes.
@@ -93,7 +102,7 @@ export function Courses({ stats, counts, current, onSelect }: Props) {
   const rocketAt = picked >= 0 && picked <= here && (counts[current] ?? 0) > 0 ? picked : here;
 
   return (
-    <div className="courses">
+    <div className="courses" style={lookVars}>
       <div className="planet-path" ref={pathRef}>
         {trail && (
           <svg className="planet-trail" aria-hidden>

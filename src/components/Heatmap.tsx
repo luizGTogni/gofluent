@@ -3,10 +3,9 @@
 import { addDays, localDay } from "@/lib/streak";
 import { plural } from "@/lib/format";
 
-const WEEKS = 14;
 
-/** GitHub-style grid of the last ~14 weeks, on the learner's clock. Green = studied, blue ring = bridged by a Streak Shield. */
-export function Heatmap({ checked, frozen }: { checked: ReadonlySet<string>; frozen: ReadonlySet<string> }) {
+/** GitHub-style grid of the last `weeks` weeks (14 by default), on the learner's clock. Green = studied, blue ring = bridged by a Streak Shield. */
+export function Heatmap({ checked, frozen, weeks: WEEKS = 14 }: { checked: ReadonlySet<string>; frozen: ReadonlySet<string>; weeks?: number }) {
   const today = localDay(new Date());
   const todayDow = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = Sunday
   const start = addDays(today, -(WEEKS * 7 - 1) - todayDow);

@@ -1448,7 +1448,7 @@ button {
   bottom: 0;
   left: 50%;
   width: 3px;
-  background: repeating-linear-gradient(to bottom, var(--accent) 0 6px, transparent 6px 16px);
+  background: repeating-linear-gradient(to bottom, var(--trail, var(--accent)) 0 6px, transparent 6px 16px);
   opacity: 0.4;
   transform: translateX(-50%);
   z-index: 0;
@@ -1494,10 +1494,11 @@ button {
 .planet-node:not(.locked):hover {
   border-color: var(--accent);
 }
+/* the planet you're on; the halo colour is a store cosmetic */
 .planet-node.on {
-  border-color: var(--accent);
+  border-color: var(--halo, var(--accent));
   background: var(--accent-soft);
-  box-shadow: 0 0 0 6px rgba(255, 193, 7, 0.15);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--halo, #ffc107) 18%, transparent);
 }
 .planet-node.locked {
   opacity: 0.85;
@@ -2099,6 +2100,92 @@ button {
   padding: 12px 10px;
 }
 
+/* missions: the claim moment */
+.claim-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  animation: claim-pulse 1.6s ease-in-out infinite;
+}
+.claim-btn:disabled {
+  animation: none;
+}
+@keyframes claim-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(242, 194, 107, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(242, 194, 107, 0); }
+}
+.claim-paid {
+  display: inline-block;
+  color: var(--gold);
+  font-weight: 700;
+  animation: claim-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes claim-pop {
+  from { opacity: 0; transform: scale(0.6) translateY(4px); }
+}
+.claim-done {
+  color: var(--ok);
+}
+.rail-mission .claim-btn,
+.end-mission .claim-btn {
+  align-self: flex-start;
+}
+.quest-card.ready {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.quest-card.locked {
+  opacity: 0.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .claim-btn,
+  .claim-paid {
+    animation: none;
+  }
+}
+
+/* store cosmetics: a swatch of the trail or halo */
+.cosmetic-swatch {
+  display: block;
+  width: 44px;
+  height: 44px;
+}
+.cosmetic-trail {
+  height: 26px;
+  margin: 9px 0;
+  background: repeating-linear-gradient(90deg, var(--swatch) 0 8px, transparent 8px 14px);
+  -webkit-mask: linear-gradient(transparent 11px, #000 11px 15px, transparent 15px);
+  mask: linear-gradient(transparent 11px, #000 11px 15px, transparent 15px);
+}
+.cosmetic-halo {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #7ec8ff, #123a66 70%);
+  box-shadow:
+    0 0 0 3px var(--swatch),
+    0 0 0 8px color-mix(in srgb, var(--swatch) 25%, transparent);
+}
+
+/* top bar: the chips that lead somewhere, and the avatar by the name */
+.chip-link {
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+.chip-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.topbar-avatar {
+  display: inline-flex;
+  align-items: flex-end;
+  margin-right: 6px;
+  font-size: 18px;
+  vertical-align: middle;
+}
+.topbar-avatar .profile-avatar-suit {
+  font-size: 10px;
+  margin-left: 0;
+}
+
 /* ---------------------------------------------------------------------------------------------
    Desktop layouts. Below 1024px nothing here changes the page: the layout wrappers collapse
    (display: contents) and the wide-screen extras (rails, previews, session sidebar) stay hidden.
@@ -2383,7 +2470,7 @@ kbd {
   }
   .planet-trail path {
     fill: none;
-    stroke: var(--accent);
+    stroke: var(--trail, var(--accent));
     stroke-width: 3;
     stroke-dasharray: 6 10;
     stroke-linecap: round;

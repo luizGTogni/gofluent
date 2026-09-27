@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { BADGE_BY_ID } from "@/lib/badges";
 import { plural } from "@/lib/format";
-import { advancedQuests, type QuestProgress } from "@/lib/questStore";
+import { advancedQuests, progressFor, type QuestProgress } from "@/lib/questStore";
+import { periodKeyFor } from "@/lib/quests";
+import { ClaimButton, type OnClaim } from "./ClaimButton";
 import type { SessionGains } from "@/lib/rewards";
 import { XpMeter } from "./XpMeter";
 
@@ -25,6 +27,7 @@ type Props = {
   streak: number;
   /** Did this session check in today, extending the orbit? */
   streakExtended: boolean;
+  onClaim: OnClaim;
   onContinue: () => void;
   onPlayAgain: () => void;
 };
@@ -65,7 +68,8 @@ export function SessionEnd(p: Props) {
     return () => clearTimeout(t);
   }, [p.xpAfter]);
 
-  const missions = advancedQuests(p.questsBefore, p.questsAfter, new Date());
+  const now = new Date();
+  const missions = advancedQuests(p.questsBefore, p.questsAfter, now);
   const newBest = p.prevBest !== null && p.score > p.prevBest && p.score > 0;
   const currencies = p.gains.coins > 0 || p.gains.crystals > 0 || p.gains.freezes > 0;
 
@@ -110,6 +114,15 @@ export function SessionEnd(p: Props) {
               <div className="xpbar quest-bar end-mission-bar" style={{ "--from": `${Math.round((before / q.target) * 100)}%` } as React.CSSProperties}>
                 <span style={{ width: `${Math.round((after / q.target) * 100)}%` }} />
               </div>
+              {after >= q.target && (
+                <ClaimButton
+                  def={q}
+                  periodKey={periodKeyFor(q, now)}
+                  claimed={progressFor(p.questsAfter, q.id, periodKeyFor(q, now)).claimed}
+                  onClaim={p.onClaim}
+                  quiet
+                />
+              )}
             </div>
           ))}
         </section>

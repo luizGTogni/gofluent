@@ -24,8 +24,8 @@ import { addDays, computeStreak, gapToFreeze, localDay, localHour, milestoneHit 
 import { pickDifficulty } from "@/lib/adaptive";
 import { MODES, SURVIVAL_LIVES, TIME_ATTACK_SECONDS, type GameMode } from "@/lib/modes";
 import { ModePicker } from "./ModePicker";
-import { daysStudiedInWeek, QUEST_BY_ID, weekKey } from "@/lib/quests";
-import { claimQuest, loadQuests, progressFor, putQuests, withRow, type QuestProgress } from "@/lib/questStore";
+import { daysStudiedInWeek, weekKey, type QuestDef } from "@/lib/quests";
+import { claimQuest, loadQuests, progressFor, putQuests, tickQuests, withRow, type QuestProgress, type QuestTick } from "@/lib/questStore";
 import { bumpNoHintCount, loadBadges, unlockedBadges, unlockBadge } from "@/lib/badgeStore";
 import { BADGE_BY_ID, type BadgeId } from "@/lib/badges";
 import { addGains, badgeReward, emptyGains, questReward, streakReward, type Reward, type RewardDraft, type SessionGains } from "@/lib/rewards";
@@ -168,7 +168,7 @@ export function Session() {
   useEffect(() => {
     if (screen !== "play" || mode !== "timeAttack") return;
     if (timeLeft <= 0) {
-      finishSession();
+      finishSession(false);
       return;
     }
     const id = setInterval(() => setTimeLeft((t) => t - 1), 1000);
@@ -197,6 +197,27 @@ export function Session() {
     setToasts((t) => [...t, { ...r, id }]);
   };
   const dismissToast = (id: number) => setToasts((t) => t.filter((r) => r.id !== id));
+
+  /** Applies mission progress, saves it, and announces any mission that just reached its target. */
+  const advanceQuests = (ticks: QuestTick[], now: Date) => {
+    const { rows, touched, reached } = tickQuests(quests, ticks, now);
+    if (!touched.length) return;
+    setQuests(rows);
+    putQuests(touched);
+    for (const def of reached) celebrate(questReward(def));
+  };
+
+  /**
+   * The claim moment: shown as claimed at once, paid only if the server confirms this was the
+   * claim that flipped it (idempotent per user, quest and period). Returns whether it paid.
+   */
+  const claim = async (def: QuestDef, periodKey: string): Promise<boolean> => {
+    setQuests((rows) => withRow(rows, { ...progressFor(rows, def.id, periodKey), claimed: true }));
+    if (!(await claimQuest(def.id, periodKey))) return false;
+    commitWallet((w) => ({ ...w, coins: w.coins + def.coins, crystals: w.crystals + (def.crystals ?? 0) }));
+    if (screen === "play" || screen === "end") setGains((g) => addGains(g, { coins: def.coins, crystals: def.crystals }));
+    return true;
+  };
 
   const showWallet = (w: Wallet) => {
     walletRef.current = w;
@@ -289,45 +310,25 @@ export function Session() {
         s.review = updated.box === 0 ? "This one will come back for review." : `Back for review ${whenLabel(updated.dueAt, now)}.`;
       }
 
-      // Missions: daily and weekly quests, ticked from signals this run just produced. Progress
-      // and rewards are granted the moment a quest first hits its target (see questStore.ts).
-      const today = localDay(now);
+      // Missions, ticked from the signals this phrase just produced. A mission that reaches its
+      // target waits for the learner to claim it (see claim below).
       const wk = weekKey(now);
-      let questRows = quests;
-      const touched: QuestProgress[] = [];
-      const reached: QuestProgress[] = [];
-      // Counts are capped at the target; a quest that reaches it is claimed below, once.
-      const tick = (id: string, periodKey: string, count: (prev: number) => number) => {
-        const def = QUEST_BY_ID.get(id)!;
-        const prev = progressFor(questRows, id, periodKey);
-        const row = { ...prev, count: Math.min(def.target, count(prev.count)) };
-        if (row.count === prev.count) return;
-        questRows = withRow(questRows, row);
-        touched.push(row);
-        if (row.count >= def.target && !row.claimed) reached.push(row);
-      };
-
-      tick("d_ten_phrases", today, (n) => n + 1);
-      tick("d_five_streak", today, (n) => Math.max(n, nextCombo));
-      if (reviewKeys.has(key)) tick("d_review_eight", today, (n) => n + 1);
-      tick("w_five_days", wk, () => daysStudiedInWeek(checkedForQuests, wk));
-      tick("w_deep_practice", wk, (n) => n + 1);
       const newWords = changed.filter((c) => !wordStats.has(c.word)).length;
-      if (newWords > 0) tick("w_new_words", wk, (n) => n + newWords);
-
-      // Shown as claimed right away; the reward itself is paid only if the server confirms this
-      // was the claim that flipped it (idempotent per user, quest and period).
-      for (const row of reached) questRows = withRow(questRows, { ...row, claimed: true });
-      setQuests(questRows);
-      for (const row of reached) celebrate(questReward(QUEST_BY_ID.get(row.id)!));
-      putQuests(touched).then(async () => {
-        for (const row of reached) {
-          if (!(await claimQuest(row.id, row.periodKey))) continue;
-          const def = QUEST_BY_ID.get(row.id)!;
-          commitWallet((w) => ({ ...w, coins: w.coins + def.coins, crystals: w.crystals + (def.crystals ?? 0) }));
-          setGains((g) => addGains(g, { coins: def.coins, crystals: def.crystals }));
-        }
-      });
+      const runLength = history.length + 1; // phrases solved in this run, this one included
+      advanceQuests(
+        [
+          { id: "d_five_clean", count: (n) => Math.max(n, nextCombo) },
+          ...(reviewKeys.has(key) ? [{ id: "d_review_eight", count: (n: number) => n + 1 }] : []),
+          { id: "w_five_days", count: () => daysStudiedInWeek(checkedForQuests, wk) },
+          { id: "w_new_words", count: (n) => n + newWords },
+          ...(tier === "perfect" ? [{ id: "w_perfect", count: (n: number) => n + 1 }] : []),
+          ...(mode === "timeAttack" ? [{ id: "w_time_attack", count: (n: number) => Math.max(n, runLength) }] : []),
+          ...(mode === "survival" ? [{ id: "w_survival", count: (n: number) => Math.max(n, runLength) }] : []),
+          ...(mode === "boss" ? [{ id: "w_storm", count: () => 1 }] : []),
+          ...(mode === "blind" ? [{ id: "w_blind", count: (n: number) => n + 1 }] : []),
+        ],
+        now,
+      );
 
       // One wallet write for everything this phrase earned: XP coins, check-in rewards, level-ups.
       s.coins = coinGain;
@@ -366,8 +367,9 @@ export function Session() {
   };
 
   /** Ends the run. The score lives on only as a personal record per mode, shown on the end screen. */
-  const finishSession = () => {
+  const finishSession = (completed: boolean) => {
     stopSpeech();
+    if (full && completed && mode === "classic") advanceQuests([{ id: "d_full_flight", count: () => 1 }], new Date());
     setPrevBest(full ? bestFor(mode) : null);
     if (full) putBest(mode, score);
     setScreen("end");
@@ -376,8 +378,8 @@ export function Session() {
   const next = () => {
     stopSpeech();
     setSummary(null);
-    if (mode === "survival" && lives <= 0) finishSession();
-    else if (index + 1 >= total) finishSession();
+    if (mode === "survival" && lives <= 0) finishSession(false);
+    else if (index + 1 >= total) finishSession(true);
     else {
       setIndex((i) => i + 1);
       setReplay(0);
@@ -552,7 +554,7 @@ export function Session() {
       />
     );
 
-  if (screen === "quests") return <QuestBoard rows={quests} onBack={() => setScreen("intro")} />;
+  if (screen === "quests") return <QuestBoard rows={quests} rank={rank} onClaim={claim} onBack={() => setScreen("intro")} />;
 
   if (screen === "shop")
     return (
@@ -612,6 +614,7 @@ export function Session() {
           coins={wallet.coins}
           crystals={wallet.crystals}
           onViewProfile={() => setScreen("profile")}
+          onShop={() => setScreen("shop")}
           onSignOut={async () => {
             await signOut();
             setReview(new Map());
@@ -675,7 +678,7 @@ export function Session() {
                   🎯 Missions
                 </button>
               </div>
-              <DailyMissions quests={quests} onAll={() => setScreen("quests")} />
+              <DailyMissions quests={quests} onClaim={claim} onAll={() => setScreen("quests")} />
             </div>
             <h1 className="home-tagline">Follow your journey through the learning space</h1>
           </>
@@ -706,6 +709,7 @@ export function Session() {
               stop={currentStop}
               planet={continueId ? PLANET_BY_ID.get(continueId)! : null}
               quests={quests}
+              onClaim={claim}
               onContinue={() => start("classic")}
               onFreeMode={() => setScreen("modes")}
               onMissions={() => setScreen("quests")}
@@ -749,6 +753,7 @@ export function Session() {
           questsAfter={quests}
           streak={streak.current}
           streakExtended={!startedWith.checkedIn && checkedInToday.current}
+          onClaim={claim}
           onContinue={() => setScreen("intro")}
           onPlayAgain={() => start()}
         />

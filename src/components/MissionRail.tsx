@@ -5,6 +5,7 @@ import type { CelestialBody } from "@/lib/bodies";
 import type { Planet } from "@/lib/planets";
 import { periodKeyFor, QUESTS } from "@/lib/quests";
 import { progressFor, type QuestProgress } from "@/lib/questStore";
+import { ClaimButton, type OnClaim } from "./ClaimButton";
 
 type Props = {
   /** The journey stop you're on. */
@@ -12,6 +13,7 @@ type Props = {
   /** What "Continue" plays, or null while that stop has no phrases yet. */
   planet: Planet | null;
   quests: QuestProgress[];
+  onClaim: OnClaim;
   onContinue: () => void;
   onFreeMode: () => void;
   onMissions: () => void;
@@ -19,7 +21,7 @@ type Props = {
 };
 
 /** Today's three missions as bars: on the home page (the rail on wide screens, inline on phones). */
-export function DailyMissions({ quests, onAll, className = "" }: { quests: QuestProgress[]; onAll: () => void; className?: string }) {
+export function DailyMissions({ quests, onClaim, onAll, className = "" }: { quests: QuestProgress[]; onClaim: OnClaim; onAll: () => void; className?: string }) {
   const now = new Date();
   return (
     <section className={`side-card daily-missions ${className}`}>
@@ -38,9 +40,13 @@ export function DailyMissions({ quests, onAll, className = "" }: { quests: Quest
               <span>{q.name}</span>
               <span className="muted">{done ? "✅" : `${row.count}/${q.target}`}</span>
             </div>
-            <div className="xpbar quest-bar">
-              <span style={{ width: `${Math.min(100, Math.round((row.count / q.target) * 100))}%` }} />
-            </div>
+            {done ? (
+              <ClaimButton def={q} periodKey={row.periodKey} claimed={row.claimed} onClaim={onClaim} quiet />
+            ) : (
+              <div className="xpbar quest-bar">
+                <span style={{ width: `${Math.min(100, Math.round((row.count / q.target) * 100))}%` }} />
+              </div>
+            )}
           </div>
         );
       })}
@@ -49,7 +55,7 @@ export function DailyMissions({ quests, onAll, className = "" }: { quests: Quest
 }
 
 /** Desktop home, right rail: the next thing to do, today's missions, and the other ways in. */
-export function MissionRail({ stop, planet, quests, onContinue, onFreeMode, onMissions, onShop }: Props) {
+export function MissionRail({ stop, planet, quests, onClaim, onContinue, onFreeMode, onMissions, onShop }: Props) {
   const color = planet?.color ?? stop.color;
   return (
     <>
@@ -78,7 +84,7 @@ export function MissionRail({ stop, planet, quests, onContinue, onFreeMode, onMi
         )}
       </button>
 
-      <DailyMissions quests={quests} onAll={onMissions} />
+      <DailyMissions quests={quests} onClaim={onClaim} onAll={onMissions} />
 
       <nav className="side-links">
         <button type="button" className="profile-link" onClick={onFreeMode}>

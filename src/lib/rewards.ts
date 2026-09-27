@@ -40,7 +40,7 @@ export const REWARD_KICKER: Record<RewardKind, string> = {
 
 export const badgeReward = (b: BadgeDef): RewardDraft => ({ kind: "badge", icon: b.icon, title: b.name, detail: b.description });
 
-export const questReward = (q: QuestDef): RewardDraft => ({ kind: "quest", icon: "🎯", title: q.name, detail: currencyLine(q) });
+export const questReward = (q: QuestDef): RewardDraft => ({ kind: "quest", icon: "🎯", title: q.name, detail: `Claim it: ${currencyLine(q)}` });
 
 export const streakReward = (days: number, r: { coins: number; crystals: number; freezes: number }): RewardDraft => ({
   kind: "streak",

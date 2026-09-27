@@ -1,6 +1,6 @@
 // Quest progress, synced like the wallet: localStorage is a cache of the latest rows, Supabase the
 // source of truth. Rewards are idempotent per (user, quest, periodKey): see claimQuest.
-import { periodKeyFor, QUESTS, type QuestDef } from "./quests";
+import { periodKeyFor, QUEST_BY_ID, QUESTS, type QuestDef } from "./quests";
 import { getSupabase } from "./supabase";
 
 export type QuestProgress = { id: string; periodKey: string; count: number; claimed: boolean };
@@ -35,6 +35,33 @@ export const withRow = (rows: readonly QuestProgress[], row: QuestProgress): Que
   ...rows.filter((r) => !same(r, row.id, row.periodKey)),
   row,
 ];
+
+export type QuestTick = { id: string; count: (prev: number) => number };
+
+/**
+ * Pure: applies `ticks` to the current period of each quest. Counts are capped at the target.
+ * Returns the new rows, the rows that changed, and the quests that just reached their target —
+ * those wait, unclaimed, for the learner to claim them (see claimQuest).
+ */
+export function tickQuests(rows: readonly QuestProgress[], ticks: QuestTick[], now: Date) {
+  let next = [...rows];
+  const touched: QuestProgress[] = [];
+  const reached: QuestDef[] = [];
+  for (const t of ticks) {
+    const def = QUEST_BY_ID.get(t.id);
+    if (!def) continue;
+    const prev = progressFor(next, t.id, periodKeyFor(def, now));
+    const row = { ...prev, count: Math.min(def.target, t.count(prev.count)) };
+    if (row.count === prev.count) continue;
+    next = withRow(next, row);
+    touched.push(row);
+    if (row.count >= def.target && prev.count < def.target) reached.push(def);
+  }
+  return { rows: next, touched, reached };
+}
+
+/** Pure: reached but not yet claimed — a reward waiting for its button. */
+export const claimable = (q: QuestDef, row: QuestProgress) => row.count >= q.target && !row.claimed;
 
 /** Pure: the quests whose count went up between two snapshots, in the current period. */
 export function advancedQuests(before: readonly QuestProgress[], after: readonly QuestProgress[], now: Date) {

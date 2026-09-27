@@ -8,7 +8,9 @@ import type { PlayerState } from "@/lib/xp";
 import { levelProgress } from "@/lib/xp";
 import { rankOf, starsLabel } from "@/lib/ranks";
 import type { StudyCalendar } from "@/lib/economyStore";
-import { computeStreak, localDay } from "@/lib/streak";
+import { addDays, computeStreak, localDay } from "@/lib/streak";
+import { BADGES } from "@/lib/badges";
+import { loadBadges, unlockedBadges } from "@/lib/badgeStore";
 import { plural } from "@/lib/format";
 import { Heatmap } from "./Heatmap";
 import { Avatar } from "./Avatar";
@@ -31,10 +33,13 @@ type Props = {
 export function Profile({ player, wallet, calendar, planetStats, trickyCount, onBack, onWords, onTricky, onQuests, onShop, onSignedOut }: Props) {
   const [account, setAccount] = useState<Account | null>(null);
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
+  const [badges, setBadges] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getAccount().then(setAccount);
     getProfile().then(setProfile);
+    setBadges(unlockedBadges());
+    loadBadges().then(setBadges);
   }, []);
 
   const rank = rankOf(player.rp);
@@ -42,6 +47,11 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
   const streak = computeStreak(calendar.checked, calendar.frozen, localDay(new Date()));
   const bands = cefrBands(planetStats.values(), rank.index);
   const estimate = cefrEstimate(bands);
+  // A short history gets a compact grid instead of a wall of empty weeks.
+  const today = localDay(new Date());
+  const firstDay = [...calendar.checked, ...calendar.frozen].sort()[0];
+  const weeks = !firstDay || firstDay >= addDays(today, -8 * 7) ? 8 : 14;
+  const earned = BADGES.filter((b) => badges.has(b.id));
 
   const leave = async () => {
     await signOut();
@@ -104,13 +114,33 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
           <b>🛰️ {streak.current}-day orbit</b>
           <span className="muted">Best: {plural(streak.longest, "day")}</span>
         </div>
-        <Heatmap checked={calendar.checked} frozen={calendar.frozen} />
+        <Heatmap checked={calendar.checked} frozen={calendar.frozen} weeks={weeks} />
         <p className="muted profile-note">Every green square is a day you studied. A ringed square is a day a Streak Shield covered for you.</p>
         <div className="wallet-row">
           <span title="Earned on every phrase you finish">🪙 {wallet.coins} Lunar Coins</span>
           <span title="Rare — from rank-ups, level-up moments and orbit milestones">💎 {wallet.crystals} Crystals</span>
           <span title="Covers one missed day so your orbit keeps going">🛡️ {plural(wallet.freezes, "Streak Shield")}</span>
         </div>
+      </section>
+
+      <section className="profile-card">
+        <div className="profile-card-head">
+          <b>🏅 Badges</b>
+          <span className="muted">
+            {earned.length} of {BADGES.length}
+          </span>
+        </div>
+        {earned.length ? (
+          <div className="end-badges">
+            {earned.map((b) => (
+              <span key={b.id} className="end-badge" title={b.description}>
+                <span aria-hidden>{b.icon}</span> {b.name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="muted profile-note">No badges yet. Your first Perfect phrase earns one.</p>
+        )}
       </section>
 
       <nav className="profile-links">
