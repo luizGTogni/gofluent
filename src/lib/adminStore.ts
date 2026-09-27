@@ -85,7 +85,9 @@ async function callRoute<T>(path: string, body: unknown): Promise<T> {
   return json;
 }
 
-export const lookupIpa = (words: string[]) => callRoute<{ ipa: Record<string, string | null> }>("/api/admin/ipa", { words }).then((r) => r.ipa);
+/** IPA from CMUdict and a suggested part of speech, each word read in the phrase it comes from. */
+export const lookupWords = (words: string[], contexts: Record<string, string>) =>
+  callRoute<{ ipa: Record<string, string | null>; pos: Record<string, Pos | null> }>("/api/admin/ipa", { words, contexts });
 
 export type GenerateResult = { phrases: { en: string; pt: string }[]; model: string | null; attempts: Attempt[]; error?: string };
 

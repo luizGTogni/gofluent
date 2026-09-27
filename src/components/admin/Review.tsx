@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Pos } from "@/lib/exercises";
 import { checkDraft, newWordText, POS_LIST, type DraftPhrase } from "@/lib/contentText";
-import { lookupIpa, savePhrases, saveWords, type AdminPhrase, type AdminWord, type NewPhrase } from "@/lib/adminStore";
+import { lookupWords, savePhrases, saveWords, type AdminPhrase, type AdminWord, type NewPhrase } from "@/lib/adminStore";
 import { PLANETS, type PlanetId } from "@/lib/planets";
 import s from "./admin.module.css";
 
@@ -18,7 +18,8 @@ type Props = {
 
 /**
  * Drafts from any source (typed, imported, generated) before they reach the database: each phrase
- * is checked, and words not in the dictionary get their IPA from CMUdict and a part of speech you pick.
+ * is checked, and words not in the dictionary get their IPA from CMUdict and a suggested part of speech
+ * (from the phrase they first appear in), both for you to check.
  */
 export function Review({ drafts, setDrafts, words, phrases, onSaved }: Props) {
   const [newWords, setNewWords] = useState<Record<string, NewWord>>({});
@@ -45,8 +46,12 @@ export function Review({ drafts, setDrafts, words, phrases, onSaved }: Props) {
   }, [drafts, existing, dict]);
 
   const needed = useMemo(() => {
-    const m = new Map<string, { text: string; uses: number }>();
-    for (const c of checked) for (const u of c.unknown) m.set(u.key, { text: m.get(u.key)?.text ?? u.text, uses: (m.get(u.key)?.uses ?? 0) + 1 });
+    const m = new Map<string, { text: string; uses: number; sentence: string }>();
+    for (const c of checked)
+      for (const u of c.unknown) {
+        const had = m.get(u.key);
+        m.set(u.key, { text: had?.text ?? u.text, uses: (had?.uses ?? 0) + 1, sentence: had?.sentence ?? c.tokens.join(" ") });
+      }
     return m;
   }, [checked]);
 
@@ -54,17 +59,17 @@ export function Review({ drafts, setDrafts, words, phrases, onSaved }: Props) {
     const missing = [...needed.keys()].filter((k) => !asked.current.has(k));
     if (!missing.length) return;
     missing.forEach((k) => asked.current.add(k));
-    lookupIpa(missing)
-      .then((ipa) =>
+    lookupWords(missing, Object.fromEntries(missing.map((k) => [k, needed.get(k)!.sentence])))
+      .then(({ ipa, pos }) =>
         setNewWords((prev) => {
           const next = { ...prev };
-          for (const k of missing) next[k] ??= { text: needed.get(k)!.text, ipa: ipa[k] ?? "", pos: "" };
+          for (const k of missing) next[k] ??= { text: needed.get(k)!.text, ipa: ipa[k] ?? "", pos: pos?.[k] ?? "" };
           return next;
         }),
       )
       .catch((e) => {
         missing.forEach((k) => asked.current.delete(k));
-        setNote({ ok: false, text: `IPA lookup failed: ${e.message}` });
+        setNote({ ok: false, text: `Word lookup failed: ${e.message}` });
       });
   }, [needed]);
 
@@ -157,7 +162,7 @@ export function Review({ drafts, setDrafts, words, phrases, onSaved }: Props) {
       {needed.size > 0 && (
         <>
           <h3 className={s.h3}>New words ({needed.size})</h3>
-          <p className={s.muted}>IPA comes from CMUdict when it knows the word; check it and pick the part of speech.</p>
+          <p className={s.muted}>IPA comes from CMUdict when it knows the word, and the part of speech is guessed from the phrase. Check both.</p>
           <table className={s.table}>
             <thead>
               <tr>
