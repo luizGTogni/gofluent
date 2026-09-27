@@ -153,19 +153,23 @@
 html,
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
   min-height: 100%;
 }
 
-/* space backdrop: soft nebula glow plus a sparse, fixed starfield */
-body {
+/* Space backdrop: soft nebula glow, on html. A box's own background always paints in front of its
+   own negative z-index pseudo-elements (the starfield and planets below are body::before/::after),
+   so this can't live on body — html's background is the one thing that always paints as the very
+   back of the page, behind everything. */
+html {
   background-color: var(--bg);
   background-image:
     radial-gradient(ellipse 80% 50% at 50% -8%, rgba(76, 106, 214, 0.28), transparent 70%),
     radial-gradient(ellipse 50% 40% at 100% 100%, rgba(242, 194, 107, 0.07), transparent 70%);
   background-attachment: fixed;
+}
+body {
+  color: var(--text);
+  font-family: var(--font);
 }
 body::before {
   content: "";
@@ -191,6 +195,24 @@ body::before {
 }
 @media (prefers-reduced-motion: reduce) {
   body::before { animation: none; }
+}
+/* two distant planets: a lit sphere is a radial highlight offset from centre, ringed by a soft
+   rim shadow, then faded into the dark on the far side. Fixed and unanimated: background, not decor. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 190px at 84% 12%,
+      rgba(255, 232, 189, 0.5) 0%, rgba(230, 175, 110, 0.32) 24%, rgba(130, 80, 40, 0.16) 55%, transparent 78%),
+    radial-gradient(circle 130px at 6% 82%,
+      rgba(180, 210, 255, 0.4) 0%, rgba(110, 140, 220, 0.24) 26%, rgba(40, 50, 100, 0.14) 58%, transparent 80%);
+  filter: blur(1px);
+}
+@media (max-width: 640px) {
+  body::after { display: none; }
 }
 
 button {
