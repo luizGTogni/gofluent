@@ -4,4 +4,14 @@ export const audioSlug = (text: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-export const audioUrl = (text: string) => `/audio/${audioSlug(text)}.mp3`;
+/** Site-relative path, as stored in the database (phrases.audio_path). */
+export const audioPath = (text: string) => `/audio/${audioSlug(text)}.mp3`;
+
+/**
+ * Where the browser loads audio from. Empty by default (served from /public);
+ * set NEXT_PUBLIC_AUDIO_BASE_URL to move files to a bucket or CDN without code changes.
+ */
+export const audioUrl = (text: string) => {
+  const base = (process.env.NEXT_PUBLIC_AUDIO_BASE_URL ?? "").replace(/\/+$/, "");
+  return `${base}${audioPath(text)}`;
+};

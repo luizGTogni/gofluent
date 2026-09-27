@@ -3,7 +3,7 @@
 // Run the resulting file in the Supabase SQL Editor (safe to re-run: it upserts).
 import { writeFileSync } from "node:fs";
 import { EXERCISES, sentenceOf } from "../src/lib/exercises.ts";
-import { audioUrl } from "../src/lib/audio-slug.ts";
+import { audioPath } from "../src/lib/audio-slug.ts";
 
 const q = (s) => `'${String(s).replaceAll("'", "''")}'`;
 
@@ -22,7 +22,7 @@ const phrases = EXERCISES.map((e, i) => {
   const n = e.words.length;
   const kind = n === 1 ? "word" : n <= 3 ? "phrase" : "sentence";
   const level = n <= 3 ? 1 : n === 4 ? 2 : 3;
-  return `(${q(text)}, ${q(e.translation)}, ${level}, ${q(kind)}, ${i + 1}, ${q(audioUrl(text))})`;
+  return `(${q(text)}, ${q(e.translation)}, ${level}, ${q(kind)}, ${i + 1}, ${q(audioPath(text))})`;
 });
 
 const wordRows = [...words.values()].map((w) => `(${q(w.text)}, ${q(w.ipa)}, ${q(w.pos)})`);
