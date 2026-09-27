@@ -101,10 +101,8 @@ const ABSORB: Record<Rpc, (r: any, args: Args) => void> = {
     cacheQuests(r.quests);
   },
   advance_quests: (r: QuestsResult) => cacheQuests(r.quests),
-  grant_reward: (r: GrantResult, args) => {
+  grant_reward: (r: GrantResult) => {
     cacheWallet(r.wallet);
-    const badge = /^badge:(.+)$/.exec(String(args.p_grant_key))?.[1];
-    if (r.granted && badge) writeJson(KEYS.badges, [...new Set([...readJson<string[]>(KEYS.badges, []), badge])]);
   },
   claim_quest: (r: ClaimResult, args) => {
     cacheWallet(r.wallet);
@@ -328,7 +326,7 @@ export function completePhrase(i: PhraseIntent): Promise<PhraseResult | null> {
 export const advanceQuests = (eventId: string, ops: QuestOp[], day: string) =>
   run<QuestsResult>("advance_quests", { p_event_id: eventId, p_quests: ops, p_local_day: day }, () => ({ quests: tickLocal(ops, day, cachedDays()) }), eventId);
 
-/** Once-ever rewards: milestone:<days>:<streak start>, rank:<index>, cefr:<level>, badge:<id>. */
+/** Once-ever rewards: milestone:<days>:<streak start>, rank:<index>, cefr:<level>. */
 export const grantReward = (key: string) =>
   run<GrantResult>("grant_reward", { p_grant_key: key }, () => {
     const milestone = /^milestone:(\d+):/.exec(key);

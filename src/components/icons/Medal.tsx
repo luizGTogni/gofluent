@@ -1,4 +1,4 @@
-import type { Rarity } from "@/lib/badges";
+import type { Rarity } from "@/lib/achievements";
 import type { IconName } from "@/lib/icons";
 import { NamedIcon } from "./index";
 import { Lock } from "./interface";

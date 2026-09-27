@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BADGE_BY_ID } from "@/lib/badges";
 import { advancedQuests, progressFor, type QuestProgress } from "@/lib/questStore";
 import { periodKeyFor } from "@/lib/quests";
 import { ClaimButton, type OnClaim } from "./ClaimButton";
@@ -9,7 +8,6 @@ import type { SessionGains } from "@/lib/rewards";
 import { XpMeter } from "./XpMeter";
 import { Currency } from "./Currency";
 import { Check, Orbit, Refresh } from "./icons";
-import { Medal } from "./icons/Medal";
 
 type Props = {
   heading: string;
@@ -59,7 +57,7 @@ function useCountUp(target: number, ms = 900): number {
 
 /**
  * The debrief: XP first (the level bar animates from where the session started), then what was
- * earned to spend, then missions, badges and the day's orbit. The score is a personal record,
+ * earned to spend, then missions and the day's orbit. The score is a personal record,
  * shown only here.
  */
 export function SessionEnd(p: Props) {
@@ -127,22 +125,6 @@ export function SessionEnd(p: Props) {
               )}
             </div>
           ))}
-        </section>
-      )}
-
-      {p.gains.badges.length > 0 && (
-        <section className="end-card">
-          <h2 className="end-sub muted">New badges</h2>
-          <div className="end-badges">
-            {p.gains.badges.map((id) => {
-              const b = BADGE_BY_ID.get(id)!;
-              return (
-                <span key={id} className="end-badge" title={b.description}>
-                  <Medal icon={b.icon} rarity={b.rarity} /> {b.name}
-                </span>
-              );
-            })}
-          </div>
         </section>
       )}
 

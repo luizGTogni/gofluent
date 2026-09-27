@@ -130,8 +130,7 @@ check "second is a no-op" "already_granted" "$(echo "$g2" | grep -o 'already_gra
 check "paid once" "14" "$(sql "select crystals from wallet where user_id = '$A'")"
 check "rank above the player's refused" "not_earned" "$(as "$A" "select public.grant_reward('rank:5') ->> 'reason'")"
 check "unknown key rejected" "rejected" "$(as "$A" "select public.grant_reward('interest:2020-01-01')" 2>/dev/null || echo rejected)"
-check "badge recorded" "1" "$(as "$A" "select public.grant_reward('badge:early_bird')" >/dev/null; sql "select count(*) from badges where user_id = '$A'")"
-check "no_hint_100 needs 100" "not_earned" "$(as "$A" "select public.grant_reward('badge:no_hint_100') ->> 'reason'")"
+check "badge keys retired (folded into achievements, 0029)" "rejected" "$(as "$A" "select public.grant_reward('badge:early_bird')" 2>/dev/null || echo rejected)"
 # A 7-day streak for C ending today.
 sql "insert into study_days (user_id, day, seconds) select '$C', g::date, 60 from generate_series('$DAY'::date - 6, '$DAY'::date - 1, '1 day') g"
 START=$(sql "select '$DAY'::date - 6")
@@ -155,11 +154,13 @@ echo "== backfill (migration 0018 on existing data)"
 check "rank index matches ranks.ts" "0 0 1 1 2" "$(sql "select public._rank_index(r) from unnest(array[0, 13749, 13750, 41999, 42000]) r" | xargs)"
 check "old-curve points keep their level (fromOldCurve in xp.ts)" "0 10 490 500 6650 7783 13738 13750 42000" \
   "$(sql "select public._from_old_curve(p) from unnest(array[0, 1, 49, 50, 602, 700, 1209, 1210, 3570]) p" | xargs)"
-sql "delete from reward_grants; insert into badges (user_id, badge_id) values ('$B', 'night_owl') on conflict do nothing"
-sql "$(sed -n '/^-- Backfill/,$p' supabase/migrations/0018_idempotent_ledger.sql)"
-check "backfilled: badge, claimed quest, freeze, interest, milestones 7+30 of B's run" \
-  "badge:night_owl freeze:$(sql "select '$DAY'::date - 1") interest:$DAY milestone:30:$(sql "select '$DAY'::date - 31") milestone:7:$(sql "select '$DAY'::date - 31") quest:w_perfect:$PK" \
-  "$(sql "select string_agg(grant_key, ' ' order by grant_key) from reward_grants where user_id = '$B' and grant_key not like 'rank:%'")"
+sql "delete from reward_grants"
+# badges is gone (0029): drop its union from the re-run backfill snippet (still present at the
+# time 0018/0019 first ran it, seconds earlier in this same loop, against a table that existed then).
+sql "$(sed -n '/^-- Backfill/,$p' supabase/migrations/0018_idempotent_ledger.sql | sed "/'badge:' || badge_id from public.badges/,+1d")"
+check "backfilled: claimed quest, freeze, interest, milestones 7+30 of B's run" \
+  "freeze:$(sql "select '$DAY'::date - 1") interest:$DAY milestone:30:$(sql "select '$DAY'::date - 31") milestone:7:$(sql "select '$DAY'::date - 31") quest:w_perfect:$PK" \
+  "$(sql "select string_agg(grant_key, ' ' order by grant_key) from reward_grants where user_id = '$B' and grant_key not like 'rank:%' and grant_key not like 'achievement:%'")"
 
 echo
 if (( fails )); then echo "$fails failed"; exit 1; fi

@@ -1,6 +1,5 @@
 // What a session earns, and the celebratory moments it produces. Kept pure: Session owns the state.
 import type { AchievementDef } from "./achievements";
-import type { BadgeDef, BadgeId } from "./badges";
 import { plural } from "./format";
 import type { IconName } from "./icons";
 import type { QuestDef } from "./quests";
@@ -9,15 +8,14 @@ import type { QuestDef } from "./quests";
  * One reward hierarchy, everywhere: XP is progress (always shown first), Lunar Coins are for
  * spending, Crystals are rare. Streak Shields ride along with the currencies.
  */
-export type SessionGains = { xp: number; coins: number; crystals: number; freezes: number; badges: BadgeId[] };
-export const emptyGains: SessionGains = { xp: 0, coins: 0, crystals: 0, freezes: 0, badges: [] };
+export type SessionGains = { xp: number; coins: number; crystals: number; freezes: number };
+export const emptyGains: SessionGains = { xp: 0, coins: 0, crystals: 0, freezes: 0 };
 
 export const addGains = (g: SessionGains, more: Partial<SessionGains>): SessionGains => ({
   xp: g.xp + (more.xp ?? 0),
   coins: g.coins + (more.coins ?? 0),
   crystals: g.crystals + (more.crystals ?? 0),
   freezes: g.freezes + (more.freezes ?? 0),
-  badges: [...g.badges, ...(more.badges ?? [])],
 });
 
 export type Amounts = { coins?: number; crystals?: number; freezes?: number };
@@ -33,19 +31,16 @@ export function currencyText(r: Amounts): string {
 
 // ---- reward toasts: small, passing moments. A promotion is bigger and keeps its full-screen modal. ----
 
-export type RewardKind = "badge" | "quest" | "streak" | "achievement";
+export type RewardKind = "quest" | "streak" | "achievement";
 /** `icon` fills the toast's left slot; `amounts` are shown as currency chips under the detail. */
 export type RewardDraft = { kind: RewardKind; icon: IconName; title: string; detail?: string; amounts?: Amounts };
 export type Reward = RewardDraft & { id: number };
 
 export const REWARD_KICKER: Record<RewardKind, string> = {
-  badge: "Badge unlocked",
-  quest: "Mission complete",
+    quest: "Mission complete",
   streak: "Orbit milestone",
   achievement: "Achievement unlocked",
 };
-
-export const badgeReward = (b: BadgeDef): RewardDraft => ({ kind: "badge", icon: b.icon, title: b.name, detail: b.description });
 
 export const achievementReward = (d: AchievementDef, amounts: Amounts): RewardDraft => ({ kind: "achievement", icon: d.icon, title: d.name, detail: d.description, amounts });
 

@@ -9,8 +9,6 @@ import { levelProgress } from "@/lib/xp";
 import { rankOf } from "@/lib/ranks";
 import type { StudyCalendar } from "@/lib/economyStore";
 import { localDay } from "@/lib/streak";
-import { BADGES } from "@/lib/badges";
-import { loadBadges, unlockedBadges } from "@/lib/badgeStore";
 import { plural } from "@/lib/format";
 import { checkAdmin } from "@/lib/adminStore";
 import { ACHIEVEMENTS, ACHIEVEMENT_BY_ID } from "@/lib/achievements";
@@ -46,7 +44,6 @@ type Props = {
 export function Profile({ player, wallet, calendar, planetStats, trickyCount, onBack, onWords, onTricky, onQuests, onShop, onSettings, onAchievements, canStudy, onStudy, onSignedOut }: Props) {
   const [account, setAccount] = useState<Account | null>(null);
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
-  const [badges, setBadges] = useState<Set<string>>(new Set());
   const [admin, setAdmin] = useState(false);
   const [achievements, setAchievements] = useState<AchievementState>({ unlocked: new Map(), metrics: {} });
   const walletRef = useRef<HTMLDivElement>(null);
@@ -54,8 +51,6 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
   useEffect(() => {
     getAccount().then(setAccount);
     getProfile().then(setProfile);
-    setBadges(unlockedBadges());
-    loadBadges().then(setBadges);
     checkAdmin().then((ok) => setAdmin(ok === true));
     setAchievements(cachedAchievements());
     loadAchievements().then(setAchievements);
@@ -66,7 +61,6 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
   const bands = cefrBands(planetStats.values(), rank.index);
   const estimate = cefrEstimate(bands);
   const today = localDay(new Date());
-  const earned = BADGES.filter((b) => badges.has(b.id));
   const achieved = ACHIEVEMENTS.filter((d) => achievements.unlocked.has(d.id)).length;
   // The latest unlocked first (the cache has no dates: then in catalogue order).
   const recent = [...achievements.unlocked.entries()]
@@ -149,26 +143,6 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
       <div className="profile-col">
       <StreakCard calendar={calendar} today={today} shields={wallet.freezes} canStudy={canStudy} onStudy={onStudy} onShop={onShop} walletRef={walletRef} />
       <OrbitHistory checked={calendar.checked} frozen={calendar.frozen} volume={calendar.volume} today={today} />
-
-      <section className="profile-card">
-        <div className="profile-card-head">
-          <b>Badges</b>
-          <span className="muted">
-            {earned.length} of {BADGES.length}
-          </span>
-        </div>
-        <div className="end-badges">
-          {BADGES.map((b) => {
-            const on = badges.has(b.id);
-            return (
-              <span key={b.id} className={`end-badge ${on ? "" : "locked"}`} title={on ? b.description : `Locked: ${b.description}`}>
-                <Medal icon={b.icon} rarity={b.rarity} locked={!on} /> {b.name}
-                {!on && <span className="sr-only"> (locked)</span>}
-              </span>
-            );
-          })}
-        </div>
-      </section>
 
       <section className="profile-card">
         <div className="profile-card-head">

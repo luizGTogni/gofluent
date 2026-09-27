@@ -56,9 +56,9 @@ echo "== a first phrase"
 sql "insert into study_days (user_id, day, seconds, phrases, xp) values ('$A', '$DAY', 60, 1, 30)"
 E=$(uuid)
 r1=$(track "$A" '[{"metric":"perfect","n":1}]' "$DAY" "$E")
-check "Ignition unlocked, paid" "[\"ignition\"] 20" "$(sql "select ('$r1'::jsonb -> 'unlocked')::text || ' ' || ('$r1'::jsonb -> 'wallet' ->> 'coins')")"
+check "Ignition and First Perfect unlocked, paid" "[\"first_perfect\", \"ignition\"] 40" "$(sql "select ('$r1'::jsonb -> 'unlocked')::text || ' ' || ('$r1'::jsonb -> 'wallet' ->> 'coins')")"
 r2=$(track "$A" '[{"metric":"perfect","n":1}]' "$DAY" "$E")
-check "same key: replayed, nothing twice" "true 20 1" "$(sql "select ('$r2'::jsonb ->> 'replayed') || ' ' || (select coins from wallet where user_id = '$A') || ' ' || (select value from achievement_counters where user_id = '$A' and metric = 'perfect')")"
+check "same key: replayed, nothing twice" "true 40 1" "$(sql "select ('$r2'::jsonb ->> 'replayed') || ' ' || (select coins from wallet where user_id = '$A') || ' ' || (select value from achievement_counters where user_id = '$A' and metric = 'perfect')")"
 r3=$(track "$A" '[]')
 check "checking again unlocks nothing" "[] 0" "$(sql "select ('$r3'::jsonb -> 'unlocked')::text || ' ' || ('$r3'::jsonb -> 'reward' ->> 'coins')")"
 

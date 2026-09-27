@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BADGES } from "@/lib/badges";
-import { loadBadges, unlockedBadges } from "@/lib/badgeStore";
 import { periodKeyFor, QUESTS, type QuestDef } from "@/lib/quests";
 import { progressFor, type QuestProgress } from "@/lib/questStore";
 import { MODE_UNLOCKS, modeUnlocked } from "@/lib/unlocks";
 import { ClaimButton, type OnClaim } from "./ClaimButton";
 import { Currency } from "./Currency";
-import { ArrowLeft, Lock } from "./icons";
-import { Medal } from "./icons/Medal";
+import { ArrowLeft, ArrowRight, Lock } from "./icons";
 
-type Props = { rows: QuestProgress[]; level: number; onClaim: OnClaim; onBack: () => void };
+type Props = { rows: QuestProgress[]; level: number; onClaim: OnClaim; onBack: () => void; onAchievements: () => void };
 
 export function QuestCard({ q, row, level, onClaim }: { q: QuestDef; row: QuestProgress; level: number; onClaim: OnClaim }) {
   const pct = Math.min(100, Math.round((row.count / q.target) * 100));
@@ -44,15 +40,8 @@ export function QuestCard({ q, row, level, onClaim }: { q: QuestDef; row: QuestP
   );
 }
 
-/** Daily and weekly missions (progress synced, see questStore.ts), plus the mission badges earned so far. */
-export function QuestBoard({ rows, level, onClaim, onBack }: Props) {
-  const [badges, setBadges] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    setBadges(unlockedBadges());
-    loadBadges().then(setBadges);
-  }, []);
-
+/** Daily and weekly missions (progress synced, see questStore.ts). */
+export function QuestBoard({ rows, level, onClaim, onBack, onAchievements }: Props) {
   const now = new Date();
   const rowFor = (q: QuestDef) => progressFor(rows, q.id, periodKeyFor(q, now));
 
@@ -88,24 +77,12 @@ export function QuestBoard({ rows, level, onClaim, onBack }: Props) {
 
       </div>
 
-      <section className="quest-section quest-badges">
-        <h2 className="mode-picker-sub muted">Mission badges</h2>
-        <div className="badge-grid">
-          {BADGES.map((b) => {
-            const on = badges.has(b.id);
-            return (
-              <div key={b.id} className={`badge-card ${on ? "on" : "locked"}`} title={b.description}>
-                <Medal icon={b.icon} rarity={b.rarity} locked={!on} className="badge-icon" />
-                <b>
-                  {b.name}
-                  {!on && <span className="sr-only"> (locked)</span>}
-                </b>
-                <span className="muted badge-desc">{b.description}</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <button type="button" className="profile-link" onClick={onAchievements}>
+        <span className="icon-text">Achievements</span>
+        <span className="muted icon-text">
+          See what you've unlocked <ArrowRight />
+        </span>
+      </button>
     </main>
   );
 }

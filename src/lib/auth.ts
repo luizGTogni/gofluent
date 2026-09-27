@@ -7,12 +7,11 @@ export type AuthResult = { ok: true; signedIn: boolean; message?: string } | { o
 export const MIN_PASSWORD = 8;
 
 // Progress caches in localStorage belong to whoever is signed in; drop them when that changes.
-// Caches of synced data (quests, badges, store items) go too, but only once their one-time
-// import of pre-sync, device-only data has run — so nothing bought offline is lost.
+// Caches of synced data (quests, inventory) go too, but only once their one-time import of
+// pre-sync, device-only data has run — so nothing bought offline is lost.
 const SYNCED_CACHES: [imported: string, keys: string[]][] = [
   ["gofluent:quests:imported", ["gofluent:quests"]],
-  ["gofluent:badges:imported", ["gofluent:badges", "gofluent:noHintCount"]],
-  ["gofluent:inventory:imported", ["gofluent:oxygen", "gofluent:suits"]],
+  ["gofluent:inventory:imported", ["gofluent:oxygen", "gofluent:suits", "gofluent:noHintCount"]],
 ];
 const clearLocalCaches = () => {
   try {

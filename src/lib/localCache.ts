@@ -12,7 +12,6 @@ export const KEYS = {
   dayVolume: "gofluent:dayvolume",
   quests: "gofluent:quests",
   oxygen: "gofluent:oxygen",
-  badges: "gofluent:badges",
   noHint: "gofluent:noHintCount",
   achievements: "gofluent:achievements",
   achievementMetrics: "gofluent:achievementMetrics",

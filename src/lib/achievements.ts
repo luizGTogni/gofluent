@@ -1,6 +1,8 @@
 // Kept dependency-free so scripts can load it directly.
-import type { Rarity } from "./badges";
 import type { IconName } from "./icons";
+
+/** Sets the colour of an achievement's medallion ring. */
+export type Rarity = "common" | "rare" | "epic" | "legendary";
 
 // Achievements: long-term goals, each unlocked once when a metric reaches its target. The server
 // decides (track_achievements, migration 0028): it derives most metrics from what it already
@@ -146,6 +148,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("first_light", "First Light", "Primeira Luz", "Study before 8am.", "sunrise", "common", "routine", "before_8", 1),
   a("solar_dawn", "Solar Dawn", "Alvorada Solar", "Study before 6am.", "sunrise", "rare", "routine", "before_6", 1),
   a("graveyard_shift", "Graveyard Shift", "Turno da Madrugada", "Study between midnight and 4am.", "moon", "rare", "routine", "small_hours", 1),
+  a("night_owl", "Night Owl", "Coruja Noturna", "Study after 10pm.", "moon", "common", "routine", "night_days", 1),
   a("owl_on_duty", "Owl on Duty", "Coruja de Plantão", "Study after 10pm on 5 different days.", "moon", "rare", "routine", "night_days", 5),
   a("hangar_break", "Hangar Break", "Pausa no Hangar", "Study between noon and 2pm.", "timer", "common", "routine", "lunch", 1),
   a("three_shifts", "Three Shifts", "Três Turnos", "Study in the morning, afternoon and evening of the same day.", "sparkles", "epic", "routine", "shifts_day", 7, true),
@@ -208,6 +211,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   a("black_box", "Black Box", "Caixa-Preta", "Save 100 words or chunks.", "bookmark", "rare", "review", "saved", 100),
 
   // ---- precision ----
+  a("first_perfect", "First Perfect", "Primeira Perfeita", "Finish a phrase with a perfect score.", "sparkles", "common", "precision", "perfect", 1),
+  a("no_hint_100", "No Hints, 100 Phrases", "Sem Dicas, 100 Frases", "Complete 100 phrases across all time without using a hint.", "bulb-off", "epic", "precision", "no_hint", 100),
   a("laser_aim", "Laser Aim", "Mira Laser", "Finish 10 phrases with a perfect score.", "target", "common", "precision", "perfect", 10),
   a("orbital_precision", "Orbital Precision", "Precisão Orbital", "Finish 100 phrases with a perfect score.", "target", "rare", "precision", "perfect", 100),
   a("planetary_alignment", "Planetary Alignment", "Alinhamento Planetário", "Finish 3 perfect phrases in a row.", "sparkles", "rare", "precision", "perfect_row", 3),

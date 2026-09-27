@@ -27,10 +27,8 @@ import { MODES, SURVIVAL_LIVES, TIME_ATTACK_SECONDS, type GameMode } from "@/lib
 import { ModePicker } from "./ModePicker";
 import { daysStudiedInWeek, weekKey, type QuestDef } from "@/lib/quests";
 import { addOp, loadQuests, maxOp, opTick, progressFor, tickQuests, withRow, type QuestOp, type QuestProgress } from "@/lib/questStore";
-import { loadBadges, noHintCount, unlockedBadges } from "@/lib/badgeStore";
-import { BADGE_BY_ID, type BadgeId } from "@/lib/badges";
 import { ACHIEVEMENT_BY_ID, ACHIEVEMENT_REWARD, phraseSignals, sessionSignals, type Signal } from "@/lib/achievements";
-import { achievementReward, achievementsReward, addGains, badgeReward, emptyGains, questReward, streakReward, type Amounts, type Reward, type RewardDraft, type SessionGains } from "@/lib/rewards";
+import { achievementReward, achievementsReward, addGains, emptyGains, questReward, streakReward, type Amounts, type Reward, type RewardDraft, type SessionGains } from "@/lib/rewards";
 import { bestFor, loadBests, putBest } from "@/lib/recordStore";
 import { QuestBoard } from "./QuestBoard";
 import { FREEZE_COST, OXYGEN_COST } from "@/lib/shop";
@@ -462,20 +460,10 @@ export function Session() {
       s.crystals = crystalGain;
       bumpWallet({ coins: coinGain, crystals: crystalGain, freezes: freezeGain });
 
-      // Mission badges: a handful of concrete, lifetime achievements.
-      const unlocked = unlockedBadges();
+      // Achievements now cover what mission badges used to (a perfect phrase, 100 no-hint
+      // phrases, an early or late session) — sent below with everything else this phrase earned.
       const hour = localHour(now);
-      const earned: BadgeId[] = [];
-      if (s.tier === "perfect") earned.push("first_perfect");
-      if (!result.helped && noHintCount() + 1 >= 100) earned.push("no_hint_100");
-      if (hour < 7) earned.push("early_bird");
-      if (hour >= 23) earned.push("night_owl");
-      const fresh = earned.filter((id) => !unlocked.has(id));
-      for (const id of fresh) {
-        grants.push(`badge:${id}`);
-        celebrate(badgeReward(BADGE_BY_ID.get(id)!));
-      }
-      setGains((g) => addGains(g, { xp: gain.total, coins: coinGain, crystals: crystalGain, freezes: freezeGain, badges: fresh }));
+      setGains((g) => addGains(g, { xp: gain.total, coins: coinGain, crystals: crystalGain, freezes: freezeGain }));
 
       // Achievements: what only this device sees about the phrase; the server derives the rest.
       const firstTry = result.typedErrors === 0 && result.emptyChecks === 0 && !result.helped;
@@ -615,7 +603,6 @@ export function Session() {
     loadPlayer().then(setPlayer);
     loadPlanetStats().then((list) => setPlanetStats(new Map(list.map((p) => [p.planet, p]))));
     loadQuests().then(setQuests);
-    loadBadges();
     loadInventory();
     loadBests();
     getProfile().then((p) => {
@@ -802,7 +789,8 @@ export function Session() {
       />
     );
 
-  if (screen === "quests") return <QuestBoard rows={quests} level={playerLevel} onClaim={claim} onBack={() => setScreen("intro")} />;
+  if (screen === "quests")
+    return <QuestBoard rows={quests} level={playerLevel} onClaim={claim} onBack={() => setScreen("intro")} onAchievements={() => setScreen("achievements")} />;
 
   if (screen === "shop")
     return (
