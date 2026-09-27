@@ -7,6 +7,10 @@ import { audioUrl } from "../src/lib/audio-slug.ts";
 
 const q = (s) => `'${String(s).replaceAll("'", "''")}'`;
 
+const texts = EXERCISES.map(sentenceOf);
+const dup = texts.find((t, i) => texts.indexOf(t) !== i);
+if (dup) throw new Error(`duplicate phrase: "${dup}"`);
+
 const words = new Map();
 const links = [];
 const phrases = EXERCISES.map((e, i) => {
@@ -16,7 +20,7 @@ const phrases = EXERCISES.map((e, i) => {
     links.push(`(${q(text)}, ${pos}, ${q(w.text)}, ${q(w.pos)})`);
   });
   const n = e.words.length;
-  const kind = n <= 3 ? "phrase" : "sentence";
+  const kind = n === 1 ? "word" : n <= 3 ? "phrase" : "sentence";
   const level = n <= 3 ? 1 : n === 4 ? 2 : 3;
   return `(${q(text)}, ${q(e.translation)}, ${level}, ${q(kind)}, ${i + 1}, ${q(audioUrl(text))})`;
 });

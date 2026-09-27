@@ -192,6 +192,7 @@ button {
 .pos-verb { --c: #7fb4ff; }
 .pos-noun { --c: #3fc9b0; }
 .pos-numeral, .pos-article, .pos-preposition { --c: #98a3b8; }
+.pos-determiner { --c: #c8a2c8; }
 .pos-pronoun { --c: #e58fb8; }
 .pos-adjective { --c: #d98a5b; }
 .pos-adverb { --c: #7dd3e8; }

@@ -4,7 +4,7 @@
 //   PIPER_PYTHON=/path/to/venv/bin/python PIPER_VOICE=/path/to/en_US-lessac-medium.onnx \
 //     node --experimental-strip-types scripts/generate-audio.mjs
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EXERCISES, sentenceOf } from "../src/lib/exercises.ts";
@@ -24,9 +24,11 @@ const tmp = mkdtempSync(join(tmpdir(), "gofluent-"));
 for (const e of EXERCISES) {
   const text = sentenceOf(e);
   const slug = audioSlug(text);
+  const mp3 = join(outDir, `${slug}.mp3`);
+  if (existsSync(mp3) && !process.argv.includes("--force")) continue;
   const wav = join(tmp, `${slug}.wav`);
   execFileSync(python, ["-m", "piper", "-m", voice, "-f", wav, "--", text], { stdio: "inherit" });
-  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", wav, "-codec:a", "libmp3lame", "-q:a", "4", join(outDir, `${slug}.mp3`)]);
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", wav, "-codec:a", "libmp3lame", "-q:a", "4", mp3]);
   console.log(`${slug}.mp3  ←  "${text}"`);
 }
 rmSync(tmp, { recursive: true, force: true });

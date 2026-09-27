@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DIFFICULTIES, DIFFICULTY, scoreExercise, TIER_COPY, TIER_LABEL, type Difficulty, type Result, type Tier } from "@/lib/engine";
-import { loadContent } from "@/lib/content";
+import { loadContent, pickSession } from "@/lib/content";
 import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
 import { ExerciseView } from "./ExerciseView";
@@ -78,7 +78,7 @@ export function Session() {
   }, []);
 
   const start = () => {
-    setExercises(remote.current ?? EXERCISES);
+    setExercises(pickSession(remote.current ?? EXERCISES));
     setIndex(0);
     setReplay(0);
     setScore(0);
