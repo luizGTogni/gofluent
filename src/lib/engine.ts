@@ -33,6 +33,26 @@ export const norm = (s: string) => s.trim().toLowerCase().replace(/[^a-z']/g, ""
 
 export type DiffOp = { t: "keep" | "del" | "add"; c: string };
 
+function editDistance(a: string, b: string): number {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return dp[a.length][b.length];
+}
+
+/**
+ * A wrong answer close to the target reads as "heard it, misspelled it"; one far from it,
+ * or blank, reads as "didn't catch the word". Used to tell listening trouble from spelling trouble.
+ */
+export function heardButMisspelled(typed: string, target: string): boolean {
+  const t = norm(typed);
+  const w = norm(target);
+  if (!t) return false;
+  return editDistance(t, w) <= Math.max(1, Math.round(w.length * 0.4));
+}
+
 /** Character diff between what was typed and the target word (LCS based). */
 export function diffWord(input: string, target: string): DiffOp[] {
   const a = input.toLowerCase();
@@ -75,6 +95,8 @@ export type Result = {
   emptyChecks: number;
   helped: boolean;
   missed: string[];
+  /** Failed checks per word (empty or wrong), for spotting words the learner gets stuck on. */
+  perWord: { word: string; fails: number; heard: number }[];
 };
 
 export function scoreExercise(words: Word[], r: Result, combo: number, difficulty: Difficulty): { tier: Tier; points: number } {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DIFF_AFTER_WRONG, DIFFICULTY, diffWord, norm, type Difficulty, type GapStatus, type Result } from "@/lib/engine";
+import { DIFF_AFTER_WRONG, DIFFICULTY, diffWord, heardButMisspelled, norm, type Difficulty, type GapStatus, type Result } from "@/lib/engine";
 import { sentenceOf, type Exercise } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
 import { WordCards } from "./WordCards";
@@ -25,6 +25,11 @@ export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, on
   const [free, setFree] = useState("");
   const [marks, setMarks] = useState<("correct" | "wrong")[] | null>(null);
   const freeRef = useRef<HTMLInputElement>(null);
+  const freeFails = useRef<number[]>([]);
+  const heardFails = useRef<number[]>([]);
+  const noteHeard = (i: number, typed: string) => {
+    if (!heardButMisspelled(typed, words[i].text)) heardFails.current[i] = (heardFails.current[i] ?? 0) + 1;
+  };
   const [inputs, setInputs] = useState<string[]>(() => words.map(() => ""));
   const [status, setStatus] = useState<GapStatus[]>(() => words.map(() => "idle"));
   const [wrongCount, setWrongCount] = useState<number[]>(() => words.map(() => 0));
@@ -56,8 +61,9 @@ export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, on
 
   const diffMode = (i: number) => cfg.diff && status[i] !== "correct" && wrongCount[i] >= DIFF_AFTER_WRONG;
 
-  const finish = () =>
+  const finish = (fails: number[]) =>
     onComplete({
+      perWord: words.map((w, i) => ({ word: w.text, fails: fails[i] ?? 0, heard: heardFails.current[i] ?? 0 })),
       elapsedMs: performance.now() - startRef.current,
       typedErrors: stats.current.typedErrors,
       emptyChecks: stats.current.emptyChecks,
@@ -70,13 +76,23 @@ export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, on
     const tokens = free.trim().split(/\s+/).filter(Boolean);
     if (!tokens.length) {
       stats.current.emptyChecks += 1;
+      words.forEach((_, i) => {
+        freeFails.current[i] = (freeFails.current[i] ?? 0) + 1;
+        noteHeard(i, "");
+      });
       setMarks([]);
       return;
     }
     const result = tokens.map((t, i) => (i < words.length && norm(t) === norm(words[i].text) ? "correct" : "wrong")) as ("correct" | "wrong")[];
     const complete = tokens.length === words.length && result.every((m) => m === "correct");
     setMarks(result);
-    if (complete) return finish();
+    words.forEach((_, i) => {
+      if (result[i] !== "correct") {
+        freeFails.current[i] = (freeFails.current[i] ?? 0) + 1;
+        noteHeard(i, tokens[i] ?? "");
+      }
+    });
+    if (complete) return finish(freeFails.current);
     stats.current.typedErrors += 1;
     onTypedError();
     words.forEach((w, i) => {
@@ -98,6 +114,7 @@ export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, on
         anyEmpty = true;
         nextStatus[i] = "wrong";
         nextWrong[i] += 1;
+        noteHeard(i, "");
         if (nextWrong[i] >= DIFF_AFTER_WRONG) stats.current.helped = true;
       } else if (typed === norm(word.text)) {
         nextStatus[i] = "correct";
@@ -105,6 +122,7 @@ export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, on
         anyTypedWrong = true;
         nextStatus[i] = "wrong";
         nextWrong[i] += 1;
+        noteHeard(i, inputs[i]);
         stats.current.missed.add(word.text);
         if (nextWrong[i] >= DIFF_AFTER_WRONG) stats.current.helped = true;
       }
@@ -120,7 +138,7 @@ export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, on
     setWrongCount(nextWrong);
 
     if (nextStatus.every((s) => s === "correct")) {
-      finish();
+      finish(nextWrong);
     } else {
       const first = nextStatus.findIndex((s) => s !== "correct");
       setTimeout(() => focusGap(first), 0);

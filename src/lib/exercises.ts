@@ -146,6 +146,9 @@ for (const line of DICTIONARY.trim().split("\n")) {
   dict.set(text.toLowerCase(), { text, ipa, pos: pos as Pos });
 }
 
+/** Every word in the dictionary, for things that need each word on its own (audio, lookups). */
+export const DICTIONARY_WORDS: Word[] = [...dict.values()];
+
 const ex = (sentence: string, translation: string): Exercise => ({
   translation,
   words: sentence.split(" ").map((token) => {

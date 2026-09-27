@@ -569,3 +569,23 @@ button {
   margin-top: 6px;
   font-size: 13px;
 }
+
+.intro-links {
+  display: flex;
+  gap: 22px;
+}
+.word-actions {
+  display: flex;
+  gap: 4px;
+}
+.word-chip {
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin: 0 4px;
+}
+.word-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

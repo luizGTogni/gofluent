@@ -5,15 +5,18 @@ import { DIFFICULTIES, DIFFICULTY, scoreExercise, TIER_COPY, TIER_LABEL, type Di
 import { buildSession, loadContent } from "@/lib/content";
 import { afterAttempt, dueList, whenLabel, type ReviewState } from "@/lib/review";
 import { loadReview, putReview } from "@/lib/reviewStore";
+import { applyOutcome, isTricky, rate, trickyList, type WordStat } from "@/lib/wordStats";
+import { loadWordStats, putWordStats } from "@/lib/wordStore";
 import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
 import { ExerciseView } from "./ExerciseView";
 import { MyWords } from "./MyWords";
+import { TrickyWords } from "./TrickyWords";
 import { SaveChunks } from "./SaveChunks";
 import { WordCards } from "./WordCards";
 
-type Summary = { tier: Tier; points: number; combo: number; result: Result; review?: string };
-type Screen = "intro" | "play" | "end" | "words";
+type Summary = { tier: Tier; points: number; combo: number; result: Result; review?: string; stumbled: string[] };
+type Screen = "intro" | "play" | "end" | "words" | "tricky";
 
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
@@ -24,6 +27,8 @@ export function Session() {
   const total = exercises.length;
   const [review, setReview] = useState<Map<string, ReviewState>>(new Map());
   const [reviewKeys, setReviewKeys] = useState<Set<string>>(new Set());
+  const [practiceKeys, setPracticeKeys] = useState<Set<string>>(new Set());
+  const [wordStats, setWordStats] = useState<Map<string, WordStat>>(new Map());
   const [index, setIndex] = useState(0);
   const [replay, setReplay] = useState(0);
   const [audioTick, setAudioTick] = useState(0);
@@ -47,7 +52,15 @@ export function Session() {
   const complete = (result: Result) => {
     const nextCombo = result.typedErrors === 0 ? combo + 1 : 0;
     const { tier, points } = scoreExercise(exercise.words, result, nextCombo, difficulty);
-    const s: Summary = { tier, points, combo: nextCombo, result };
+    const s: Summary = { tier, points, combo: nextCombo, result, stumbled: result.perWord.filter((w) => w.fails > 0).map((w) => w.word) };
+    const changed = applyOutcome(wordStats, result.perWord);
+    putWordStats(changed);
+    setWordStats((m) => {
+      const next = new Map(m);
+      changed.forEach((c) => next.set(c.word, c));
+      return next;
+    });
+
     const key = sentenceOf(exercise);
     const now = new Date();
     const updated = afterAttempt(review.get(key), result.typedErrors === 0 && !result.helped, key, now);
@@ -86,6 +99,7 @@ export function Session() {
   useEffect(() => {
     if (screen !== "intro") return;
     loadReview().then((list) => setReview(new Map(list.map((r) => [r.phrase, r]))));
+    loadWordStats().then((list) => setWordStats(new Map(list.map((w) => [w.word, w]))));
   }, [screen]);
 
   useEffect(() => {
@@ -100,10 +114,11 @@ export function Session() {
     const dueEx = dueList(review.values(), new Date())
       .map((r) => byText.get(r.phrase))
       .filter((e): e is Exercise => Boolean(e));
-    const session = buildSession(pool, dueEx);
-    const dueTexts = new Set(dueEx.map(sentenceOf));
-    setReviewKeys(new Set(session.map(sentenceOf).filter((t) => dueTexts.has(t))));
-    setExercises(session);
+    const tricky = new Map(trickyList(wordStats.values()).map((w) => [w.word, rate(w)]));
+    const plan = buildSession(pool, dueEx, tricky);
+    setReviewKeys(new Set([...plan.review].map(sentenceOf)));
+    setPracticeKeys(new Set([...plan.practice].map(sentenceOf)));
+    setExercises(plan.exercises);
     setIndex(0);
     setReplay(0);
     setScore(0);
@@ -114,7 +129,10 @@ export function Session() {
     setScreen("play");
   };
 
+  const trickyCount = [...wordStats.values()].filter(isTricky).length;
   const dueCount = dueList(review.values(), new Date()).length;
+
+  if (screen === "tricky") return <TrickyWords stats={[...wordStats.values()]} onBack={() => setScreen("intro")} />;
 
   if (screen === "words") return <MyWords onBack={() => setScreen("intro")} />;
 
@@ -150,9 +168,14 @@ export function Session() {
         <button type="button" className="check big" onClick={start}>
           Start →
         </button>
-        <button type="button" className="link" onClick={() => setScreen("words")}>
-          My words
-        </button>
+        <div className="intro-links">
+          <button type="button" className="link" onClick={() => setScreen("words")}>
+            My words
+          </button>
+          <button type="button" className="link" onClick={() => setScreen("tricky")}>
+            Tricky words{trickyCount > 0 ? ` (${trickyCount})` : ""}
+          </button>
+        </div>
       </main>
     );
   }
@@ -203,6 +226,7 @@ export function Session() {
             </span>
             <div className="bar-actions">
               {reviewKeys.has(sentenceOf(exercise)) && <span className="level-badge review-badge">Review</span>}
+              {practiceKeys.has(sentenceOf(exercise)) && <span className="level-badge review-badge">Practice</span>}
               <span className="level-badge">{DIFFICULTY[difficulty].label}</span>
               <button
                 type="button"
@@ -258,6 +282,17 @@ export function Session() {
               {summary.combo > 0 && ` · Nice · Combo ${summary.combo}`}
             </p>
             {summary.review && <p className="muted review-note">{summary.review}</p>}
+            {summary.stumbled.length > 0 && (
+              <p className="muted review-note">
+                You paused on{" "}
+                {[...new Set(summary.stumbled)].map((w) => (
+                  <button key={w} type="button" className="link word-chip" onClick={() => speak(w, 0.7)} title="Hear it slowly">
+                    🔊 {w}
+                  </button>
+                ))}
+                We&apos;ll keep an eye on {summary.stumbled.length === 1 ? "it" : "them"}.
+              </p>
+            )}
             <SaveChunks exercise={exercise} />
             <div className="footer">
               <span />

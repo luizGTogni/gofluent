@@ -30,12 +30,30 @@ export function pickSession(pool: Exercise[], n = 10): Exercise[] {
 }
 
 const MAX_REVIEW = 4;
+const MAX_PRACTICE = 2;
 
-/** Due review phrases first (capped), the rest filled with new content, easiest first. */
-export function buildSession(pool: Exercise[], due: Exercise[], n = 10): Exercise[] {
+export type SessionPlan = { exercises: Exercise[]; review: Set<Exercise>; practice: Set<Exercise> };
+
+/**
+ * Due review phrases first (capped), then a couple of phrases that contain words the learner
+ * finds tricky (word -> weight), then new content to fill the session. Easiest first.
+ */
+export function buildSession(pool: Exercise[], due: Exercise[], tricky: Map<string, number>, n = 10): SessionPlan {
   const review = due.slice(0, MAX_REVIEW);
-  const fresh = pickSession(pool.filter((e) => !review.includes(e)), n - review.length);
-  return [...review, ...fresh].sort((a, b) => a.words.length - b.words.length);
+  const taken = new Set(review);
+
+  const weight = (e: Exercise) => e.words.reduce((sum, w) => sum + (tricky.get(w.text.toLowerCase()) ?? 0), 0);
+  const practice = shuffle(pool.filter((e) => !taken.has(e)))
+    .map((e) => ({ e, w: weight(e) }))
+    .filter((x) => x.w > 0)
+    .sort((a, b) => b.w - a.w)
+    .slice(0, MAX_PRACTICE)
+    .map((x) => x.e);
+  practice.forEach((e) => taken.add(e));
+
+  const fresh = pickSession(pool.filter((e) => !taken.has(e)), n - taken.size);
+  const exercises = [...review, ...practice, ...fresh].sort((a, b) => a.words.length - b.words.length);
+  return { exercises, review: new Set(review), practice: new Set(practice) };
 }
 
 export type Content = { exercises: Exercise[]; source: "remote" | "local" };
