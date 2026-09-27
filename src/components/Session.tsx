@@ -10,13 +10,14 @@ import { loadWordStats, putWordStats } from "@/lib/wordStore";
 import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
 import { ExerciseView } from "./ExerciseView";
+import { Account } from "./Account";
 import { MyWords } from "./MyWords";
 import { TrickyWords } from "./TrickyWords";
 import { SaveChunks } from "./SaveChunks";
 import { WordCards } from "./WordCards";
 
 type Summary = { tier: Tier; points: number; combo: number; result: Result; review?: string; stumbled: string[] };
-type Screen = "intro" | "play" | "end" | "words" | "tricky";
+type Screen = "intro" | "play" | "end" | "words" | "tricky" | "account";
 
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
@@ -132,6 +133,8 @@ export function Session() {
   const trickyCount = [...wordStats.values()].filter(isTricky).length;
   const dueCount = dueList(review.values(), new Date()).length;
 
+  if (screen === "account") return <Account onBack={() => setScreen("intro")} />;
+
   if (screen === "tricky") return <TrickyWords stats={[...wordStats.values()]} onBack={() => setScreen("intro")} />;
 
   if (screen === "words") return <MyWords onBack={() => setScreen("intro")} />;
@@ -174,6 +177,9 @@ export function Session() {
           </button>
           <button type="button" className="link" onClick={() => setScreen("tricky")}>
             Tricky words{trickyCount > 0 ? ` (${trickyCount})` : ""}
+          </button>
+          <button type="button" className="link" onClick={() => setScreen("account")}>
+            Account
           </button>
         </div>
       </main>

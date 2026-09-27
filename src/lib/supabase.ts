@@ -17,6 +17,11 @@ let ready: Promise<SupabaseClient | null> | null = null;
 /** True when the env vars are set; the app keeps working without them, minus saving. */
 export const supabaseConfigured = Boolean(url && key);
 
+/** Forget the cached session promise, e.g. after signing in or out, so the next call re-checks. */
+export function resetSession() {
+  ready = null;
+}
+
 /** Client without signing in: enough for public, read-only content. */
 export function getPublicClient(): SupabaseClient | null {
   if (!supabaseConfigured) return null;
