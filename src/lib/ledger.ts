@@ -149,6 +149,20 @@ function scheduleFlush(tries: number) {
 
 const isNetworkError = (status: number) => status === 0;
 
+// ---- other tabs: each one hears when this one changed the state, and reloads it ----
+
+const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("gofluent");
+const announce = () => channel?.postMessage("changed");
+
+/** Called when another tab of this app changed progress or the economy. */
+export function onOtherTabChanged(fn: () => void): () => void {
+  const listener = (e: MessageEvent) => {
+    if (e.data === "changed") fn();
+  };
+  channel?.addEventListener("message", listener);
+  return () => channel?.removeEventListener("message", listener);
+}
+
 /** Replays the outbox in order. Every intent is idempotent, so replaying one twice is harmless. */
 export async function flushOutbox(): Promise<void> {
   if (flushing) return;
@@ -173,7 +187,10 @@ export async function flushOutbox(): Promise<void> {
   } finally {
     flushing = false;
   }
-  if (delivered) synced.forEach((fn) => fn());
+  if (delivered) {
+    synced.forEach((fn) => fn());
+    announce();
+  }
 }
 
 if (typeof window !== "undefined") window.addEventListener("online", () => void flushOutbox());
@@ -202,6 +219,7 @@ async function run<T>(rpc: Rpc, args: Args, local: () => T, eventId?: string): P
     if (eventId && events[eventId]) return { ...events[eventId], replayed: true };
     const r = local();
     ABSORB[rpc](r, args);
+    announce();
     // The last couple hundred answers are plenty to recognise a repeat.
     if (eventId) writeJson(LOCAL_EVENTS, Object.fromEntries([...Object.entries(events), [eventId, r]].slice(-200)));
     return r;
@@ -220,7 +238,10 @@ async function run<T>(rpc: Rpc, args: Args, local: () => T, eventId?: string): P
       return null;
     }
     if (error) throw new LedgerError(error.message);
-    if (!(data as Replayable)?.replayed) ABSORB[rpc](data, args);
+    if (!(data as Replayable)?.replayed) {
+      ABSORB[rpc](data, args);
+      announce();
+    }
     return data as T;
   } finally {
     inFlight--;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { QuestDef } from "@/lib/quests";
 import { Currency } from "./Currency";
 import { Check } from "./icons";
@@ -22,6 +22,8 @@ type Props = {
  */
 export function ClaimButton({ def, periodKey, claimed, onClaim, quiet = false }: Props) {
   const [state, setState] = useState<"ready" | "claiming" | "paid">("ready");
+  // Guards the gap before "claiming" renders the button disabled.
+  const busy = useRef(false);
 
   if (claimed && state === "ready")
     return quiet ? null : (
@@ -43,8 +45,12 @@ export function ClaimButton({ def, periodKey, claimed, onClaim, quiet = false }:
       className="check claim-btn"
       disabled={state === "claiming"}
       onClick={async () => {
+        if (busy.current) return;
+        busy.current = true;
         setState("claiming");
-        setState((await onClaim(def, periodKey)) ? "paid" : "ready");
+        const paid = await onClaim(def, periodKey);
+        busy.current = false;
+        setState(paid ? "paid" : "ready");
       }}
     >
       Claim <Currency r={def} />

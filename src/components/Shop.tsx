@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FREEZE_COST, OXYGEN_COST } from "@/lib/shop";
 import { getOxygen, loadInventory } from "@/lib/shopStore";
 import type { Wallet } from "@/lib/economy";
@@ -16,11 +16,27 @@ type Props = {
 };
 
 /** A price in Lunar Coins: shows what's missing ("Need 12 more") when the wallet can't cover it. */
-function PriceButton({ price, have, onBuy }: { price: number; have: number; onBuy: () => void }) {
+function PriceButton({ price, have, onBuy }: { price: number; have: number; onBuy: () => Promise<unknown> }) {
   const short = price - have;
+  // Locked while the purchase is on its way: one click, one purchase.
+  const [pending, setPending] = useState(false);
+  const busy = useRef(false);
+  const buy = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    setPending(true);
+    try {
+      await onBuy();
+    } finally {
+      busy.current = false;
+      setPending(false);
+    }
+  };
   return (
-    <button type="button" className="check" disabled={short > 0} onClick={onBuy}>
-      {short > 0 ? (
+    <button type="button" className="check" disabled={short > 0 || pending} aria-busy={pending} onClick={buy}>
+      {pending ? (
+        "Buying…"
+      ) : short > 0 ? (
         <>
           Need <Currency r={{ coins: short }} signed={false} /> more
         </>

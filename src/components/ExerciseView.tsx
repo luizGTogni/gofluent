@@ -39,6 +39,8 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
 
   const stats = useRef({ typedErrors: 0, emptyChecks: 0, helped: false, missed: new Set<string>() });
   const startRef = useRef(performance.now());
+  // Set once the phrase is finished: a second Enter or click on Check can't finish it again.
+  const done = useRef(false);
   const typedRef = useRef(false);
   const rateRef = useRef(rate);
   rateRef.current = rate;
@@ -70,7 +72,8 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
 
   const diffMode = (i: number) => cfg.diff && status[i] !== "correct" && wrongCount[i] >= DIFF_AFTER_WRONG;
 
-  const finish = (fails: number[]) =>
+  const finish = (fails: number[]) => {
+    done.current = true;
     onComplete({
       perWord: words.map((w, i) => ({ word: w.text, fails: fails[i] ?? 0, heard: heardFails.current[i] ?? 0 })),
       elapsedMs: performance.now() - startRef.current,
@@ -79,9 +82,11 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
       helped: stats.current.helped,
       missed: [...stats.current.missed],
     });
+  };
 
   // Eclipse (extreme): one open field, the whole sentence, no gaps to hint at word count.
   const checkFree = () => {
+    if (done.current) return;
     const tokens = free.trim().split(/\s+/).filter(Boolean);
     if (!tokens.length) {
       stats.current.emptyChecks += 1;
@@ -110,6 +115,7 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
   };
 
   const check = () => {
+    if (done.current) return;
     if (!cfg.gaps) return checkFree();
     const nextStatus = [...status];
     const nextWrong = [...wrongCount];

@@ -51,6 +51,7 @@ import {
   LedgerError,
   ledgerIdle,
   newEventId,
+  onOtherTabChanged,
   onOutboxDelivered,
   purchase,
   spendOxygen,
@@ -157,6 +158,11 @@ export function Session() {
   const [attemptId, setAttemptId] = useState("");
   // Oxygen tanks spent this run that the server hasn't confirmed yet (the cache lags behind them).
   const tanksPending = useRef(0);
+  // Interaction locks: the attempt already completed, the attempt already left with Next, and
+  // whether this run has ended — so a double Enter or click acts once.
+  const submitted = useRef("");
+  const advanced = useRef("");
+  const finished = useRef(false);
   const [fullName, setFullName] = useState<string | undefined>();
   const [mode, setMode] = useState<GameMode>("classic");
   const [lives, setLives] = useState(SURVIVAL_LIVES);
@@ -305,6 +311,8 @@ export function Session() {
   };
 
   const complete = (result: Result) => {
+    if (submitted.current === attemptId) return;
+    submitted.current = attemptId;
     const nextCombo = result.typedErrors === 0 ? combo + 1 : 0;
     const { tier, points } = scoreExercise(exercise.words, result, nextCombo, difficulty);
     const s: Summary = { tier, points, combo: nextCombo, result, stumbled: result.perWord.filter((w) => w.fails > 0).map((w) => w.word) };
@@ -470,6 +478,8 @@ export function Session() {
 
   /** Ends the run. The score lives on only as a personal record per mode, shown on the end screen. */
   const finishSession = (completed: boolean) => {
+    if (finished.current) return;
+    finished.current = true;
     stopSpeech();
     if (full && completed && mode === "classic") {
       const now = new Date();
@@ -487,6 +497,8 @@ export function Session() {
   };
 
   const next = () => {
+    if (advanced.current === attemptId) return;
+    advanced.current = attemptId;
     stopSpeech();
     setSummary(null);
     if (mode === "survival" && lives <= 0) finishSession(false);
@@ -552,14 +564,25 @@ export function Session() {
   }, [screen, full]);
 
   // Intents left in the outbox by a network failure go out now, and whenever the browser is back
-  // online; once delivered, the server's state replaces what was shown.
+  // online; once delivered, the server's state replaces what was shown. Another tab playing at the
+  // same time says when it changed something, and this one reloads (a burst reloads once).
   useEffect(() => {
     if (!full) return;
-    const off = onOutboxDelivered(() => {
-      if (ledgerIdle()) resync();
-    });
+    let pending: ReturnType<typeof setTimeout> | undefined;
+    const reload = () => {
+      clearTimeout(pending);
+      pending = setTimeout(() => {
+        if (ledgerIdle()) resync();
+      }, 400);
+    };
+    const offOutbox = onOutboxDelivered(reload);
+    const offTabs = onOtherTabChanged(reload);
     flushOutbox();
-    return off;
+    return () => {
+      clearTimeout(pending);
+      offOutbox();
+      offTabs();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [full]);
 
@@ -631,6 +654,7 @@ export function Session() {
     setStartedWith({ xp: player.xp, quests, checkedIn: calendar.checked.has(localDay(new Date())) });
     setAttemptId(newEventId());
     tanksPending.current = 0;
+    finished.current = false;
     setLives(SURVIVAL_LIVES);
     setTimeLeft(TIME_ATTACK_SECONDS);
     setScreen("play");
