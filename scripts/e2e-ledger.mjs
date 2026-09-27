@@ -198,13 +198,14 @@ try {
   await pageA.getByRole("button", { name: /Store/ }).first().click();
   await pageA.getByRole("heading", { name: "Store" }).waitFor();
   const s4 = await snap();
-  if (s4.coins >= 40) {
+  const OXYGEN_COST = 400; // src/lib/shop.ts
+  if (s4.coins >= OXYGEN_COST) {
     await pageA.getByRole("button", { name: /Buy for/ }).first().dblclick();
     await settle(pageA);
     const s5 = await snap();
-    check("double click on Buy: one purchase", s4.coins - s5.coins === 40 && s5.oxygen - s4.oxygen === 1 && s5.events - s4.events === 1,
+    check("double click on Buy: one purchase", s4.coins - s5.coins === OXYGEN_COST && s5.oxygen - s4.oxygen === 1 && s5.events - s4.events === 1,
       JSON.stringify({ coins: s5.coins - s4.coins, oxygen: s5.oxygen - s4.oxygen, events: s5.events - s4.events }));
-  } else check("double click on Buy (skipped: under 40 coins)", true, `coins ${s4.coins}`);
+  } else check(`double click on Buy (skipped: under ${OXYGEN_COST} coins)`, true, `coins ${s4.coins}`);
 
   // 6. Claim: "Five clean" reached with 5 clean phrases in a row, then claimed from two tabs at
   // once, each with a double click.

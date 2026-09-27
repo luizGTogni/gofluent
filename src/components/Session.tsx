@@ -212,6 +212,7 @@ export function Session() {
   const nowDate = new Date();
   const rpNow = effectiveRp(player, nowDate);
   const rank = rankOf(rpNow);
+  const playerLevel = levelFromXp(rpNow);
   const held = rankOf(player.rp);
   const slipped = rank.index < held.index || (rank.index === held.index && rank.stars < held.stars);
   const lvl = levelProgress(player.xp);
@@ -222,7 +223,7 @@ export function Session() {
   const continueId = continuePlanet(planetId, planetStats, courseCounts);
   const currentStop = CELESTIAL_PATH[journeyIndex(planetStats, courseCounts)];
   // A mode the rank no longer (or doesn't yet) allow falls back to Classic.
-  const playMode: GameMode = modeUnlocked(mode, rank.index) ? mode : "classic";
+  const playMode: GameMode = modeUnlocked(mode, playerLevel) ? mode : "classic";
 
   const exercise = exercises[index];
 
@@ -618,7 +619,7 @@ export function Session() {
    * (Free mode by level), members play that difficulty on phrases up to its CEFR band, off the journey.
    */
   const start = (requested: GameMode = playMode, level: Difficulty | null = null) => {
-    const runMode = modeUnlocked(requested, rank.index) ? requested : "classic";
+    const runMode = modeUnlocked(requested, playerLevel) ? requested : "classic";
     const byLevel = full && level !== null;
     // Members on the journey: nothing to start until the stop they're on has phrases.
     if (full && !byLevel && !continueId) return;
@@ -718,7 +719,6 @@ export function Session() {
           setPlanetId(id);
           setFreeLevel(null);
         }}
-        rank={rank}
         rp={rpNow}
         canStart={Boolean(continueId)}
         stuckAt={currentStop.name}
@@ -732,7 +732,7 @@ export function Session() {
       />
     );
 
-  if (screen === "quests") return <QuestBoard rows={quests} rank={rank} onClaim={claim} onBack={() => setScreen("intro")} />;
+  if (screen === "quests") return <QuestBoard rows={quests} level={playerLevel} onClaim={claim} onBack={() => setScreen("intro")} />;
 
   if (screen === "shop")
     return (
@@ -1055,12 +1055,12 @@ export function Session() {
               <div className="xp-gain">
                 <b className="accent">+{summary.xp.total} XP</b>
                 <span className="xp-chips">
-                  <i>Base {summary.xp.base}</i>
+                  {summary.xp.answerShown ? <i>Answer shown: no XP</i> : <i>Base {summary.xp.base}</i>}
                   {summary.xp.firstTry > 0 && <i>First try +{summary.xp.firstTry}</i>}
                   {summary.xp.fast > 0 && <i>Fast +{summary.xp.fast}</i>}
                   {summary.xp.noHelp > 0 && <i>No hints +{summary.xp.noHelp}</i>}
                   {summary.xp.comeback > 0 && <i>Comeback +{summary.xp.comeback}</i>}
-                  {summary.xp.mult !== 1 && <i>×{summary.xp.mult} {DIFFICULTY[difficulty].label}</i>}
+                  {summary.xp.mult !== 1 && !summary.xp.answerShown && <i>×{summary.xp.mult} {DIFFICULTY[difficulty].label}</i>}
                 </span>
               </div>
             )}

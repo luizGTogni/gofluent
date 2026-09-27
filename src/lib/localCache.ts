@@ -3,7 +3,9 @@
 
 export const KEYS = {
   wallet: "gofluent:wallet",
-  player: "gofluent:player",
+  player: "gofluent:player:v2",
+  /** Player cached before the level curve changed; read once by playerStore and converted. */
+  playerV1: "gofluent:player",
   planets: "gofluent:planets",
   studyDays: "gofluent:studydays",
   frozenDays: "gofluent:frozendays",

@@ -47,7 +47,7 @@ echo "== complete_phrase: same key twice"
 E=$(uuid)
 r1=$(phrase "$A" "$E"); r2=$(phrase "$A" "$E")
 check "same result, flagged as a replay" "$r1 true" "$(sql "select ('$r2'::jsonb - 'replayed')::text || ' ' || ('$r2'::jsonb ->> 'replayed')")"
-check "applied once (coins,xp,phrases,played,w_perfect)" "20,40,1,1,1" "$(state "$A")"
+check "applied once (coins,xp,phrases,played,w_perfect)" "7,40,1,1,1" "$(state "$A")"
 check "event recorded once" "1" "$(sql "select count(*) from game_events where user_id = '$A'")"
 check "rp follows xp" "40" "$(sql "select rp from player_stats where user_id = '$A'")"
 check "no-hint counter" "1" "$(sql "select no_hint_count from inventory where user_id = '$A'")"
@@ -79,12 +79,12 @@ check "no planet: answer has planet null" "null" "$(sql "select coalesce(('$r'::
 
 echo "== complete_phrase: 10 concurrent, different keys"
 for _ in $(seq 10); do phrase "$B" "$(uuid)" >/dev/null & done; wait
-check "sums exactly 10x" "200,400,10,10,10" "$(state "$B")"
+check "sums exactly 10x" "70,400,10,10,10" "$(state "$B")"
 
 echo "== complete_phrase: 5 concurrent, same key"
 E=$(uuid)
 for _ in $(seq 5); do phrase "$C" "$E" >/dev/null & done; wait
-check "applied once" "20,40,1,1,1" "$(state "$C")"
+check "applied once" "7,40,1,1,1" "$(state "$C")"
 
 echo "== outbox replay: 3 phrases sent, then all 3 resent"
 K1=$(uuid); K2=$(uuid); K3=$(uuid)
@@ -103,12 +103,12 @@ check "repeat returns not claimed" "false" "$(as "$B" "select public.claim_quest
 check "unreached quest not claimable" "false" "$(as "$A" "select public.claim_quest('w_perfect', '$PK') ->> 'claimed'")"
 
 echo "== purchase"
-sql "update wallet set coins = 50 where user_id = '$A'"
+sql "update wallet set coins = 410 where user_id = '$A'"
 E=$(uuid)
 p1=$(as "$A" "select public.purchase('$E', 'oxygen', 'oxygen')"); p2=$(as "$A" "select public.purchase('$E', 'oxygen', 'oxygen')")
 check "same key: same result" "$p1" "$(sql "select ('$p2'::jsonb - 'replayed')::text")"
 check "same key: charged once" "10,1" "$(sql "select w.coins || ',' || i.oxygen from wallet w join inventory i using (user_id) where user_id = '$A'")"
-sql "update wallet set coins = 80 where user_id = '$A'"
+sql "update wallet set coins = 1600 where user_id = '$A'"
 out=$(for _ in 1 2; do as "$A" "select coalesce(public.purchase('$(uuid)', 'freeze', 'freeze') ->> 'reason', 'ok')" & done; wait)
 check "parallel, money for one: 1 ok + 1 insufficient" "insufficient_funds ok" "$(echo $out | tr ' ' '\n' | sort | xargs)"
 check "balance after" "0,1" "$(sql "select coins || ',' || freezes from wallet where user_id = '$A'")"
@@ -151,8 +151,10 @@ check "again: nothing more" "0" "$(as "$B" "select public.apply_daily('$DAY') ->
 check "day far from the clock rejected" "rejected" "$(as "$B" "select public.apply_daily('$DAY'::date - 5)" 2>/dev/null || echo rejected)"
 
 echo "== backfill (migration 0018 on existing data)"
-# totalXpForLevel(11) = 1210 opens Comet, (21) = 3570 opens Cadet.
-check "rank index matches ranks.ts" "0 0 1 1 2" "$(sql "select public._rank_index(r) from unnest(array[0, 1209, 1210, 3569, 3570]) r" | xargs)"
+# totalXpForLevel(11) = 13750 opens Comet, (21) = 42000 opens Cadet.
+check "rank index matches ranks.ts" "0 0 1 1 2" "$(sql "select public._rank_index(r) from unnest(array[0, 13749, 13750, 41999, 42000]) r" | xargs)"
+check "old-curve points keep their level (fromOldCurve in xp.ts)" "0 10 490 500 6650 7783 13738 13750 42000" \
+  "$(sql "select public._from_old_curve(p) from unnest(array[0, 1, 49, 50, 602, 700, 1209, 1210, 3570]) p" | xargs)"
 sql "delete from reward_grants; insert into badges (user_id, badge_id) values ('$B', 'night_owl') on conflict do nothing"
 sql "$(sed -n '/^-- Backfill/,$p' supabase/migrations/0018_idempotent_ledger.sql)"
 check "backfilled: badge, claimed quest, freeze, interest, milestones 7+30 of B's run" \

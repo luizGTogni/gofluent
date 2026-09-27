@@ -32,20 +32,24 @@ function PriceButton({ price, have, onBuy }: { price: number; have: number; onBu
       setPending(false);
     }
   };
+  // The price always shows on the button; what's still missing goes under it, so it never reads as a price.
   return (
-    <button type="button" className="check" disabled={short > 0 || pending} aria-busy={pending} onClick={buy}>
-      {pending ? (
-        "Buying…"
-      ) : short > 0 ? (
-        <>
-          Need <Currency r={{ coins: short }} signed={false} /> more
-        </>
-      ) : (
-        <>
-          Buy for <Currency r={{ coins: price }} signed={false} />
-        </>
+    <>
+      <button type="button" className="check" disabled={short > 0 || pending} aria-busy={pending} onClick={buy}>
+        {pending ? (
+          "Buying…"
+        ) : (
+          <>
+            Buy for <Currency r={{ coins: price }} signed={false} />
+          </>
+        )}
+      </button>
+      {short > 0 && !pending && (
+        <span className="muted shop-owned">
+          {short} more coins needed
+        </span>
       )}
-    </button>
+    </>
   );
 }
 

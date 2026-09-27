@@ -28,6 +28,9 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
   const [marks, setMarks] = useState<("correct" | "wrong")[] | null>(null);
   const freeRef = useRef<HTMLInputElement>(null);
   const freeFails = useRef<number[]>([]);
+  // Eclipse has no gaps to diff, so after enough failed checks the whole sentence gets one instead.
+  const [freeTries, setFreeTries] = useState(0);
+  const freeDiff = !cfg.gaps && freeTries >= DIFF_AFTER_WRONG;
   const heardFails = useRef<number[]>([]);
   const noteHeard = (i: number, typed: string) => {
     if (!heardButMisspelled(typed, words[i].text)) heardFails.current[i] = (heardFails.current[i] ?? 0) + 1;
@@ -88,7 +91,12 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
   const checkFree = () => {
     if (done.current) return;
     const tokens = free.trim().split(/\s+/).filter(Boolean);
+    const missedCheck = () => {
+      if (freeTries + 1 >= DIFF_AFTER_WRONG) stats.current.helped = true;
+      setFreeTries((n) => n + 1);
+    };
     if (!tokens.length) {
+      missedCheck();
       stats.current.emptyChecks += 1;
       words.forEach((_, i) => {
         freeFails.current[i] = (freeFails.current[i] ?? 0) + 1;
@@ -107,6 +115,7 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
       }
     });
     if (complete) return finish(freeFails.current);
+    missedCheck();
     stats.current.typedErrors += 1;
     onTypedError();
     words.forEach((w, i) => {
@@ -190,7 +199,8 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
 
   const showText = cfg.showText && !hidden;
   const anyWrong = cfg.gaps ? status.some((s) => s === "wrong") : marks !== null && (marks.length === 0 || marks.includes("wrong"));
-  const anyDiff = words.some((_, i) => diffMode(i));
+  const anyDiff = freeDiff || words.some((_, i) => diffMode(i));
+  const freeTokens = free.trim().split(/\s+/).filter(Boolean);
 
   return (
     <div className="exercise">
@@ -221,7 +231,24 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
             placeholder="Type what you heard"
             aria-label="Type the sentence you heard"
           />
-          {marks && marks.length > 0 && (
+          {freeDiff ? (
+            <div className="marks" aria-hidden>
+              {words.map((w, i) => (
+                <span key={i} className="mark">
+                  {diffWord(freeTokens[i] ?? "", w.text).map((op, k) => (
+                    <span key={k} className={`d-${op.t}`}>
+                      {op.c}
+                    </span>
+                  ))}
+                </span>
+              ))}
+              {freeTokens.slice(words.length).map((t, i) => (
+                <span key={`extra-${i}`} className="mark d-del">
+                  {t}
+                </span>
+              ))}
+            </div>
+          ) : marks && marks.length > 0 && (
             <div className="marks">
               {free
                 .trim()

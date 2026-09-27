@@ -10,7 +10,8 @@ import { getSupabase } from "./supabase";
 import { KEYS, readJson, writeJson } from "./localCache";
 import { coinsForXp, CRYSTALS_PER_CEFR_UP, CRYSTALS_PER_RANK_UP, dailyInterest, emptyWallet, milestoneReward, type Wallet } from "./economy";
 import type { Amounts } from "./rewards";
-import { emptyPlayer, type PlayerState } from "./xp";
+import { cachedPlayer } from "./playerStore";
+import type { PlayerState } from "./xp";
 import type { PlanetStat } from "./planetStats";
 import type { PlanetId } from "./planets";
 import { daysStudiedInWeek, QUEST_BY_ID, type QuestDef } from "./quests";
@@ -288,7 +289,7 @@ export function completePhrase(i: PhraseIntent): Promise<PhraseResult | null> {
     p_no_hint: i.noHint, p_seconds: i.seconds, p_quests: i.quests, p_local_day: i.day,
   };
   return run<PhraseResult>("complete_phrase", args, () => {
-    const p = { ...emptyPlayer, ...readJson<Partial<PlayerState>>(KEYS.player, {}) };
+    const p = cachedPlayer();
     const xp = p.xp + i.xp;
     const planet = i.planet;
     const prev = planet && cachedPlanets().find((s) => s.planet === planet);

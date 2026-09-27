@@ -18,13 +18,6 @@ export function rankForLevel(level: number): Rank {
 /** The rank the learner currently holds, from rank points. */
 export const rankOf = (rp: number): Rank => rankForLevel(levelFromXp(rp));
 
-/** How far rank points `rp` are from the title at `index`: XP still to earn, and the share covered. */
-export function rankGoal(rp: number, index: number): { title: Title; xpLeft: number; pct: number } {
-  const title = TITLES[index];
-  const target = totalXpForLevel(title.from);
-  return { title, xpLeft: Math.max(0, Math.ceil(target - rp)), pct: target > 0 ? Math.min(100, Math.round((rp / target) * 100)) : 100 };
-}
-
 export type RankChange = "promotion" | "star" | null;
 
 export function rankChange(before: Rank, after: Rank): RankChange {

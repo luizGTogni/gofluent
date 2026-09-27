@@ -1,7 +1,7 @@
 import { MILESTONES } from "./streak";
 
 // ---- earning: tune here ----
-export const COINS_PER_XP = 0.5; // Lunar Coins per XP point earned on a phrase
+export const COINS_PER_XP = 1 / 6; // Lunar Coins per XP point earned on a phrase: 1 per 6 XP
 export const CRYSTALS_PER_RANK_UP = 5;
 export const CRYSTALS_PER_CEFR_UP = 10;
 

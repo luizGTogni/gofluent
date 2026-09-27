@@ -9,16 +9,15 @@ import { MODES, type GameMode } from "@/lib/modes";
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from "@/lib/engine";
 import { levelBands } from "@/lib/levels";
 import { MODE_UNLOCKS, modeUnlocked } from "@/lib/unlocks";
-import { RankGoal } from "./RankGoal";
+import { LevelGoal } from "./LevelGoal";
+import { levelFromXp } from "@/lib/xp";
 import { ArrowLeft, ArrowRight, Lock, NamedIcon } from "./icons";
-import type { Rank } from "@/lib/ranks";
 
 type Props = {
   mode: GameMode;
   onSelectMode: (m: GameMode) => void;
   planetId: PlanetId;
   onSelectPlanet: (id: PlanetId) => void;
-  rank: Rank;
   /** Rank points right now, for how far a locked mode is. */
   rp: number;
   /** False while the journey stop you're on has no phrases: nothing to play yet. */
@@ -63,7 +62,7 @@ function PlanetPreview({ planetId, stat, count }: { planetId: PlanetId; stat?: P
 }
 
 /** "Free mode": pick how to play, then a level (off the journey) or a planet, then go. */
-export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank, rp, canStart, stuckAt, stats, counts, level, onSelectLevel, levelCounts, onStart, onBack }: Props) {
+export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rp, canStart, stuckAt, stats, counts, level, onSelectLevel, levelCounts, onStart, onBack }: Props) {
   const ready = level ? levelCounts[level] > 0 : canStart;
   return (
     <main className="shell center mode-picker">
@@ -76,7 +75,7 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
       <div className="mode-layout">
       <section className="mode-grid">
         {MODES.map((m) => {
-          const unlocked = modeUnlocked(m.id, rank.index);
+          const unlocked = modeUnlocked(m.id, levelFromXp(rp));
           return (
             <button
               key={m.id}
@@ -91,7 +90,7 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
               </span>
               <b>{m.name}</b>
               <span className="muted">{m.blurb}</span>
-              {!unlocked && <RankGoal rp={rp} index={MODE_UNLOCKS[m.id]} />}
+              {!unlocked && <LevelGoal rp={rp} level={MODE_UNLOCKS[m.id]} />}
             </button>
           );
         })}
