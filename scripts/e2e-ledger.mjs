@@ -102,6 +102,12 @@ async function answer(page, submit = async () => page.getByRole("button", { name
   return info;
 }
 const nextBtn = (page) => page.getByRole("button", { name: /^(Next|Finish)/ }).first();
+/** Next, at a human pace: the summary ignores Next for its first 300 ms (SUMMARY_SETTLE_MS). */
+async function goNext(page) {
+  await sleep(400);
+  await nextBtn(page).click();
+  await page.waitForSelector(".gaps");
+}
 
 async function login(page) {
   await page.goto(BASE);
@@ -137,11 +143,14 @@ try {
   const s1 = await snap();
   check("double Enter on Check counts one phrase", s1.phrases - s0.phrases === 1 && s1.events - s0.events === 1, JSON.stringify({ phrases: s1.phrases - s0.phrases, events: s1.events - s0.events }));
 
-  // 2. Double click on Next: one step forward. (The second Enter above may already have moved on
-  // with the autofocused Next; either way, finish the phrase on screen first.)
+  await sleep(500);
+  check("double Enter keeps the phrase summary on screen", await nextBtn(pageA).isVisible());
+
+  // 2. Double click on Next: one step forward.
   if (!(await nextBtn(pageA).isVisible())) await answer(pageA);
   const counter = () => pageA.evaluate(() => Number([...document.querySelectorAll("b")].find((b) => /^\d+$/.test(b.textContent) && /\/\s*\d+/.test(b.parentElement.textContent))?.textContent));
   const n0 = await counter();
+  await sleep(400);
   await nextBtn(pageA).dblclick();
   await pageA.waitForSelector(".gaps");
   await sleep(300);
@@ -155,8 +164,7 @@ try {
   for (let n = 0; n < 3; n++) {
     await answer(pageA);
     if (n < 2) {
-      await nextBtn(pageA).click();
-      await pageA.waitForSelector(".gaps");
+      await goNext(pageA);
     }
   }
   const queued = await pageA.evaluate(() => JSON.parse(localStorage.getItem("gofluent:outbox") ?? "[]").map((q) => q.rpc));
@@ -175,8 +183,7 @@ try {
   await pageB.goto(BASE);
   await pageB.getByRole("button", { name: /Continue on/ }).waitFor({ timeout: 20000 });
   await startRun(pageB);
-  await nextBtn(pageA).click();
-  await pageA.waitForSelector(".gaps");
+  await goNext(pageA);
   await Promise.all([answer(pageA), answer(pageB)]);
   await Promise.all([settle(pageA), settle(pageB)]);
   const s3 = await snap();
@@ -206,8 +213,7 @@ try {
   for (let n = 0; n < 5; n++) {
     await answer(pageA);
     if (n < 4) {
-      await nextBtn(pageA).click();
-      await pageA.waitForSelector(".gaps");
+      await goNext(pageA);
     }
   }
   await settle(pageA);
@@ -225,7 +231,7 @@ try {
     const s7 = await snap();
     check("claim from 2 tabs, double click each: paid once", s7.claimed - s6.claimed === 1 && s7.coins - s6.coins === 15,
       JSON.stringify({ claimed: s7.claimed - s6.claimed, coins: s7.coins - s6.coins }));
-  } else check("claim (skipped: no reached mission on screen)", false);
+  } else check("claim (skipped: nothing to claim; \"Five clean\" may be claimed already today)", true);
   await pageC.close();
 
   // 7. After a reload, what the top bar shows is what the server holds.

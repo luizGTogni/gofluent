@@ -96,6 +96,8 @@ type Summary = {
 type Auth = "loading" | "gate" | "guest" | "member";
 type Screen = "intro" | "modes" | "play" | "end" | "words" | "tricky" | "profile" | "quests" | "shop";
 
+const SUMMARY_SETTLE_MS = 300;
+
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
 const GUEST_KEY = "gofluent:guest";
@@ -163,6 +165,9 @@ export function Session() {
   const submitted = useRef("");
   const advanced = useRef("");
   const finished = useRef(false);
+  // When the phrase summary opened. Next ignores the first moments, so the second Enter of a quick
+  // double Enter (which lands on the autofocused Next) doesn't skip the summary unseen.
+  const summaryAt = useRef(0);
   const [fullName, setFullName] = useState<string | undefined>();
   const [mode, setMode] = useState<GameMode>("classic");
   const [lives, setLives] = useState(SURVIVAL_LIVES);
@@ -471,6 +476,7 @@ export function Session() {
     }
     setCombo(nextCombo);
     setScore((v) => v + points);
+    summaryAt.current = performance.now();
     setSummary(s);
     setHistory((h) => [...h, s]);
     speak(sentenceOf(exercise), speed, undefined, accent);
@@ -497,6 +503,7 @@ export function Session() {
   };
 
   const next = () => {
+    if (performance.now() - summaryAt.current < SUMMARY_SETTLE_MS) return;
     if (advanced.current === attemptId) return;
     advanced.current = attemptId;
     stopSpeech();
