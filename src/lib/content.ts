@@ -1,11 +1,13 @@
 import { EXERCISES, type Exercise, type Pos } from "./exercises";
+import { isPlanetId } from "./planets";
 import { getPublicClient } from "./supabase";
 
-const POS: ReadonlySet<string> = new Set<Pos>(["noun", "verb", "numeral", "pronoun", "adjective", "adverb", "article", "determiner", "preposition"]);
+const POS: ReadonlySet<string> = new Set<Pos>(["noun", "verb", "numeral", "pronoun", "adjective", "adverb", "article", "determiner", "preposition", "conjunction", "interjection"]);
 
 type Row = {
   text: string;
   translation: string;
+  planet: string;
   phrase_words: { word_index: number; words: { text: string; ipa: string; pos: string } | null }[];
 };
 
@@ -67,7 +69,7 @@ export async function loadContent(): Promise<Content> {
   try {
     const { data, error } = await db
       .from("phrases")
-      .select("text, translation, phrase_words(word_index, words(text, ipa, pos))")
+      .select("text, translation, planet, phrase_words(word_index, words(text, ipa, pos))")
       .order("level")
       .order("sort_order");
     if (error || !data?.length) return local;
@@ -81,6 +83,7 @@ export async function loadContent(): Promise<Content> {
       exercises.push({
         words: words.map((w) => ({ text: w!.text, ipa: w!.ipa, pos: w!.pos as Pos })),
         translation: row.translation,
+        planet: isPlanetId(row.planet) ? row.planet : "earth",
       });
     }
     return exercises.length ? { exercises, source: "remote" } : local;

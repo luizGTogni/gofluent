@@ -22,7 +22,7 @@ const phrases = EXERCISES.map((e, i) => {
   const n = e.words.length;
   const kind = n === 1 ? "word" : n <= 3 ? "phrase" : "sentence";
   const level = n <= 3 ? 1 : n === 4 ? 2 : 3;
-  return `(${q(text)}, ${q(e.translation)}, ${level}, ${q(kind)}, ${i + 1}, ${q(audioPath(text))})`;
+  return `(${q(text)}, ${q(e.translation)}, ${level}, ${q(kind)}, ${i + 1}, ${q(audioPath(text))}, ${q(e.planet)})`;
 });
 
 const wordRows = [...words.values()].map((w) => `(${q(w.text)}, ${q(w.ipa)}, ${q(w.pos)})`);
@@ -34,14 +34,15 @@ insert into public.words (text, ipa, pos) values
 ${wordRows.join(",\n")}
 on conflict (text, pos) do update set ipa = excluded.ipa;
 
-insert into public.phrases (text, translation, level, kind, sort_order, audio_path) values
+insert into public.phrases (text, translation, level, kind, sort_order, audio_path, planet) values
 ${phrases.join(",\n")}
 on conflict (text) do update set
   translation = excluded.translation,
   level       = excluded.level,
   kind        = excluded.kind,
   sort_order  = excluded.sort_order,
-  audio_path  = excluded.audio_path;
+  audio_path  = excluded.audio_path,
+  planet      = excluded.planet;
 
 insert into public.phrase_words (phrase_id, word_index, word_id)
 select p.id, v.word_index, w.id

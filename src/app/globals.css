@@ -229,6 +229,8 @@ button {
 .pos-noun { --c: #3fc9b0; }
 .pos-numeral, .pos-article, .pos-preposition { --c: #98a3b8; }
 .pos-determiner { --c: #c8a2c8; }
+.pos-conjunction { --c: #98a3b8; }
+.pos-interjection { --c: #ffb86b; }
 .pos-pronoun { --c: #e58fb8; }
 .pos-adjective { --c: #d98a5b; }
 .pos-adverb { --c: #7dd3e8; }
@@ -892,4 +894,120 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .rocket { display: none; }
   .promo-body { animation-delay: 0s; }
+}
+
+/* planets and CEFR */
+.destination,
+.planet {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(360px, 100%);
+  padding: 12px 16px;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--text);
+}
+.destination:hover,
+.planet:not(.locked):hover {
+  border-color: var(--accent);
+}
+.planet.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.planet.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.planet-emoji {
+  font-size: 30px;
+}
+.planet-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+.planet-meta {
+  font-size: 12px;
+  color: var(--accent);
+}
+.chip-cefr {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.shell.map {
+  justify-content: flex-start;
+  padding-block: 28px;
+}
+.planets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 10px;
+  width: min(760px, 100%);
+}
+.planets .planet {
+  width: 100%;
+}
+.cefr-card {
+  width: min(760px, 100%);
+  padding: 16px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cefr-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.cefr-level {
+  font-size: 22px;
+  color: var(--accent);
+}
+.cefr-bands {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.cefr-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cefr-band b {
+  font-size: 15px;
+  color: var(--text);
+}
+.cefr-band.passed {
+  border-color: var(--ok);
+  background: rgba(88, 214, 160, 0.08);
+}
+.cefr-band.passed b {
+  color: var(--ok);
+}
+.cefr-note {
+  margin: 0;
+  font-size: 12px;
 }

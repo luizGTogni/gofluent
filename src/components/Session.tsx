@@ -10,6 +10,9 @@ import { loadReview, putReview } from "@/lib/reviewStore";
 import { applyOutcome, isTricky, rate, trickyList, type WordStat } from "@/lib/wordStats";
 import { loadWordStats, putWordStats } from "@/lib/wordStore";
 import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
+import { PLANET_BY_ID, PLANETS, type PlanetId } from "@/lib/planets";
+import { canEnter, isSolid, markEntered, recordResult, type PlanetStat } from "@/lib/planetStats";
+import { loadPlanetStats, putPlanetStat } from "@/lib/planetStore";
 import { speak, stopSpeech } from "@/lib/speech";
 import { loadPlayer, savePlayer } from "@/lib/playerStore";
 import { effectiveRp, rankChange, rankOf, starsLabel } from "@/lib/ranks";
@@ -20,6 +23,7 @@ import { Account } from "./Account";
 import { AuthGate } from "./AuthGate";
 import { MyWords } from "./MyWords";
 import { Promotion } from "./Promotion";
+import { StarMap } from "./StarMap";
 import { TrickyWords } from "./TrickyWords";
 import { SaveChunks } from "./SaveChunks";
 import { WordCards } from "./WordCards";
@@ -36,7 +40,7 @@ type Summary = {
   starNote?: string;
 };
 type Auth = "loading" | "gate" | "guest" | "member";
-type Screen = "intro" | "play" | "end" | "words" | "tricky" | "account";
+type Screen = "intro" | "play" | "end" | "words" | "tricky" | "account" | "map";
 
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
@@ -60,7 +64,9 @@ const writeGuest = (on: boolean) => {
 export function Session() {
   const [screen, setScreen] = useState<Screen>("intro");
   const [exercises, setExercises] = useState<Exercise[]>(EXERCISES);
-  const remote = useRef<Exercise[] | null>(null);
+  const [library, setLibrary] = useState<Exercise[]>(EXERCISES);
+  const [planetId, setPlanetId] = useState<PlanetId>("earth");
+  const [planetStats, setPlanetStats] = useState<Map<PlanetId, PlanetStat>>(new Map());
   const total = exercises.length;
   const [review, setReview] = useState<Map<string, ReviewState>>(new Map());
   const [reviewKeys, setReviewKeys] = useState<Set<string>>(new Set());
@@ -123,6 +129,10 @@ export function Session() {
       if (change === "star") s.starNote = `${starsLabel(rankAfter.stars)} ${rankAfter.title.name}`;
       if (change === "promotion") setPromo(rankAfter.title);
 
+      const planetStat = recordResult(planetStats.get(exercise.planet), exercise.planet, isSolid(result));
+      putPlanetStat(planetStat);
+      setPlanetStats((m) => new Map(m).set(exercise.planet, planetStat));
+
       const changed = applyOutcome(wordStats, result.perWord);
       putWordStats(changed);
       setWordStats((m) => {
@@ -171,22 +181,33 @@ export function Session() {
     loadReview().then((list) => setReview(new Map(list.map((r) => [r.phrase, r]))));
     loadWordStats().then((list) => setWordStats(new Map(list.map((w) => [w.word, w]))));
     loadPlayer().then(setPlayer);
+    loadPlanetStats().then((list) => setPlanetStats(new Map(list.map((p) => [p.planet, p]))));
   }, [screen, full]);
 
   useEffect(() => {
     loadContent().then((c) => {
-      if (c.source === "remote") remote.current = c.exercises;
+      if (c.source === "remote") setLibrary(c.exercises);
     });
   }, []);
 
   const start = () => {
-    const pool = remote.current ?? EXERCISES;
-    const byText = new Map(pool.map((e) => [sentenceOf(e), e]));
+    const pool = library;
+    // Guests keep to the first two planets; members play the planet they picked (falling back to Earth).
+    const chosen = full && canEnter(PLANET_BY_ID.get(planetId)!, rank, planetStats.get(planetId)) ? planetId : "earth";
+    const planetPool = pool.filter((e) => (full ? e.planet === chosen : e.planet === "earth" || e.planet === "moon"));
+    if (full) {
+      const entered = markEntered(planetStats.get(chosen), chosen, new Date());
+      if (entered !== planetStats.get(chosen)) {
+        putPlanetStat(entered);
+        setPlanetStats((m) => new Map(m).set(chosen, entered));
+      }
+    }
+    const byText = new Map(pool.map((e) => [sentenceOf(e), e]));  // reviews can come from any planet
     const dueEx = (full ? dueList(review.values(), new Date()) : [])
       .map((r) => byText.get(r.phrase))
       .filter((e): e is Exercise => Boolean(e));
     const tricky = new Map((full ? trickyList(wordStats.values()) : []).map((w) => [w.word, rate(w)]));
-    const plan = buildSession(pool, dueEx, tricky);
+    const plan = buildSession(planetPool.length ? planetPool : pool, dueEx, tricky);
     setReviewKeys(new Set([...plan.review].map(sentenceOf)));
     setPracticeKeys(new Set([...plan.practice].map(sentenceOf)));
     setExercises(plan.exercises);
@@ -232,6 +253,23 @@ export function Session() {
         }}
       />
     );
+
+  if (screen === "map") {
+    const counts = Object.fromEntries(PLANETS.map((p) => [p.id, library.filter((e) => e.planet === p.id).length])) as Record<PlanetId, number>;
+    return (
+      <StarMap
+        rank={rank}
+        stats={planetStats}
+        counts={counts}
+        current={planetId}
+        onSelect={(id) => {
+          setPlanetId(id);
+          setScreen("intro");
+        }}
+        onBack={() => setScreen("intro")}
+      />
+    );
+  }
 
   if (screen === "account")
     return (
@@ -296,6 +334,20 @@ export function Session() {
             </div>
             {slipped && <div className="muted rank-slip">Welcome back. Your rank slipped a little while you were away. It returns as you study.</div>}
           </div>
+        )}
+        {full && (
+          <button type="button" className="destination" onClick={() => setScreen("map")}>
+            <span className="planet-emoji" aria-hidden>
+              {PLANET_BY_ID.get(planetId)!.emoji}
+            </span>
+            <span className="planet-main">
+              <span className="muted">Destination</span>
+              <b>
+                {PLANET_BY_ID.get(planetId)!.name} <span className="muted">· {PLANET_BY_ID.get(planetId)!.topic}</span>
+              </b>
+            </span>
+            <span className="chip-cefr">{PLANET_BY_ID.get(planetId)!.cefr}</span>
+          </button>
         )}
         {auth === "guest" ? (
           <div className="guest-box">
