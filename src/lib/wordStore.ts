@@ -56,6 +56,3 @@ export async function putWordStats(changed: WordStat[]): Promise<void> {
     .upsert(changed.map((s) => ({ user_id: data.user!.id, ...s, updated_at: now })), { onConflict: "user_id,word" });
   if (error) console.error("putWordStats failed:", error.message);
 }
-
-/** After creating an account: uploads what this device tracked as a guest. */
-export const syncLocalWordStats = () => putWordStats(readLocal());

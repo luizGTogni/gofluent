@@ -81,8 +81,9 @@ button {
   gap: 18px;
 }
 .logo {
-  height: 56px;
+  height: 84px;
   width: auto;
+  max-width: 100%;
 }
 .hero {
   font-size: clamp(28px, 5vw, 44px);
@@ -653,4 +654,105 @@ button {
 .check:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.guest-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: 420px;
+  font-size: 13px;
+}
+.guest-box .link {
+  font-size: 15px;
+}
+.profile-name {
+  font-size: 22px;
+  margin: 0;
+}
+
+/* prominent call to action for guests */
+.unlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: min(360px, 100%);
+  margin-top: 10px;
+  padding: 14px 22px;
+  background: linear-gradient(135deg, rgba(242, 194, 107, 0.22), rgba(242, 194, 107, 0.08));
+  border: 1.5px solid var(--accent);
+  border-radius: 16px;
+  box-shadow: 0 0 22px rgba(242, 194, 107, 0.18);
+  color: var(--text);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.unlock:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 30px rgba(242, 194, 107, 0.32);
+}
+.unlock-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.unlock-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* the slogan is a tagline, not a page title: smaller and on one or two lines */
+.hero.tagline {
+  font-size: clamp(20px, 3vw, 28px);
+  max-width: 24ch;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--muted);
+}
+
+/* login / create account: everything fits on one screen, no scrolling */
+.shell.gate {
+  min-height: 100dvh;
+  gap: 10px;
+  padding-block: 12px;
+}
+.gate .logo {
+  height: 72px;
+}
+.gate .hero.tagline {
+  max-width: none;
+  font-size: clamp(16px, 2.4vw, 22px);
+}
+.gate .auth-form {
+  gap: 10px;
+}
+.gate .auth-form input {
+  padding: 10px 14px;
+}
+.gate .auth-form .check {
+  padding: 10px 22px;
+}
+.gate .auth-error {
+  min-height: 1.2em;
+  font-size: 13px;
+}
+.auth-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(520px, 100%);
+}
+.auth-grid .span-2 {
+  grid-column: 1 / -1;
+}
+.auth-grid input {
+  min-width: 0;
+}
+@media (max-width: 520px) {
+  .auth-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.gate .guest-box {
+  margin-top: 0;
 }

@@ -60,8 +60,3 @@ export async function enrollIfMissing(phrase: string): Promise<void> {
   if (current.some((s) => s.phrase === phrase)) return;
   await putReview(enrolled(phrase, new Date()));
 }
-
-/** After creating an account: uploads what this device tracked as a guest. */
-export async function syncLocalReview(): Promise<void> {
-  for (const s of readLocal()) await putReview(s);
-}
