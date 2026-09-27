@@ -1968,7 +1968,7 @@ button.card:hover {
   bottom: 0;
   left: 50%;
   width: 3px;
-  background: repeating-linear-gradient(to bottom, var(--trail, var(--accent)) 0 6px, transparent 6px 16px);
+  background: repeating-linear-gradient(to bottom, var(--accent) 0 6px, transparent 6px 16px);
   opacity: 0.4;
   transform: translateX(-50%);
   z-index: 0;
@@ -2014,11 +2014,11 @@ button.card:hover {
 .planet-node:not(.locked):hover {
   border-color: var(--accent);
 }
-/* the planet you're on; the halo colour is a store cosmetic */
+/* the planet you're on */
 .planet-node.on {
-  border-color: var(--halo, var(--accent));
+  border-color: var(--accent);
   background: var(--accent-soft);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--halo, #ffc107) 18%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, #ffc107 18%, transparent);
 }
 .planet-node.locked {
   opacity: 0.85;
@@ -2108,11 +2108,6 @@ button.card:hover {
   font-size: 40px;
   position: relative;
   display: inline-flex;
-}
-.profile-avatar-suit {
-  font-size: 16px;
-  margin-left: 2px;
-  align-self: flex-end;
 }
 .profile-title {
   margin: 0;
@@ -2673,27 +2668,6 @@ button.card:hover {
   }
 }
 
-/* store cosmetics: a swatch of the trail or halo */
-.cosmetic-swatch {
-  display: block;
-  width: 44px;
-  height: 44px;
-}
-.cosmetic-trail {
-  height: 26px;
-  margin: 9px 0;
-  background: repeating-linear-gradient(90deg, var(--swatch) 0 8px, transparent 8px 14px);
-  -webkit-mask: linear-gradient(transparent 11px, #000 11px 15px, transparent 15px);
-  mask: linear-gradient(transparent 11px, #000 11px 15px, transparent 15px);
-}
-.cosmetic-halo {
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #7ec8ff, #123a66 70%);
-  box-shadow:
-    0 0 0 3px var(--swatch),
-    0 0 0 8px color-mix(in srgb, var(--swatch) 25%, transparent);
-}
-
 /* top bar: the chips that lead somewhere, and the avatar by the name */
 .chip-link {
   background: none;
@@ -2710,10 +2684,6 @@ button.card:hover {
   margin-right: 6px;
   font-size: 18px;
   vertical-align: middle;
-}
-.topbar-avatar .profile-avatar-suit {
-  font-size: 10px;
-  margin-left: 0;
 }
 
 /* keyboard focus: one visible ring everywhere (inputs show focus through their underline) */
@@ -3148,7 +3118,7 @@ kbd {
   }
   .planet-trail path {
     fill: none;
-    stroke: var(--trail, var(--accent));
+    stroke: var(--accent);
     stroke-width: 3;
     stroke-dasharray: 6 10;
     stroke-linecap: round;

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { COSMETIC_KIND_LABEL, COSMETICS, FREEZE_COST, OXYGEN_COST, SUITS, type CosmeticKind, type SuitId } from "@/lib/shop";
-import { addOxygen, buyCosmetic, buySuit, equipCosmetic, equippedCosmetics, getOxygen, loadInventory, ownedCosmetics, ownedSuits, type Equipped } from "@/lib/shopStore";
+import { FREEZE_COST, OXYGEN_COST } from "@/lib/shop";
+import { addOxygen, getOxygen, loadInventory } from "@/lib/shopStore";
 import type { Wallet } from "@/lib/economy";
 
 type Props = {
@@ -25,37 +25,17 @@ function PriceButton({ icon, price, have, onBuy }: { icon: string; price: number
   );
 }
 
-const KINDS: CosmeticKind[] = ["trail", "halo"];
-
-/** The store: oxygen extras (a Survival-mode second wind), Streak Shields, spacesuit pieces (worn
- * by your avatar in the top bar and profile), and journey cosmetics — where Crystals go. */
+/** The store: oxygen extras (a Survival-mode second wind) and Streak Shields. */
 export function Shop({ wallet, onSpend, onBuyFreeze, onBack }: Props) {
   const [oxygen, setOxygen] = useState(0);
-  const [suits, setSuits] = useState<Set<SuitId>>(new Set());
-  const [cosmetics, setCosmetics] = useState<Set<string>>(new Set());
-  const [equipped, setEquipped] = useState<Equipped>({});
 
   useEffect(() => {
     setOxygen(getOxygen());
-    setSuits(ownedSuits());
-    setCosmetics(ownedCosmetics());
-    setEquipped(equippedCosmetics());
-    loadInventory().then((inv) => {
-      setOxygen(inv.oxygen);
-      setSuits(inv.suits);
-      setCosmetics(inv.cosmetics);
-      setEquipped(inv.equipped);
-    });
+    loadInventory().then((inv) => setOxygen(inv.oxygen));
   }, []);
 
   const buyOxygen = () => {
     if (onSpend(OXYGEN_COST, 0)) setOxygen(addOxygen(1));
-  };
-
-  const handleBuySuit = (id: SuitId) => {
-    if (suits.has(id)) return;
-    const def = SUITS.find((s) => s.id === id);
-    if (def && onSpend(0, def.crystals)) setSuits(buySuit(id));
   };
 
   return (
@@ -92,64 +72,6 @@ export function Shop({ wallet, onSpend, onBuyFreeze, onBack }: Props) {
           </div>
         </div>
       </section>
-
-      <section className="quest-section">
-        <h2 className="mode-picker-sub muted">Spacesuit</h2>
-        <div className="shop-grid">
-          {SUITS.map((s) => {
-            const owned = suits.has(s.id);
-            return (
-              <div key={s.id} className={`shop-card ${owned ? "owned" : ""}`}>
-                <span className="shop-icon" aria-hidden>
-                  {s.icon}
-                </span>
-                <b>{s.name}</b>
-                <span className="muted shop-desc">{s.description}</span>
-                {owned ? (
-                  <span className="shop-owned-tag">✅ Owned</span>
-                ) : (
-                  <PriceButton icon="💎" price={s.crystals} have={wallet.crystals} onBuy={() => handleBuySuit(s.id)} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {KINDS.map((kind) => (
-        <section key={kind} className="quest-section">
-          <h2 className="mode-picker-sub muted">{COSMETIC_KIND_LABEL[kind]}</h2>
-          <div className="shop-grid">
-            {COSMETICS.filter((c) => c.kind === kind).map((c) => {
-              const owned = cosmetics.has(c.id);
-              const worn = equipped[kind] === c.id;
-              return (
-                <div key={c.id} className={`shop-card ${owned ? "owned" : ""}`}>
-                  <span className={`cosmetic-swatch cosmetic-${kind}`} style={{ "--swatch": c.color } as React.CSSProperties} aria-hidden />
-                  <b>{c.name}</b>
-                  <span className="muted shop-desc">{c.description}</span>
-                  {owned ? (
-                    <button type="button" className={`check ${worn ? "" : "ghost"}`} aria-pressed={worn} onClick={() => setEquipped(equipCosmetic(kind, worn ? null : c.id))}>
-                      {worn ? "✓ Wearing" : "Wear"}
-                    </button>
-                  ) : (
-                    <PriceButton
-                      icon="💎"
-                      price={c.crystals}
-                      have={wallet.crystals}
-                      onBuy={() => {
-                        if (!onSpend(0, c.crystals)) return;
-                        setCosmetics(buyCosmetic(c.id));
-                        setEquipped(equipCosmetic(kind, c.id));
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
     </main>
   );
 }
