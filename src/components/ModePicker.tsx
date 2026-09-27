@@ -31,7 +31,13 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
 
       <section className="mode-grid">
         {MODES.map((m) => (
-          <button key={m.id} type="button" className={`mode-card ${mode === m.id ? "on" : ""}`} onClick={() => onSelectMode(m.id)}>
+          <button
+            key={m.id}
+            type="button"
+            className={`mode-card ${mode === m.id ? "on" : ""}`}
+            aria-pressed={mode === m.id}
+            onClick={() => onSelectMode(m.id)}
+          >
             <span className="mode-icon" aria-hidden>
               {m.icon}
             </span>
@@ -48,20 +54,28 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
           const stat = stats.get(p.id);
           const open = canEnter(p, rank, stat) && count > 0;
           const style = { "--orb-hi": p.color[0], "--orb-lo": p.color[1] } as CSSProperties;
+          // Same node as the journey (Courses.tsx): the orb is the button, the name sits below.
           return (
-            <button
-              key={p.id}
-              type="button"
-              className={`mode-planet ${planetId === p.id ? "on" : ""} ${!open ? "locked" : ""}`}
-              disabled={!open}
-              title={count === 0 ? "Coming soon" : !open ? `Reach ${TITLES[p.minRank].name} to unlock` : p.topic}
-              onClick={() => onSelectPlanet(p.id)}
-            >
-              <span className="planet-node" style={style}>
+            <div key={p.id} className="mode-planet">
+              <button
+                type="button"
+                className={`planet-node ${planetId === p.id ? "on" : ""} ${!open ? "locked" : ""}`}
+                disabled={!open}
+                aria-pressed={planetId === p.id}
+                aria-label={p.name}
+                title={count === 0 ? "Coming soon" : !open ? `Reach ${TITLES[p.minRank].name} to unlock` : p.topic}
+                onClick={() => onSelectPlanet(p.id)}
+                style={style}
+              >
                 <span className={`planet-orb ${p.ring ? "ringed" : ""}`} aria-hidden />
-              </span>
+                {!open && (
+                  <span className="planet-node-lock" aria-hidden>
+                    🔒
+                  </span>
+                )}
+              </button>
               <span className="planet-node-name">{p.name}</span>
-            </button>
+            </div>
           );
         })}
       </div>

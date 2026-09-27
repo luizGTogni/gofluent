@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { BADGES } from "@/lib/badges";
-import { unlockedBadges } from "@/lib/badgeStore";
+import { loadBadges, unlockedBadges } from "@/lib/badgeStore";
 import { periodKeyFor, QUESTS, type QuestDef } from "@/lib/quests";
-import { allProgress, type QuestProgress } from "@/lib/questStore";
+import { progressFor, type QuestProgress } from "@/lib/questStore";
 
-type Props = { onBack: () => void };
-
-const emptyRow = (q: QuestDef, now: Date): QuestProgress => ({ id: q.id, periodKey: periodKeyFor(q, now), count: 0, claimed: false });
+type Props = { rows: QuestProgress[]; onBack: () => void };
 
 function QuestCard({ q, row }: { q: QuestDef; row: QuestProgress }) {
   const pct = Math.min(100, Math.round((row.count / q.target) * 100));
@@ -32,22 +30,17 @@ function QuestCard({ q, row }: { q: QuestDef; row: QuestProgress }) {
   );
 }
 
-/** Daily and weekly missions, plus the mission badges earned so far. Progress lives on this
- * device only for now (see questStore.ts) so it's read fresh each time this screen opens. */
-export function QuestBoard({ onBack }: Props) {
-  const [rows, setRows] = useState<QuestProgress[]>([]);
+/** Daily and weekly missions (progress synced, see questStore.ts), plus the mission badges earned so far. */
+export function QuestBoard({ rows, onBack }: Props) {
   const [badges, setBadges] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    setRows(allProgress());
     setBadges(unlockedBadges());
+    loadBadges().then(setBadges);
   }, []);
 
   const now = new Date();
-  const rowFor = (q: QuestDef) => {
-    const key = periodKeyFor(q, now);
-    return rows.find((r) => r.id === q.id && r.periodKey === key) ?? emptyRow(q, now);
-  };
+  const rowFor = (q: QuestDef) => progressFor(rows, q.id, periodKeyFor(q, now));
 
   const daily = QUESTS.filter((q) => q.period === "daily");
   const weekly = QUESTS.filter((q) => q.period === "weekly");

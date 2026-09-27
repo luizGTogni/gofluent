@@ -19,18 +19,18 @@ import { effectiveRp, rankChange, rankOf, starsLabel } from "@/lib/ranks";
 import type { Title } from "@/lib/titles";
 import { addXp, emptyPlayer, levelFromXp, levelProgress, phraseXp, type PlayerState, type XpBreakdown } from "@/lib/xp";
 import { extendedUnlocked, type Accent } from "@/lib/unlocks";
-import { addDays, computeStreak, gapToFreeze, milestoneHit, utcDay } from "@/lib/streak";
+import { addDays, computeStreak, gapToFreeze, localDay, localHour, milestoneHit } from "@/lib/streak";
 import { pickDifficulty } from "@/lib/adaptive";
 import { MODES, SURVIVAL_LIVES, TIME_ATTACK_SECONDS, type GameMode } from "@/lib/modes";
 import { ModePicker } from "./ModePicker";
 import { daysStudiedInWeek, QUEST_BY_ID, weekKey } from "@/lib/quests";
-import { bumpQuest, getProgress, markClaimed, setProgress, type QuestProgress } from "@/lib/questStore";
-import { unlockedBadges, unlockBadge, bumpNoHintCount } from "@/lib/badgeStore";
+import { claimQuest, loadQuests, progressFor, putQuests, withRow, type QuestProgress } from "@/lib/questStore";
+import { bumpNoHintCount, loadBadges, unlockedBadges, unlockBadge } from "@/lib/badgeStore";
 import { QuestBoard } from "./QuestBoard";
 import { FREEZE_COST } from "@/lib/shop";
-import { useOxygen } from "@/lib/shopStore";
+import { loadInventory, useOxygen } from "@/lib/shopStore";
 import { Shop } from "./Shop";
-import { getProfile, signOut } from "@/lib/auth";
+import { getProfile, signOut, syncTimeZone } from "@/lib/auth";
 import { coinsForXp, CRYSTALS_PER_CEFR_UP, CRYSTALS_PER_RANK_UP, dailyInterest, milestoneReward, type Wallet } from "@/lib/economy";
 import {
   addFrozenDay,
@@ -124,6 +124,9 @@ export function Session() {
   const [player, setPlayer] = useState<PlayerState>(emptyPlayer);
   const [promo, setPromo] = useState<Title | null>(null);
   const [wallet, setWallet] = useState<Wallet>({ coins: 0, crystals: 0, freezes: 0 });
+  // The latest wallet, readable synchronously, so rewards are computed before any setState.
+  const walletRef = useRef(wallet);
+  const [quests, setQuests] = useState<QuestProgress[]>([]);
   const [calendar, setCalendar] = useState<StudyCalendar>({ checked: new Set(), frozen: new Set(), lastInterestDay: null });
   const [freezeNote, setFreezeNote] = useState<string | null>(null);
   const checkedInToday = useRef(false);
@@ -164,10 +167,22 @@ export function Session() {
   const slipped = rank.index < held.index || (rank.index === held.index && rank.stars < held.stars);
   const lvl = levelProgress(player.xp);
   const canExtend = extendedUnlocked(rank.index);
-  const streak = computeStreak(calendar.checked, calendar.frozen, utcDay(nowDate));
+  const streak = computeStreak(calendar.checked, calendar.frozen, localDay(nowDate));
   const courseCounts = Object.fromEntries(PLANETS.map((p) => [p.id, library.filter((e) => e.planet === p.id).length])) as Record<PlanetId, number>;
 
   const exercise = exercises[index];
+
+  const showWallet = (w: Wallet) => {
+    walletRef.current = w;
+    setWallet(w);
+  };
+  /** Applies a change to the wallet: local state first, then persisted. */
+  const commitWallet = (change: (w: Wallet) => Wallet): Wallet => {
+    const next = change(walletRef.current);
+    showWallet(next);
+    saveWallet(next);
+    return next;
+  };
 
   const complete = (result: Result) => {
     const nextCombo = result.typedErrors === 0 ? combo + 1 : 0;
@@ -202,23 +217,22 @@ export function Session() {
 
       const cefrBefore = cefrEstimate(cefrBands(planetStats.values(), rankAfter.index));
       const planetStat = recordResult(planetStats.get(exercise.planet), exercise.planet, isSolid(result));
+      const nextPlanetStats = new Map(planetStats).set(exercise.planet, planetStat);
+      const cefrAfter = cefrEstimate(cefrBands(nextPlanetStats.values(), rankAfter.index));
+      const cefrUp = Boolean(cefrAfter && cefrAfter !== cefrBefore);
+      if (cefrUp) s.crystalNote = `New estimated level: ${cefrAfter}. +${CRYSTALS_PER_CEFR_UP} crystals.`;
       putPlanetStat(planetStat);
-      setPlanetStats((m) => {
-        const next = new Map(m).set(exercise.planet, planetStat);
-        const cefrAfter = cefrEstimate(cefrBands(next.values(), rankAfter.index));
-        if (cefrAfter && cefrAfter !== cefrBefore) s.crystalNote = `New estimated level: ${cefrAfter}. +${CRYSTALS_PER_CEFR_UP} crystals.`;
-        return next;
-      });
+      setPlanetStats(nextPlanetStats);
 
       // Economy: coins for the XP just earned, plus today's check-in and its streak effects.
       addStudySeconds(Math.max(1, Math.round(result.elapsedMs / 1000)));
       let coinGain = coinsForXp(gain.total);
-      let crystalGain = (change === "promotion" ? CRYSTALS_PER_RANK_UP : 0) + (s.crystalNote ? CRYSTALS_PER_CEFR_UP : 0);
+      let crystalGain = (change === "promotion" ? CRYSTALS_PER_RANK_UP : 0) + (cefrUp ? CRYSTALS_PER_CEFR_UP : 0);
       let freezeGain = 0;
       let checkedForQuests = calendar.checked;
       if (!checkedInToday.current) {
         checkedInToday.current = true;
-        const today = utcDay(now);
+        const today = localDay(now);
         const before = computeStreak(calendar.checked, calendar.frozen, today).current;
         const nextChecked = new Set(calendar.checked).add(today);
         checkedForQuests = nextChecked;
@@ -233,12 +247,6 @@ export function Session() {
           s.milestoneNote = `🛰️ ${hit}-day orbit! +${reward.coins} Lunar Coins, +${reward.crystals} Crystals, +${reward.freezes} shield${reward.freezes === 1 ? "" : "s"}.`;
         }
       }
-      s.coins = coinGain;
-      setWallet((w) => {
-        const next = { coins: w.coins + coinGain, crystals: w.crystals + crystalGain, freezes: w.freezes + freezeGain };
-        saveWallet(next);
-        return next;
-      });
 
       const changed = applyOutcome(wordStats, result.perWord);
       putWordStats(changed);
@@ -257,44 +265,52 @@ export function Session() {
 
       // Missions: daily and weekly quests, ticked from signals this run just produced. Progress
       // and rewards are granted the moment a quest first hits its target (see questStore.ts).
-      const today = utcDay(now);
+      const today = localDay(now);
       const wk = weekKey(now);
-      let questCoinGain = 0;
-      let questCrystalGain = 0;
-      const questNotes: string[] = [];
-      const grant = (row: QuestProgress) => {
-        const def = QUEST_BY_ID.get(row.id);
-        if (!def || row.count < def.target || row.claimed) return;
-        markClaimed(row.id, row.periodKey);
-        questCoinGain += def.coins;
-        questCrystalGain += def.crystals ?? 0;
-        questNotes.push(`🎯 ${def.name} complete! +${def.coins} Lunar Coins${def.crystals ? `, +${def.crystals} Crystal` : ""}.`);
+      let questRows = quests;
+      const touched: QuestProgress[] = [];
+      const reached: QuestProgress[] = [];
+      // Counts are capped at the target; a quest that reaches it is claimed below, once.
+      const tick = (id: string, periodKey: string, count: (prev: number) => number) => {
+        const def = QUEST_BY_ID.get(id)!;
+        const prev = progressFor(questRows, id, periodKey);
+        const row = { ...prev, count: Math.min(def.target, count(prev.count)) };
+        if (row.count === prev.count) return;
+        questRows = withRow(questRows, row);
+        touched.push(row);
+        if (row.count >= def.target && !row.claimed) reached.push(row);
       };
 
-      grant(bumpQuest("d_ten_phrases", today, 1, QUEST_BY_ID.get("d_ten_phrases")!.target));
-      grant(
-        setProgress(
-          "d_five_streak",
-          today,
-          Math.max(getProgress("d_five_streak", today).count, nextCombo),
-          QUEST_BY_ID.get("d_five_streak")!.target,
-        ),
-      );
-      if (reviewKeys.has(key)) grant(bumpQuest("d_review_eight", today, 1, QUEST_BY_ID.get("d_review_eight")!.target));
-
-      grant(setProgress("w_five_days", wk, daysStudiedInWeek(checkedForQuests, wk), QUEST_BY_ID.get("w_five_days")!.target));
-      grant(bumpQuest("w_deep_practice", wk, 1, QUEST_BY_ID.get("w_deep_practice")!.target));
+      tick("d_ten_phrases", today, (n) => n + 1);
+      tick("d_five_streak", today, (n) => Math.max(n, nextCombo));
+      if (reviewKeys.has(key)) tick("d_review_eight", today, (n) => n + 1);
+      tick("w_five_days", wk, () => daysStudiedInWeek(checkedForQuests, wk));
+      tick("w_deep_practice", wk, (n) => n + 1);
       const newWords = changed.filter((c) => !wordStats.has(c.word)).length;
-      if (newWords > 0) grant(bumpQuest("w_new_words", wk, newWords, QUEST_BY_ID.get("w_new_words")!.target));
+      if (newWords > 0) tick("w_new_words", wk, (n) => n + newWords);
 
-      if (questNotes.length) s.questNote = questNotes.join(" ");
-      if (questCoinGain || questCrystalGain) {
-        setWallet((w) => {
-          const next = { ...w, coins: w.coins + questCoinGain, crystals: w.crystals + questCrystalGain };
-          saveWallet(next);
-          return next;
-        });
+      // Shown as claimed right away; the reward itself is paid only if the server confirms this
+      // was the claim that flipped it (idempotent per user, quest and period).
+      for (const row of reached) questRows = withRow(questRows, { ...row, claimed: true });
+      setQuests(questRows);
+      if (reached.length) {
+        s.questNote = reached
+          .map((r) => QUEST_BY_ID.get(r.id)!)
+          .map((d) => `🎯 ${d.name} complete! +${d.coins} Lunar Coins${d.crystals ? `, +${d.crystals} Crystal` : ""}.`)
+          .join(" ");
       }
+      putQuests(touched).then(async () => {
+        for (const row of reached) {
+          if (!(await claimQuest(row.id, row.periodKey))) continue;
+          const def = QUEST_BY_ID.get(row.id)!;
+          commitWallet((w) => ({ ...w, coins: w.coins + def.coins, crystals: w.crystals + (def.crystals ?? 0) }));
+        }
+      });
+
+      // One wallet write for everything this phrase earned: XP coins, check-in rewards, level-ups.
+      s.coins = coinGain;
+      if (coinGain || crystalGain || freezeGain)
+        commitWallet((w) => ({ coins: w.coins + coinGain, crystals: w.crystals + crystalGain, freezes: w.freezes + freezeGain }));
 
       // Mission badges: a handful of concrete, lifetime achievements.
       const badgeNotes: string[] = [];
@@ -307,7 +323,7 @@ export function Session() {
         unlockBadge("no_hint_100");
         badgeNotes.push("💪 Badge unlocked: No Hints, 100 Phrases!");
       }
-      const hour = now.getHours();
+      const hour = localHour(now);
       if (hour < 7 && !unlocked.has("early_bird")) {
         unlockBadge("early_bird");
         badgeNotes.push("🌅 Badge unlocked: Early Bird!");
@@ -319,15 +335,12 @@ export function Session() {
       if (badgeNotes.length) s.badgeNote = badgeNotes.join(" ");
     }
     if (mode === "survival" && result.typedErrors > 0) {
-      setLives((l) => {
-        const next = l - 1;
-        if (next > 0) return next;
-        if (useOxygen()) {
-          s.oxygenNote = "🫧 Oxygen tank used — back in the game!";
-          return 1;
-        }
-        return 0;
-      });
+      let nextLives = lives - 1;
+      if (nextLives <= 0 && useOxygen()) {
+        s.oxygenNote = "🫧 Oxygen tank used — back in the game!";
+        nextLives = 1;
+      }
+      setLives(Math.max(0, nextLives));
     }
     setCombo(nextCombo);
     setScore((v) => v + points);
@@ -363,37 +376,37 @@ export function Session() {
     loadWordStats().then((list) => setWordStats(new Map(list.map((w) => [w.word, w]))));
     loadPlayer().then(setPlayer);
     loadPlanetStats().then((list) => setPlanetStats(new Map(list.map((p) => [p.planet, p]))));
-    loadWallet().then(setWallet);
-    getProfile().then((p) => setFullName(p?.fullName));
-    loadCalendar().then(async (cal) => {
-      const today = utcDay(new Date());
+    loadQuests().then(setQuests);
+    loadBadges();
+    loadInventory();
+    getProfile().then((p) => {
+      setFullName(p?.fullName);
+      syncTimeZone(p);
+    });
+    // The wallet and calendar load together: a missed day may spend a shield, and interest is
+    // paid on the loaded balance, so both are decided here before anything is set.
+    Promise.all([loadWallet(), loadCalendar()]).then(async ([loaded, cal]) => {
+      let w = loaded;
+      const today = localDay(new Date());
       const gap = gapToFreeze(cal.checked, today);
-      let nextWallet: Wallet | null = null;
-      if (gap) {
-        setWallet((w) => {
-          if (w.freezes <= 0) return w;
-          nextWallet = { ...w, freezes: w.freezes - 1 };
-          return nextWallet;
-        });
-        if (nextWallet) {
-          await addFrozenDay(gap);
-          await saveWallet(nextWallet);
-          cal.frozen.add(gap);
-          setFreezeNote(`⚡ Energy shield used for ${gap}. Your orbit holds.`);
-        }
+      if (gap && w.freezes > 0) {
+        w = { ...w, freezes: w.freezes - 1 };
+        await addFrozenDay(gap);
+        cal.frozen.add(gap);
+        setFreezeNote(`⚡ Energy shield used for ${gap}. Your orbit holds.`);
       }
-      setCalendar(cal);
-      checkedInToday.current = cal.checked.has(today);
 
       const streakSoFar = computeStreak(cal.checked, cal.frozen, addDays(today, -1)).current;
       if (streakSoFar > 0 && !(await interestAppliedToday())) {
-        const bonus = dailyInterest(streakSoFar, (nextWallet ?? wallet).coins);
-        if (bonus > 0) {
-          setWallet((w) => ({ ...w, coins: w.coins + bonus }));
-          saveWallet({ ...(nextWallet ?? wallet), coins: (nextWallet ?? wallet).coins + bonus });
-        }
+        const bonus = dailyInterest(streakSoFar, w.coins);
+        if (bonus > 0) w = { ...w, coins: w.coins + bonus };
         markInterestApplied();
       }
+
+      showWallet(w);
+      if (w !== loaded) await saveWallet(w);
+      setCalendar(cal);
+      checkedInToday.current = cal.checked.has(today);
     });
   }, [screen, full]);
 
@@ -495,28 +508,21 @@ export function Session() {
       />
     );
 
-  if (screen === "quests") return <QuestBoard onBack={() => setScreen("intro")} />;
+  if (screen === "quests") return <QuestBoard rows={quests} onBack={() => setScreen("intro")} />;
 
   if (screen === "shop")
     return (
       <Shop
         wallet={wallet}
         onSpend={(coins, crystals) => {
-          if (wallet.coins < coins || wallet.crystals < crystals) return false;
-          setWallet((w) => {
-            const next = { ...w, coins: w.coins - coins, crystals: w.crystals - crystals };
-            saveWallet(next);
-            return next;
-          });
+          const w = walletRef.current;
+          if (w.coins < coins || w.crystals < crystals) return false;
+          commitWallet((w) => ({ ...w, coins: w.coins - coins, crystals: w.crystals - crystals }));
           return true;
         }}
         onBuyFreeze={() => {
-          if (wallet.coins < FREEZE_COST) return false;
-          setWallet((w) => {
-            const next = { ...w, coins: w.coins - FREEZE_COST, freezes: w.freezes + 1 };
-            saveWallet(next);
-            return next;
-          });
+          if (walletRef.current.coins < FREEZE_COST) return false;
+          commitWallet((w) => ({ ...w, coins: w.coins - FREEZE_COST, freezes: w.freezes + 1 }));
           return true;
         }}
         onBack={() => setScreen("intro")}

@@ -1,4 +1,4 @@
-import { utcDay } from "./streak";
+import { localDay } from "./streak";
 import { getSupabase } from "./supabase";
 import { emptyWallet, type Wallet } from "./economy";
 
@@ -37,10 +37,10 @@ export async function loadCalendar(): Promise<StudyCalendar> {
   return { checked, frozen: frozenSet, lastInterestDay: null };
 }
 
-/** Adds seconds to today's (UTC) study day, local + remote. */
+/** Adds seconds to today's (local) study day, local + remote. */
 export async function addStudySeconds(seconds: number): Promise<void> {
   if (seconds <= 0) return;
-  const day = utcDay(new Date());
+  const day = localDay(new Date());
   const days = new Set(readJson<string[]>(K_DAYS, []));
   days.add(day);
   writeJson(K_DAYS, [...days]);
@@ -91,7 +91,7 @@ export async function saveWallet(w: Wallet): Promise<void> {
 
 /** Once per day: has interest already been credited today? */
 export async function interestAppliedToday(): Promise<boolean> {
-  const today = utcDay(new Date());
+  const today = localDay(new Date());
   const db = await getSupabase();
   if (!db) return readJson(K_INTEREST, null) === today;
   const { data } = await db.from("wallet").select("last_interest_day").maybeSingle();
@@ -99,7 +99,7 @@ export async function interestAppliedToday(): Promise<boolean> {
 }
 
 export async function markInterestApplied(): Promise<void> {
-  const today = utcDay(new Date());
+  const today = localDay(new Date());
   writeJson(K_INTEREST, today);
   const db = await getSupabase();
   if (!db) return;

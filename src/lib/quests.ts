@@ -1,5 +1,5 @@
 // Kept dependency-free so scripts can load it directly.
-import { addDays, utcDay } from "./streak";
+import { addDays, localDay } from "./streak";
 
 export type QuestPeriod = "daily" | "weekly";
 
@@ -39,9 +39,9 @@ export const QUESTS: QuestDef[] = [
 
 export const QUEST_BY_ID = new Map(QUESTS.map((q) => [q.id, q]));
 
-/** Monday (UTC) of the week containing `d` — the key a weekly quest's progress is filed under. */
+/** Monday (on the learner's clock) of the week containing `d` — the key a weekly quest's progress is filed under. */
 export function weekKey(d: Date): string {
-  const day = utcDay(d);
+  const day = localDay(d);
   const dow = new Date(`${day}T00:00:00Z`).getUTCDay(); // 0 Sun .. 6 Sat
   return addDays(day, dow === 0 ? -6 : 1 - dow);
 }
@@ -53,4 +53,4 @@ export function daysStudiedInWeek(checkedDays: ReadonlySet<string>, weekStart: s
   return n;
 }
 
-export const periodKeyFor = (q: QuestDef, now: Date) => (q.period === "daily" ? utcDay(now) : weekKey(now));
+export const periodKeyFor = (q: QuestDef, now: Date) => (q.period === "daily" ? localDay(now) : weekKey(now));

@@ -1,10 +1,47 @@
 // Kept dependency-free so scripts can load it directly.
 
-/** UTC calendar day as YYYY-MM-DD, so a streak means the same thing everywhere. */
-export const utcDay = (d: Date) => d.toISOString().slice(0, 10);
+/**
+ * The learner's IANA time zone. Days (streaks, quests, the heatmap) and hours (Early Bird,
+ * Night Owl) are all read on this one clock, so "today" means the learner's today, not UTC's.
+ * Undefined means the runtime's own zone, which in the browser is already the learner's.
+ */
+let zone: string | undefined;
 
+/** The browser's time zone, e.g. "America/Sao_Paulo". */
+export const browserTimeZone = (): string | undefined => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return undefined;
+  }
+};
+
+/** Switches the clock to `tz`; an unknown zone is ignored rather than breaking every date. */
+export function setTimeZone(tz: string | undefined): void {
+  if (!tz) return;
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz });
+    zone = tz;
+  } catch {
+    /* invalid zone: keep the current one */
+  }
+}
+
+const clock = (d: Date) => {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" }).formatToParts(d);
+  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "00";
+  return { day: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) };
+};
+
+/** The learner's calendar day as YYYY-MM-DD. */
+export const localDay = (d: Date) => clock(d).day;
+
+/** The learner's hour of the day, 0..23. */
+export const localHour = (d: Date) => clock(d).hour;
+
+// Day strings are plain calendar dates, so arithmetic on them is done at UTC midnight (no DST).
 const DAY_MS = 86_400_000;
-export const addDays = (day: string, n: number) => utcDay(new Date(new Date(`${day}T00:00:00Z`).getTime() + n * DAY_MS));
+export const addDays = (day: string, n: number) => new Date(new Date(`${day}T00:00:00Z`).getTime() + n * DAY_MS).toISOString().slice(0, 10);
 const dayDiff = (a: string, b: string) => Math.round((new Date(`${a}T00:00:00Z`).getTime() - new Date(`${b}T00:00:00Z`).getTime()) / DAY_MS);
 
 export type StreakResult = { current: number; longest: number };

@@ -1,12 +1,12 @@
 "use client";
 
-import { addDays, utcDay } from "@/lib/streak";
+import { addDays, localDay } from "@/lib/streak";
 
 const WEEKS = 14;
 
-/** GitHub-style grid of the last ~14 weeks, in UTC. Green = studied, blue ring = bridged by a shield. */
+/** GitHub-style grid of the last ~14 weeks, on the learner's clock. Green = studied, blue ring = bridged by a shield. */
 export function Heatmap({ checked, frozen }: { checked: ReadonlySet<string>; frozen: ReadonlySet<string> }) {
-  const today = utcDay(new Date());
+  const today = localDay(new Date());
   const todayDow = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = Sunday
   const start = addDays(today, -(WEEKS * 7 - 1) - todayDow);
 

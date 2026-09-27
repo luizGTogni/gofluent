@@ -8,9 +8,9 @@ import type { PlayerState } from "@/lib/xp";
 import { levelProgress } from "@/lib/xp";
 import { rankOf, starsLabel } from "@/lib/ranks";
 import type { StudyCalendar } from "@/lib/economyStore";
-import { computeStreak, utcDay } from "@/lib/streak";
+import { computeStreak, localDay } from "@/lib/streak";
 import { SUITS, type SuitId } from "@/lib/shop";
-import { ownedSuits } from "@/lib/shopStore";
+import { loadInventory, ownedSuits } from "@/lib/shopStore";
 import { Heatmap } from "./Heatmap";
 
 type Props = {
@@ -37,11 +37,12 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
     getAccount().then(setAccount);
     getProfile().then(setProfile);
     setSuits(ownedSuits());
+    loadInventory().then((inv) => setSuits(inv.suits));
   }, []);
 
   const rank = rankOf(player.rp);
   const lvl = levelProgress(player.xp);
-  const streak = computeStreak(calendar.checked, calendar.frozen, utcDay(new Date()));
+  const streak = computeStreak(calendar.checked, calendar.frozen, localDay(new Date()));
   const bands = cefrBands(planetStats.values(), rank.index);
   const estimate = cefrEstimate(bands);
 

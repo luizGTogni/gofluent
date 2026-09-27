@@ -1,3 +1,4 @@
+import { browserTimeZone, setTimeZone } from "./streak";
 import { getPublicClient, getSupabase } from "./supabase";
 
 export type Account = { email: string };
@@ -6,9 +7,17 @@ export type AuthResult = { ok: true; signedIn: boolean; message?: string } | { o
 export const MIN_PASSWORD = 8;
 
 // Progress caches in localStorage belong to whoever is signed in; drop them when that changes.
+// Caches of synced data (quests, badges, store items) go too, but only once their one-time
+// import of pre-sync, device-only data has run — so nothing bought offline is lost.
+const SYNCED_CACHES: [imported: string, keys: string[]][] = [
+  ["gofluent:quests:imported", ["gofluent:quests"]],
+  ["gofluent:badges:imported", ["gofluent:badges", "gofluent:noHintCount"]],
+  ["gofluent:inventory:imported", ["gofluent:oxygen", "gofluent:suits"]],
+];
 const clearLocalCaches = () => {
   try {
     ["gofluent:review", "gofluent:words"].forEach((k) => localStorage.removeItem(k));
+    for (const [imported, keys] of SYNCED_CACHES) if (localStorage.getItem(imported) === "1") keys.forEach((k) => localStorage.removeItem(k));
   } catch {
     /* ignore */
   }
@@ -71,13 +80,26 @@ export async function createAccount(i: SignupInput): Promise<AuthResult> {
   return { ok: true, signedIn: true };
 }
 
-export type Profile = { username: string; fullName: string };
+export type Profile = { username: string; fullName: string; timeZone: string | null };
 
 export async function getProfile(): Promise<Profile | null> {
   const db = await getSupabase();
   if (!db) return null;
-  const { data } = await db.from("profiles").select("username, full_name").maybeSingle();
-  return data ? { username: data.username, fullName: data.full_name } : null;
+  const { data } = await db.from("profiles").select("username, full_name, time_zone").maybeSingle();
+  return data ? { username: data.username, fullName: data.full_name, timeZone: data.time_zone } : null;
+}
+
+/** Puts the day clock on the browser's time zone and records it on the profile when it changed. */
+export async function syncTimeZone(profile: Profile | null): Promise<void> {
+  const tz = browserTimeZone();
+  setTimeZone(tz);
+  if (!tz || !profile || profile.timeZone === tz) return;
+  const db = await getSupabase();
+  if (!db) return;
+  const { data } = await db.auth.getUser();
+  if (!data.user) return;
+  const { error } = await db.from("profiles").update({ time_zone: tz }).eq("user_id", data.user.id);
+  if (error) console.error("syncTimeZone failed:", error.message);
 }
 
 /** Signs in to an existing account. */

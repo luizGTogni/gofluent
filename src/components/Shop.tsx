@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FREEZE_COST, OXYGEN_COST, SUITS, type SuitId } from "@/lib/shop";
-import { addOxygen, buySuit, getOxygen, ownedSuits } from "@/lib/shopStore";
+import { addOxygen, buySuit, getOxygen, loadInventory, ownedSuits } from "@/lib/shopStore";
 import type { Wallet } from "@/lib/economy";
 
 type Props = {
@@ -24,6 +24,10 @@ export function Shop({ wallet, onSpend, onBuyFreeze, onBack }: Props) {
   useEffect(() => {
     setOxygen(getOxygen());
     setSuits(ownedSuits());
+    loadInventory().then((inv) => {
+      setOxygen(inv.oxygen);
+      setSuits(inv.suits);
+    });
   }, []);
 
   const buyOxygen = () => {

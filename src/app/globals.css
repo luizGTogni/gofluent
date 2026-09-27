@@ -1245,6 +1245,8 @@ button {
 }
 .planet-node {
   position: relative;
+  appearance: none;
+  padding: 0;
   width: 92px;
   height: 92px;
   display: flex;
@@ -1456,6 +1458,7 @@ button {
   gap: 10px;
 }
 .mode-card {
+  appearance: none;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1473,6 +1476,10 @@ button {
 .mode-card.on {
   border-color: var(--accent);
   background: var(--accent-soft);
+  box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.15);
+}
+.mode-card.on b {
+  color: var(--accent);
 }
 .mode-card .muted {
   font-size: 12px;
@@ -1505,16 +1512,13 @@ button {
 .mode-planet .planet-node-name {
   font-size: 12px;
 }
-.mode-planet.on .planet-node {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.15);
+.mode-planet .planet-node:disabled {
+  cursor: not-allowed;
 }
-.mode-planet.locked {
-  opacity: 0.6;
-}
-.mode-planet.locked .planet-orb {
-  opacity: 0.35;
-  filter: grayscale(70%);
+.mode-planet .planet-node-lock {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
 }
 
 /* missions */
