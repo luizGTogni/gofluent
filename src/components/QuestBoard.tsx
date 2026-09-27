@@ -8,7 +8,7 @@ import { progressFor, type QuestProgress } from "@/lib/questStore";
 
 type Props = { rows: QuestProgress[]; onBack: () => void };
 
-function QuestCard({ q, row }: { q: QuestDef; row: QuestProgress }) {
+export function QuestCard({ q, row }: { q: QuestDef; row: QuestProgress }) {
   const pct = Math.min(100, Math.round((row.count / q.target) * 100));
   const done = row.count >= q.target;
   return (
@@ -46,13 +46,14 @@ export function QuestBoard({ rows, onBack }: Props) {
   const weekly = QUESTS.filter((q) => q.period === "weekly");
 
   return (
-    <main className="shell center">
+    <main className="shell center quest-board">
       <button type="button" className="link mode-picker-back" onClick={onBack}>
         ← Back
       </button>
       <h1 className="hero">Missions</h1>
       <p className="muted">Quick wins today, bigger goals this week.</p>
 
+      <div className="quest-columns">
       <section className="quest-section">
         <h2 className="mode-picker-sub muted">Daily</h2>
         <div className="quest-grid">
@@ -71,7 +72,9 @@ export function QuestBoard({ rows, onBack }: Props) {
         </div>
       </section>
 
-      <section className="quest-section">
+      </div>
+
+      <section className="quest-section quest-badges">
         <h2 className="mode-picker-sub muted">Mission badges</h2>
         <div className="badge-grid">
           {BADGES.map((b) => {

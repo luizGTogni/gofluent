@@ -9,10 +9,9 @@ import { levelProgress } from "@/lib/xp";
 import { rankOf, starsLabel } from "@/lib/ranks";
 import type { StudyCalendar } from "@/lib/economyStore";
 import { computeStreak, localDay } from "@/lib/streak";
-import { SUITS, type SuitId } from "@/lib/shop";
-import { loadInventory, ownedSuits } from "@/lib/shopStore";
 import { plural } from "@/lib/format";
 import { Heatmap } from "./Heatmap";
+import { Avatar } from "./Avatar";
 
 type Props = {
   player: PlayerState;
@@ -32,13 +31,10 @@ type Props = {
 export function Profile({ player, wallet, calendar, planetStats, trickyCount, onBack, onWords, onTricky, onQuests, onShop, onSignedOut }: Props) {
   const [account, setAccount] = useState<Account | null>(null);
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
-  const [suits, setSuits] = useState<Set<SuitId>>(new Set());
 
   useEffect(() => {
     getAccount().then(setAccount);
     getProfile().then(setProfile);
-    setSuits(ownedSuits());
-    loadInventory().then((inv) => setSuits(inv.suits));
   }, []);
 
   const rank = rankOf(player.rp);
@@ -63,15 +59,10 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
         </button>
       </div>
 
+      <div className="profile-grid">
+      <div className="profile-col">
       <div className="profile-head">
-        <span className="profile-avatar" aria-hidden>
-          🧑‍🚀
-          {SUITS.filter((s) => suits.has(s.id)).map((s) => (
-            <span key={s.id} className="profile-avatar-suit" title={s.name}>
-              {s.icon}
-            </span>
-          ))}
-        </span>
+        <Avatar />
         <div>
           <h1 className="profile-title">{profile?.fullName ?? "Your profile"}</h1>
           <p className="muted">{profile ? `@${profile.username}` : account?.email}</p>
@@ -105,6 +96,9 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
         </p>
       </section>
 
+      </div>
+
+      <div className="profile-col">
       <section className="profile-card">
         <div className="profile-card-head">
           <b>🛰️ {streak.current}-day orbit</b>
@@ -137,6 +131,8 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
           <span className="muted">{trickyCount > 0 ? `${trickyCount} to work on →` : "None right now →"}</span>
         </button>
       </nav>
+      </div>
+      </div>
 
     </main>
   );

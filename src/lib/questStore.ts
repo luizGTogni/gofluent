@@ -1,5 +1,6 @@
 // Quest progress, synced like the wallet: localStorage is a cache of the latest rows, Supabase the
 // source of truth. Rewards are idempotent per (user, quest, periodKey): see claimQuest.
+import { periodKeyFor, QUESTS, type QuestDef } from "./quests";
 import { getSupabase } from "./supabase";
 
 export type QuestProgress = { id: string; periodKey: string; count: number; claimed: boolean };
@@ -34,6 +35,14 @@ export const withRow = (rows: readonly QuestProgress[], row: QuestProgress): Que
   ...rows.filter((r) => !same(r, row.id, row.periodKey)),
   row,
 ];
+
+/** Pure: the quests whose count went up between two snapshots, in the current period. */
+export function advancedQuests(before: readonly QuestProgress[], after: readonly QuestProgress[], now: Date) {
+  return QUESTS.map((q: QuestDef) => {
+    const key = periodKeyFor(q, now);
+    return { q, before: progressFor(before, q.id, key).count, after: progressFor(after, q.id, key).count };
+  }).filter((m) => m.after > m.before);
+}
 
 const toRow = (d: { quest_id: string; period_key: string; count: number; claimed: boolean }): QuestProgress => ({
   id: d.quest_id,

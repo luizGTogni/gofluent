@@ -59,6 +59,9 @@ import { WordCards } from "./WordCards";
 import { XpMeter } from "./XpMeter";
 import { RewardToasts } from "./RewardToasts";
 import { SessionEnd } from "./SessionEnd";
+import { SessionSide } from "./SessionSide";
+import { PlayerCard } from "./PlayerCard";
+import { MissionRail } from "./MissionRail";
 
 type Summary = {
   tier: Tier;
@@ -377,10 +380,18 @@ export function Session() {
   useEffect(() => {
     if (!summary) return;
     const onKey = (e: KeyboardEvent) => {
+      // A focused button (the autofocused Next) already handles its own Enter.
+      if (e.target instanceof HTMLElement && e.target.closest("button")) return;
       if (e.key === "Enter" && !e.repeat && !promo) next();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Attached on the next task: the Enter that finished the phrase is still bubbling up to
+    // window when this effect runs (discrete events flush effects synchronously), and must not
+    // also skip the summary it just opened.
+    const t = setTimeout(() => window.addEventListener("keydown", onKey));
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("keydown", onKey);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary, index, promo]);
 
@@ -431,9 +442,11 @@ export function Session() {
     });
   }, []);
 
-  const start = () => {
+  /** Starts a run in `m` (the picked mode unless a shortcut says otherwise). */
+  const start = (runMode: GameMode = mode) => {
     const pool = library;
-    if (full) setDifficulty(mode === "blind" ? "extreme" : pickDifficulty(rank.index, planetStats.get(planetId)));
+    setMode(runMode);
+    if (full) setDifficulty(runMode === "blind" ? "extreme" : pickDifficulty(rank.index, planetStats.get(planetId)));
     // Guests keep to the first two planets; members play the planet they picked (falling back to Earth).
     const chosen = full && canEnter(PLANET_BY_ID.get(planetId)!, rank, planetStats.get(planetId)) ? planetId : "earth";
     const planetPool = pool.filter(
@@ -449,11 +462,11 @@ export function Session() {
     const basePool = planetPool.length ? planetPool : pool;
 
     let plan: SessionPlan;
-    if (mode === "boss") {
+    if (runMode === "boss") {
       // One long, tough phrase — the toughest the planet has to offer.
       const boss = [...basePool].sort((a, b) => b.words.length - a.words.length)[0] ?? basePool[0];
       plan = { exercises: boss ? [boss] : [], review: new Set(), practice: new Set() };
-    } else if (mode === "timeAttack" || mode === "survival") {
+    } else if (runMode === "timeAttack" || runMode === "survival") {
       // A generous, shuffled, repeating supply so the clock (or your lives) runs out first.
       const shuffled = [...basePool].sort(() => Math.random() - 0.5);
       const exercises = Array.from({ length: 8 }, () => shuffled).flat();
@@ -521,7 +534,7 @@ export function Session() {
         rank={rank}
         stats={planetStats}
         counts={courseCounts}
-        onStart={start}
+        onStart={() => start()}
         onBack={() => setScreen("intro")}
       />
     );
@@ -595,6 +608,12 @@ export function Session() {
           }}
           onSignIn={() => setAuth("gate")}
         />
+        <div className="home-grid">
+        {full && (
+          <aside className="home-side home-left">
+            <PlayerCard name={fullName} rank={rank} xp={player.xp} streak={streak.current} wallet={wallet} onProfile={() => setScreen("profile")} />
+          </aside>
+        )}
         <div className="home-body">
         {dueCount > 0 && (
           <p className="muted">
@@ -623,7 +642,7 @@ export function Session() {
             <p className="muted level-blurb">
               {DIFFICULTY[difficulty].blurb} <span className="accent">×{DIFFICULTY[difficulty].scoreMult}</span>
             </p>
-            <button type="button" className="check big" onClick={start}>
+            <button type="button" className="check big" onClick={() => start()}>
               Start →
             </button>
           </>
@@ -631,11 +650,11 @@ export function Session() {
 
         {full && (
           <>
-            <button type="button" className="check big" onClick={() => setScreen("modes")}>
+            <button type="button" className="check big narrow-only" onClick={() => setScreen("modes")}>
               🚀 Free mode
             </button>
             <h1 className="home-tagline">Follow your journey through the learning space</h1>
-            <button type="button" className="link small" onClick={() => setScreen("quests")}>
+            <button type="button" className="link small narrow-only" onClick={() => setScreen("quests")}>
               🎯 Missions
             </button>
           </>
@@ -659,6 +678,19 @@ export function Session() {
               <span className="unlock-sub">Review, tricky words, saved words and your profile</span>
             </button>
           </div>
+        )}
+        </div>
+        {full && (
+          <aside className="home-side home-right">
+            <MissionRail
+              planet={PLANET_BY_ID.get(canEnter(PLANET_BY_ID.get(planetId)!, rank, planetStats.get(planetId)) ? planetId : "earth")!}
+              quests={quests}
+              onContinue={() => start("classic")}
+              onFreeMode={() => setScreen("modes")}
+              onMissions={() => setScreen("quests")}
+              onShop={() => setScreen("shop")}
+            />
+          </aside>
         )}
         </div>
       </main>
@@ -697,7 +729,7 @@ export function Session() {
           streak={streak.current}
           streakExtended={!startedWith.checkedIn && checkedInToday.current}
           onContinue={() => setScreen("intro")}
-          onPlayAgain={start}
+          onPlayAgain={() => start()}
         />
         <RewardToasts rewards={toasts} onDismiss={dismissToast} />
         {promo && <Promotion title={promo} onContinue={() => setPromo(null)} />}
@@ -706,7 +738,8 @@ export function Session() {
   }
 
   return (
-    <main className="shell">
+    <main className="shell play">
+      <div className="play-grid">
       <section className="panel">
         <header className="bar">
           <div className="bar-top">
@@ -777,12 +810,16 @@ export function Session() {
         </header>
 
         {summary ? (
-          <div className="exercise">
+          <div className="exercise summary">
+            <div className="summary-grid">
+            <div className="summary-phrase">
             <h1 className="target">{sentenceOf(exercise)}</h1>
             <p className="translation">{exercise.translation}</p>
             <div className="swap">
               <WordCards words={exercise.words} />
             </div>
+            </div>
+            <div className="summary-rewards">
             <div className={`tier tier-${summary.tier}`}>{TIER_LABEL[summary.tier]}</div>
             <p className="muted">
               {TIER_COPY[summary.tier]}
@@ -825,6 +862,8 @@ export function Session() {
               </p>
             )}
             {full && <SaveChunks exercise={exercise} />}
+            </div>
+            </div>
             <div className="footer">
               <span />
               <button type="button" className="check" onClick={next} autoFocus>
@@ -848,6 +887,15 @@ export function Session() {
           />
         )}
       </section>
+      <SessionSide
+        full={full}
+        gains={gains}
+        combo={combo}
+        bestCombo={Math.max(combo, ...history.map((h) => h.combo))}
+        questsBefore={startedWith.quests}
+        questsNow={quests}
+      />
+      </div>
       <RewardToasts rewards={toasts} onDismiss={dismissToast} />
       {promo && <Promotion title={promo} onContinue={() => setPromo(null)} />}
     </main>

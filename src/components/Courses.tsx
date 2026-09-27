@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { CELESTIAL_PATH } from "@/lib/bodies";
 import { canEnter, type PlanetStat } from "@/lib/planetStats";
 import { PLANET_BY_ID, type PlanetId } from "@/lib/planets";
@@ -19,13 +19,59 @@ type Props = {
 // as it goes down rather than sitting in a straight line — a gentle rocket path, not a switchback.
 const STEPS = [0, 1, 2, 1];
 
+const DESKTOP = "(min-width: 1024px)";
+
+/** A smooth curve through the centers of the path's nodes, relative to the path box. */
+function trailThrough(path: HTMLElement): string {
+  const box = path.getBoundingClientRect();
+  const pts = [...path.querySelectorAll<HTMLElement>(".planet-node")].map((n) => {
+    const r = n.getBoundingClientRect();
+    return [r.left + r.width / 2 - box.left, r.top + r.height / 2 - box.top];
+  });
+  return pts
+    .map(([x, y], i) => {
+      if (i === 0) return `M${x},${y}`;
+      const [px, py] = pts[i - 1];
+      const my = (py + y) / 2;
+      return `C${px},${my} ${x},${my} ${x},${y}`;
+    })
+    .join(" ");
+}
+
 /** The full journey, real solar system order first: a rocket marks where you are, playable
  * planets are open or locked by rank, and every other stop is scenery for now — a waypoint with
  * no course behind it yet (most past Saturn don't even have an orb design drawn yet). */
 export function Courses({ rank, stats, counts, current, onSelect }: Props) {
+  const pathRef = useRef<HTMLDivElement>(null);
+  const [trail, setTrail] = useState("");
+
+  // Wide screens swing the path much further side to side, so the straight guide line gives way to
+  // a curve drawn through the nodes themselves, redrawn whenever the path resizes.
+  useLayoutEffect(() => {
+    const el = pathRef.current;
+    if (!el) return;
+    const draw = () => setTrail(window.matchMedia(DESKTOP).matches ? trailThrough(el) : "");
+    draw();
+    const ro = new ResizeObserver(draw);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // On wide screens the journey is the page's centerpiece: open it where the rocket is.
+  useEffect(() => {
+    if (!window.matchMedia(DESKTOP).matches) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    pathRef.current?.querySelector(".planet-rocket")?.parentElement?.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+  }, []);
+
   return (
     <div className="courses">
-      <div className="planet-path">
+      <div className="planet-path" ref={pathRef}>
+        {trail && (
+          <svg className="planet-trail" aria-hidden>
+            <path d={trail} />
+          </svg>
+        )}
         {CELESTIAL_PATH.map((body, i) => {
           const planet = body.planetId ? PLANET_BY_ID.get(body.planetId) : undefined;
           const count = planet ? (counts[planet.id] ?? 0) : 0;
@@ -41,7 +87,7 @@ export function Courses({ rank, stats, counts, current, onSelect }: Props) {
                 ? `Reach ${TITLES[planet.minRank].name} to unlock`
                 : planet.topic;
           return (
-            <div key={body.id} className="planet-path-row" style={style}>
+            <div key={body.id} className={`planet-path-row ${planet ? "" : "scenery"}`} style={style}>
               {isCurrent && (
                 <span className="planet-rocket" aria-hidden>
                   🚀

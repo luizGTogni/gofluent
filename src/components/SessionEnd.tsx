@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { BADGE_BY_ID } from "@/lib/badges";
 import { plural } from "@/lib/format";
-import { periodKeyFor, QUESTS } from "@/lib/quests";
-import { progressFor, type QuestProgress } from "@/lib/questStore";
+import { advancedQuests, type QuestProgress } from "@/lib/questStore";
 import type { SessionGains } from "@/lib/rewards";
 import { XpMeter } from "./XpMeter";
 
@@ -66,11 +65,7 @@ export function SessionEnd(p: Props) {
     return () => clearTimeout(t);
   }, [p.xpAfter]);
 
-  const now = new Date();
-  const missions = QUESTS.map((q) => {
-    const key = periodKeyFor(q, now);
-    return { q, before: progressFor(p.questsBefore, q.id, key).count, after: progressFor(p.questsAfter, q.id, key).count };
-  }).filter((m) => m.after > m.before);
+  const missions = advancedQuests(p.questsBefore, p.questsAfter, new Date());
   const newBest = p.prevBest !== null && p.score > p.prevBest && p.score > 0;
   const currencies = p.gains.coins > 0 || p.gains.crystals > 0 || p.gains.freezes > 0;
 

@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { levelFromXp, levelProgress } from "@/lib/xp";
 
-type Props = { xp: number; big?: boolean };
+/** `animate: false` just shows the level, e.g. where the XP arrives from a load, not a gain. */
+type Props = { xp: number; big?: boolean; animate?: boolean };
 
 /**
  * Level bar that animates when `xp` grows: the fill slides forward and a "+N XP" floats up. A
  * level-up fills the bar, snaps it back to empty and fills again into the new level.
  */
-export function XpMeter({ xp, big = false }: Props) {
+export function XpMeter({ xp, big = false, animate = true }: Props) {
   const lvl = levelProgress(xp);
   const [bar, setBar] = useState({ level: lvl.level, pct: lvl.pct, instant: true });
   const [gain, setGain] = useState<{ n: number; key: number } | null>(null);
@@ -19,7 +20,7 @@ export function XpMeter({ xp, big = false }: Props) {
     const before = prev.current;
     prev.current = xp;
     const now = levelProgress(xp);
-    if (xp <= before) {
+    if (xp <= before || !animate) {
       setBar({ level: now.level, pct: now.pct, instant: true });
       return;
     }
@@ -35,7 +36,7 @@ export function XpMeter({ xp, big = false }: Props) {
       clearTimeout(reset);
       clearTimeout(refill);
     };
-  }, [xp]);
+  }, [xp, animate]);
 
   return (
     <div className={`xp-meter ${big ? "big" : ""}`}>

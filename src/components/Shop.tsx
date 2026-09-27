@@ -41,12 +41,12 @@ export function Shop({ wallet, onSpend, onBuyFreeze, onBack }: Props) {
   };
 
   return (
-    <main className="shell center">
+    <main className="shell center shop">
       <button type="button" className="link mode-picker-back" onClick={onBack}>
         ← Back
       </button>
       <h1 className="hero">Store</h1>
-      <p className="muted wallet-row">
+      <p className="muted wallet-row shop-wallet">
         <span>🪙 {wallet.coins} Lunar Coins</span>
         <span>💎 {wallet.crystals} Crystals</span>
       </p>

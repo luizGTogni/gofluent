@@ -2,7 +2,9 @@
 
 import type { CSSProperties } from "react";
 import { canEnter, type PlanetStat } from "@/lib/planetStats";
-import { PLANETS, type PlanetId } from "@/lib/planets";
+import { PLANET_BY_ID, type PlanetId } from "@/lib/planets";
+import { CELESTIAL_PATH } from "@/lib/bodies";
+import { plural } from "@/lib/format";
 import { MODES, type GameMode } from "@/lib/modes";
 import type { Rank } from "@/lib/ranks";
 import { TITLES } from "@/lib/titles";
@@ -19,6 +21,34 @@ type Props = {
   onBack: () => void;
 };
 
+// Same order as the journey (Courses.tsx): nearest to the Sun first, the invented planets last.
+const PATH_PLANETS = CELESTIAL_PATH.flatMap((b) => (b.planetId ? [PLANET_BY_ID.get(b.planetId)!] : []));
+
+/** Wide screens: what the picked planet is about and how it's going for you so far. */
+function PlanetPreview({ planetId, stat, count }: { planetId: PlanetId; stat?: PlanetStat; count: number }) {
+  const p = PLANET_BY_ID.get(planetId)!;
+  const played = stat?.played ?? 0;
+  const solidPct = played ? Math.round(((stat?.solid ?? 0) / played) * 100) : 0;
+  return (
+    <section className="side-card planet-preview" style={{ "--orb-hi": p.color[0], "--orb-lo": p.color[1] } as CSSProperties}>
+      <span className={`planet-orb ${p.ring ? "ringed" : ""}`} aria-hidden />
+      <div className="planet-preview-text">
+        <div className="side-card-head">
+          <b>{p.name}</b>
+          <span className="chip-cefr">{p.cefr}</span>
+        </div>
+        <span className="muted">{p.topic}</span>
+        <span className="muted planet-preview-stat">
+          {plural(count, "phrase")} · {played ? `${plural(played, "run")}, ${solidPct}% solid` : "Not visited yet"}
+        </span>
+        <div className="xpbar quest-bar" aria-label={`${solidPct}% solid`}>
+          <span style={{ width: `${solidPct}%` }} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /** "Free mode": pick how to play, then pick a planet, then go. */
 export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank, stats, counts, onStart, onBack }: Props) {
   return (
@@ -29,6 +59,7 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
       <h1 className="hero">Free mode</h1>
       <p className="muted">Pick how you want to play, then pick a planet.</p>
 
+      <div className="mode-layout">
       <section className="mode-grid">
         {MODES.map((m) => (
           <button
@@ -47,9 +78,10 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
         ))}
       </section>
 
+      <div className="mode-right">
       <h2 className="mode-picker-sub muted">Choose a planet</h2>
       <div className="mode-planets">
-        {PLANETS.map((p) => {
+        {PATH_PLANETS.map((p) => {
           const count = counts[p.id] ?? 0;
           const stat = stats.get(p.id);
           const open = canEnter(p, rank, stat) && count > 0;
@@ -80,9 +112,13 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
         })}
       </div>
 
-      <button type="button" className="check big" onClick={onStart}>
+      <PlanetPreview planetId={planetId} stat={stats.get(planetId)} count={counts[planetId] ?? 0} />
+
+      <button type="button" className="check big mode-start" onClick={onStart}>
         Start →
       </button>
+      </div>
+      </div>
     </main>
   );
 }
