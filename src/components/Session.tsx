@@ -842,7 +842,7 @@ export function Session() {
             <h1 className="target">{sentenceOf(exercise)}</h1>
             <p className="translation">{exercise.translation}</p>
             <div className="swap">
-              <WordCards words={exercise.words} />
+              <WordCards words={exercise.words} stumbled={new Set(summary.stumbled)} onHear={(w) => speak(w, 0.7)} />
             </div>
             </div>
             <div className="summary-rewards">
@@ -878,13 +878,8 @@ export function Session() {
             {summary.review && <p className="muted review-note">{summary.review}</p>}
             {summary.stumbled.length > 0 && (
               <p className="muted review-note">
-                You paused on{" "}
-                {[...new Set(summary.stumbled)].map((w) => (
-                  <button key={w} type="button" className="link word-chip" onClick={() => speak(w, 0.7)} title="Hear it slowly">
-                    🔊 {w}
-                  </button>
-                ))}
-                We&apos;ll keep an eye on {summary.stumbled.length === 1 ? "it" : "them"}.
+                We&apos;ll keep an eye on the {new Set(summary.stumbled).size === 1 ? "word" : "words"} you paused on (highlighted). Tap a word
+                to hear it slowly.
               </p>
             )}
             {full && <SaveChunks exercise={exercise} />}
@@ -894,6 +889,7 @@ export function Session() {
               <span />
               <button type="button" className="check" onClick={next} autoFocus>
                 {index + 1 >= total ? "Finish →" : "Next →"}
+                <kbd className="kbd-hint">Enter</kbd>
               </button>
             </div>
           </div>

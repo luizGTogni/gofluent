@@ -105,7 +105,7 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
                 className={`planet-node ${open && planetId === p.id ? "on" : ""} ${!open ? "locked" : ""}`}
                 disabled={!open}
                 aria-pressed={open && planetId === p.id}
-                aria-label={p.name}
+                aria-label={`${p.name}, ${open ? "open" : count === 0 ? "coming soon" : `locked — finish ${prev?.name} first`}`}
                 title={count === 0 ? "Coming soon" : !open && prev ? `Finish ${prev.name} to unlock` : p.topic}
                 onClick={() => onSelectPlanet(p.id)}
                 style={style}

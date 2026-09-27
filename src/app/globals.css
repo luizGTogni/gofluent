@@ -3,6 +3,8 @@
   --panel: #111a33;
   --panel-2: #182348;
   --line: #28345f;
+  /* borders that are the only outline of a control (input underlines): 3:1 against the panels */
+  --line-strong: #6473ab;
   --text: #eaf0ff;
   --muted: #97a4c9;
   --accent: #f2c26b;
@@ -240,6 +242,26 @@ button {
   padding-bottom: 4px;
   border-bottom: 2px solid var(--c);
 }
+button.card {
+  font: inherit;
+  color: inherit;
+  background: none;
+  cursor: pointer;
+}
+button.card:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+/* a word the learner paused on */
+.card.stumbled {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.card.stumbled::after {
+  content: "🔊";
+  position: absolute;
+  right: -6px;
+  bottom: -8px;
+  font-size: 12px;
+}
 .pos-verb { --c: #7fb4ff; }
 .pos-noun { --c: #3fc9b0; }
 .pos-numeral, .pos-article, .pos-preposition { --c: #98a3b8; }
@@ -280,7 +302,7 @@ button {
 }
 .gap {
   position: relative;
-  border-bottom: 2px solid var(--line);
+  border-bottom: 2px solid var(--line-strong);
   font-size: 30px;
   transition: border-color 0.15s;
 }
@@ -512,7 +534,7 @@ button {
   width: 100%;
   background: none;
   border: 0;
-  border-bottom: 2px solid var(--line);
+  border-bottom: 2px solid var(--line-strong);
   outline: 0;
   text-align: center;
   font: inherit;
@@ -631,17 +653,6 @@ button {
   display: flex;
   gap: 4px;
 }
-.word-chip {
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 2px 10px;
-  margin: 0 4px;
-}
-.word-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 
 /* account */
 .auth-form {
@@ -652,7 +663,7 @@ button {
 }
 .auth-form input {
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
   padding: 12px 14px;
   font: inherit;
@@ -1664,7 +1675,7 @@ button {
 /* mode picker */
 .mode-picker {
   gap: 22px;
-  padding: 24px 0;
+  padding-block: 24px;
 }
 .mode-picker-back {
   align-self: flex-start;
@@ -1806,8 +1817,12 @@ button {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
-.badge-card.locked {
-  opacity: 0.55;
+/* locked cards keep their text at full contrast (it says how to unlock); only the art dims */
+.badge-card.locked .badge-icon {
+  opacity: 0.5;
+}
+.badge-card.locked b {
+  color: var(--muted);
 }
 .badge-icon {
   font-size: 26px;
@@ -2077,7 +2092,13 @@ button {
 }
 .mode-card.locked {
   cursor: not-allowed;
-  opacity: 0.6;
+}
+.mode-card.locked .mode-icon {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+.mode-card.locked b {
+  color: var(--muted);
 }
 .mode-card.locked:hover {
   border-color: var(--line);
@@ -2133,8 +2154,8 @@ button {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
-.quest-card.locked {
-  opacity: 0.6;
+.quest-card.locked b {
+  color: var(--muted);
 }
 @media (prefers-reduced-motion: reduce) {
   .claim-btn,
@@ -2184,6 +2205,154 @@ button {
 .topbar-avatar .profile-avatar-suit {
   font-size: 10px;
   margin-left: 0;
+}
+
+/* keyboard focus: one visible ring everywhere (inputs show focus through their underline) */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.gap input:focus-visible,
+.free input:focus-visible {
+  outline: none;
+}
+.planet-node:focus-visible {
+  outline-offset: 4px;
+}
+
+/* the Enter shortcut, shown on the Next button where there's a keyboard */
+.kbd-hint {
+  display: none;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+.check kbd.kbd-hint {
+  min-width: 0;
+  padding: 0 6px;
+  font-size: 11px;
+  color: inherit;
+  background: transparent;
+  border-color: currentColor;
+}
+@media (hover: hover) and (pointer: fine) {
+  .kbd-hint {
+    display: inline;
+  }
+}
+
+/* short screens: the phrase summary fits without scrolling to Next */
+@media (max-height: 820px) {
+  .exercise.summary {
+    padding-top: 6px;
+  }
+  .exercise.summary .target {
+    margin: 2px 0 2px;
+    font-size: 24px;
+  }
+  .exercise.summary .translation {
+    margin-bottom: 2px;
+    font-size: 16px;
+  }
+  .exercise.summary .swap {
+    margin: 8px 0;
+    min-height: 0;
+  }
+  .exercise.summary .cards {
+    padding: 12px 10px 8px;
+    gap: 8px;
+  }
+  .exercise.summary .card {
+    min-width: 60px;
+    padding: 14px 8px 6px;
+    gap: 2px;
+  }
+  .exercise.summary .word {
+    font-size: 17px;
+  }
+  .exercise.summary .tier {
+    margin-bottom: 4px;
+  }
+  .exercise.summary .xp-gain {
+    margin-top: 2px;
+    gap: 4px;
+    font-size: 18px;
+  }
+  .exercise.summary .review-note {
+    margin-top: 2px;
+  }
+  .exercise.summary .footer {
+    padding-top: 10px;
+  }
+}
+@media (max-height: 820px) and (max-width: 560px) {
+  .panel {
+    padding: 12px 14px;
+  }
+  .bar-metrics {
+    margin-top: 8px;
+  }
+  .xp-meter {
+    margin-top: 8px;
+  }
+  .exercise.summary .footer {
+    padding-top: 6px;
+  }
+  .exercise.summary .card .ipa {
+    font-size: 11px;
+  }
+  .exercise.summary .xp-chips i {
+    padding: 1px 8px;
+    font-size: 11px;
+  }
+  /* word cards become one-line pills: the part of speech stays as the border colour */
+  .exercise.summary .cards {
+    gap: 6px;
+    padding: 8px;
+    border-radius: 16px;
+  }
+  .exercise.summary .card {
+    flex-direction: row-reverse;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  /* still read out by screen readers, so the part of speech isn't carried by colour alone */
+  .exercise.summary .card .chip {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .exercise.summary .word {
+    font-size: 16px;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+  .exercise.summary .target {
+    font-size: 22px;
+  }
+}
+
+/* phones: card grids in two columns */
+@media (max-width: 560px) {
+  .mode-grid,
+  .shop-grid,
+  .badge-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .shop-card {
+    padding: 14px 10px;
+  }
+  .shop-card .check {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
 }
 
 /* ---------------------------------------------------------------------------------------------
