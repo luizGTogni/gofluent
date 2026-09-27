@@ -115,7 +115,7 @@ export function Session() {
   const [calendar, setCalendar] = useState<StudyCalendar>({ checked: new Set(), frozen: new Set(), lastInterestDay: null });
   const [freezeNote, setFreezeNote] = useState<string | null>(null);
   const checkedInToday = useRef(false);
-  const [username, setUsername] = useState<string | undefined>();
+  const [fullName, setFullName] = useState<string | undefined>();
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -255,7 +255,7 @@ export function Session() {
     loadPlayer().then(setPlayer);
     loadPlanetStats().then((list) => setPlanetStats(new Map(list.map((p) => [p.planet, p]))));
     loadWallet().then(setWallet);
-    getProfile().then((p) => setUsername(p?.username));
+    getProfile().then((p) => setFullName(p?.fullName));
     loadCalendar().then(async (cal) => {
       const today = utcDay(new Date());
       const gap = gapToFreeze(cal.checked, today);
@@ -401,7 +401,7 @@ export function Session() {
       <main className="shell home">
         <TopBar
           full={full}
-          username={username}
+          name={fullName}
           rank={rank}
           level={lvl.level}
           streak={streak.current}

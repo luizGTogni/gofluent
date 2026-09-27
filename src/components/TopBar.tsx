@@ -5,7 +5,7 @@ import { starsLabel, type Rank } from "@/lib/ranks";
 
 type Props = {
   full: boolean;
-  username?: string;
+  name?: string;
   rank: Rank;
   level: number;
   streak: number;
@@ -17,7 +17,7 @@ type Props = {
 };
 
 /** The persistent identity strip: brand at the left, the player's standing at the right. */
-export function TopBar({ full, username, rank, level, streak, coins, crystals, onViewProfile, onSignOut, onSignIn }: Props) {
+export function TopBar({ full, name, rank, level, streak, coins, crystals, onViewProfile, onSignOut, onSignIn }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -27,7 +27,7 @@ export function TopBar({ full, username, rank, level, streak, coins, crystals, o
       {full ? (
         <div className="topbar-you-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
           <button type="button" className="topbar-you" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}>
-            <span className="topbar-name">{username ? `@${username}` : "Profile"}</span>
+            <span className="topbar-name">{name ?? "Profile"}</span>
             <span className="topbar-chips">
               <span className="chip-mini rank-chip-mini">
                 {rank.title.name} <span className="stars">{starsLabel(rank.stars)}</span>
