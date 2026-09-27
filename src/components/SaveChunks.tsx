@@ -6,6 +6,7 @@ import { sentenceOf } from "@/lib/exercises";
 import { enrollIfMissing } from "@/lib/reviewStore";
 import { saveItem, type SaveResult } from "@/lib/saved";
 import { supabaseConfigured } from "@/lib/supabase";
+import { Bookmark } from "./icons";
 
 const MESSAGE: Record<SaveResult, string> = {
   saved: "Saved. This sentence will come back for review.",
@@ -66,8 +67,8 @@ export function SaveChunks({ exercise }: { exercise: Exercise }) {
         ))}
       </div>
       <div className="save-actions">
-        <button type="button" className="link" disabled={!range || busy} onClick={save}>
-          {range ? `☆ Save “${selected}”` : "☆ Save"}
+        <button type="button" className="link icon-text" disabled={!range || busy} onClick={save}>
+          <Bookmark /> {range ? `Save “${selected}”` : "Save"}
         </button>
         <span className={`muted save-msg ${result === "error" ? "bad" : ""}`}>{result ? MESSAGE[result] : " "}</span>
       </div>

@@ -2,8 +2,10 @@
 
 import type { Wallet } from "@/lib/economy";
 import { plural } from "@/lib/format";
-import { starsLabel, type Rank } from "@/lib/ranks";
+import type { Rank } from "@/lib/ranks";
 import { Avatar } from "./Avatar";
+import { Coin, Crystal, Orbit, Shield } from "./icons";
+import { Stars } from "./icons/Stars";
 import { XpMeter } from "./XpMeter";
 
 type Props = { name?: string; rank: Rank; xp: number; streak: number; wallet: Wallet; onProfile: () => void };
@@ -17,28 +19,34 @@ export function PlayerCard({ name, rank, xp, streak, wallet, onProfile }: Props)
         <span>
           <b>{name ?? "Your profile"}</b>
           <span className="rank-line">
-            {rank.title.name} <span className="stars">{starsLabel(rank.stars)}</span>
+            {rank.title.name} <Stars n={rank.stars} />
           </span>
         </span>
       </button>
       <XpMeter xp={xp} animate={false} />
       <div className="player-card-streak">
-        <span>🛰️</span>
+        <Orbit size="md" />
         <span>
           <b>{plural(streak, "day")}</b> <span className="muted">in orbit</span>
         </span>
       </div>
       <ul className="player-card-wallet">
         <li>
-          <span>🪙 Lunar Coins</span>
+          <span className="icon-text">
+            <Coin /> Lunar Coins
+          </span>
           <b>{wallet.coins}</b>
         </li>
         <li>
-          <span>💎 Crystals</span>
+          <span className="icon-text">
+            <Crystal /> Crystals
+          </span>
           <b>{wallet.crystals}</b>
         </li>
         <li>
-          <span>🛡️ Streak Shields</span>
+          <span className="icon-text">
+            <Shield /> Streak Shields
+          </span>
           <b>{wallet.freezes}</b>
         </li>
       </ul>

@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { BADGE_BY_ID } from "@/lib/badges";
-import { plural } from "@/lib/format";
 import { advancedQuests, progressFor, type QuestProgress } from "@/lib/questStore";
 import { periodKeyFor } from "@/lib/quests";
 import { ClaimButton, type OnClaim } from "./ClaimButton";
 import type { SessionGains } from "@/lib/rewards";
 import { XpMeter } from "./XpMeter";
+import { Currency } from "./Currency";
+import { Check, Orbit, Refresh } from "./icons";
+import { Medal } from "./icons/Medal";
 
 type Props = {
   heading: string;
@@ -86,28 +88,28 @@ export function SessionEnd(p: Props) {
 
       {p.full && currencies && (
         <p className="end-currencies">
-          {p.gains.coins > 0 && <span className="coin-note">🪙 +{p.gains.coins} Lunar Coins</span>}
-          {p.gains.crystals > 0 && <span className="crystal-note">💎 +{p.gains.crystals} Crystals</span>}
-          {p.gains.freezes > 0 && <span>🛡️ +{plural(p.gains.freezes, "Streak Shield")}</span>}
+          <Currency r={p.gains} units />
         </p>
       )}
 
       {p.full && (
         <section className="end-card end-streak">
-          <b>🛰️ {p.streak}-day orbit</b>
+          <b className="icon-text">
+            <Orbit /> {p.streak}-day orbit
+          </b>
           <span className="muted">{p.streakExtended ? "+1 today. Your orbit grows." : p.streak > 0 ? "Today already counts." : "Finish a phrase to start your orbit."}</span>
         </section>
       )}
 
       {missions.length > 0 && (
         <section className="end-card">
-          <h2 className="end-sub muted">🎯 Missions</h2>
+          <h2 className="end-sub muted">Missions</h2>
           {missions.map(({ q, before, after }) => (
             <div key={q.id} className="end-mission">
               <div className="quest-card-head">
                 <span>{q.name}</span>
-                <span className="muted">
-                  {after >= q.target ? "✅ " : ""}
+                <span className="muted icon-text">
+                  {after >= q.target && <Check label="Done" className="done-check" />}
                   {after}/{q.target}
                 </span>
               </div>
@@ -136,7 +138,7 @@ export function SessionEnd(p: Props) {
               const b = BADGE_BY_ID.get(id)!;
               return (
                 <span key={id} className="end-badge" title={b.description}>
-                  <span aria-hidden>{b.icon}</span> {b.name}
+                  <Medal icon={b.icon} rarity={b.rarity} /> {b.name}
                 </span>
               );
             })}
@@ -147,7 +149,7 @@ export function SessionEnd(p: Props) {
       <div className="stats">
         <div>
           <b>{p.score}</b>
-          <span>{newBest ? "🏆 New personal best!" : p.prevBest ? `Score · best ${p.prevBest}` : "Score"}</span>
+          <span>{newBest ? "New personal best!" : p.prevBest ? `Score · best ${p.prevBest}` : "Score"}</span>
         </div>
         <div>
           <b>{p.solved.value}</b>
@@ -172,7 +174,7 @@ export function SessionEnd(p: Props) {
           Continue
         </button>
         <button type="button" className="check big ghost" onClick={p.onPlayAgain}>
-          ↺ Play again
+          <Refresh /> Play again
         </button>
       </div>
     </main>

@@ -6,6 +6,7 @@ import type { Planet } from "@/lib/planets";
 import { periodKeyFor, QUESTS } from "@/lib/quests";
 import { progressFor, type QuestProgress } from "@/lib/questStore";
 import { ClaimButton, type OnClaim } from "./ClaimButton";
+import { ArrowRight, Check, Compass, Play, Store, Target } from "./icons";
 
 type Props = {
   /** The journey stop you're on. */
@@ -26,9 +27,9 @@ export function DailyMissions({ quests, onClaim, onAll, className = "" }: { ques
   return (
     <section className={`side-card daily-missions ${className}`}>
       <div className="side-card-head">
-        <b>🎯 Today&apos;s missions</b>
-        <button type="button" className="link small" onClick={onAll}>
-          All →
+        <b>Today&apos;s missions</b>
+        <button type="button" className="link small icon-text" onClick={onAll}>
+          All <ArrowRight />
         </button>
       </div>
       {QUESTS.filter((q) => q.period === "daily").map((q) => {
@@ -38,7 +39,7 @@ export function DailyMissions({ quests, onClaim, onAll, className = "" }: { ques
           <div key={q.id} className={`rail-mission ${done ? "done" : ""}`}>
             <div className="quest-card-head">
               <span>{q.name}</span>
-              <span className="muted">{done ? "✅" : `${row.count}/${q.target}`}</span>
+              <span className="muted">{done ? <Check label="Done" className="done-check" /> : `${row.count}/${q.target}`}</span>
             </div>
             {done ? (
               <ClaimButton def={q} periodKey={row.periodKey} claimed={row.claimed} onClaim={onClaim} quiet />
@@ -69,8 +70,12 @@ export function MissionRail({ stop, planet, quests, onClaim, onContinue, onFreeM
         <span className={`planet-orb ${(planet?.ring ?? stop.ring) ? "ringed" : ""}`} aria-hidden />
         {planet ? (
           <span className="continue-text">
-            <span className="muted">▶ Continue on</span>
-            <b>{planet.name} →</b>
+            <span className="muted icon-text">
+              <Play /> Continue on
+            </span>
+            <b className="icon-text">
+              {planet.name} <ArrowRight />
+            </b>
             <span className="muted continue-topic">
               {planet.topic} · {planet.cefr}
             </span>
@@ -88,16 +93,22 @@ export function MissionRail({ stop, planet, quests, onClaim, onContinue, onFreeM
 
       <nav className="side-links">
         <button type="button" className="profile-link" onClick={onFreeMode}>
-          <span>🚀 Free mode</span>
-          <span className="muted">→</span>
+          <span className="icon-text">
+            <Compass /> Free mode
+          </span>
+          <ArrowRight className="muted" />
         </button>
         <button type="button" className="profile-link" onClick={onMissions}>
-          <span>🎯 Missions</span>
-          <span className="muted">→</span>
+          <span className="icon-text">
+            <Target /> Missions
+          </span>
+          <ArrowRight className="muted" />
         </button>
         <button type="button" className="profile-link" onClick={onShop}>
-          <span>🛒 Store</span>
-          <span className="muted">→</span>
+          <span className="icon-text">
+            <Store /> Store
+          </span>
+          <ArrowRight className="muted" />
         </button>
       </nav>
     </>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getAccount } from "@/lib/auth";
 import { deleteSaved, listSaved, type SavedItem } from "@/lib/saved";
 import { supabaseConfigured } from "@/lib/supabase";
+import { ArrowLeft } from "./icons";
 
 export function MyWords({ onBack }: { onBack: () => void }) {
   const [items, setItems] = useState<SavedItem[] | null | undefined>(undefined);
@@ -56,7 +57,7 @@ export function MyWords({ onBack }: { onBack: () => void }) {
         </ul>
       )}
       <button type="button" className="check" onClick={onBack}>
-        ← Back
+        <ArrowLeft /> Back
       </button>
     </main>
   );

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { REWARD_KICKER, type Reward } from "@/lib/rewards";
+import { Currency } from "./Currency";
+import { NamedIcon } from "./icons";
 
 const SHOW_MS = 4200;
 const MAX_SHOWN = 3;
@@ -18,12 +20,16 @@ function Toast({ reward, onDismiss }: { reward: Reward; onDismiss: (id: number) 
   return (
     <button type="button" className={`toast toast-${reward.kind}`} onClick={() => onDismiss(reward.id)} title="Dismiss">
       <span className="toast-icon" aria-hidden>
-        {reward.icon}
+        <NamedIcon name={reward.icon} />
       </span>
       <span className="toast-body">
         <span className="toast-kicker">{REWARD_KICKER[reward.kind]}</span>
         <b>{reward.title}</b>
-        {reward.detail && <span className="muted toast-detail">{reward.detail}</span>}
+        {(reward.detail || reward.amounts) && (
+          <span className="muted toast-detail">
+            {reward.detail} {reward.amounts && <Currency r={reward.amounts} />}
+          </span>
+        )}
       </span>
     </button>
   );

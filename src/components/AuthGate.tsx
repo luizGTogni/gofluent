@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createAccount, MIN_PASSWORD, signIn } from "@/lib/auth";
+import { ArrowRight } from "./icons";
 
 type Mode = "signin" | "create";
 
@@ -93,7 +94,13 @@ export function AuthGate({ onMember, onGuest }: { onMember: () => void; onGuest:
           />
         )}
         <button type="submit" className="check span-2" disabled={busy}>
-          {busy ? "…" : mode === "create" ? "Create account →" : "Sign in →"}
+          {busy ? (
+            "…"
+          ) : (
+            <>
+              {mode === "create" ? "Create account" : "Sign in"} <ArrowRight />
+            </>
+          )}
         </button>
       </form>
 

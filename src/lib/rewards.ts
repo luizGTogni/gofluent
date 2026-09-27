@@ -1,5 +1,7 @@
 // What a session earns, and the celebratory moments it produces. Kept pure: Session owns the state.
 import type { BadgeDef, BadgeId } from "./badges";
+import { plural } from "./format";
+import type { IconName } from "./icons";
 import type { QuestDef } from "./quests";
 
 /**
@@ -17,19 +19,22 @@ export const addGains = (g: SessionGains, more: Partial<SessionGains>): SessionG
   badges: [...g.badges, ...(more.badges ?? [])],
 });
 
-/** "🪙 +15 · 💎 +1 · 🛡️ +1", skipping whatever is zero. */
-export function currencyLine(r: { coins?: number; crystals?: number; freezes?: number }): string {
+export type Amounts = { coins?: number; crystals?: number; freezes?: number };
+
+/** "15 Lunar Coins, 1 Crystal", skipping whatever is zero: what screen readers hear for a reward. */
+export function currencyText(r: Amounts): string {
   const parts: string[] = [];
-  if (r.coins) parts.push(`🪙 +${r.coins}`);
-  if (r.crystals) parts.push(`💎 +${r.crystals}`);
-  if (r.freezes) parts.push(`🛡️ +${r.freezes}`);
-  return parts.join(" · ");
+  if (r.coins) parts.push(plural(r.coins, "Lunar Coin"));
+  if (r.crystals) parts.push(plural(r.crystals, "Crystal"));
+  if (r.freezes) parts.push(plural(r.freezes, "Streak Shield"));
+  return parts.join(", ");
 }
 
 // ---- reward toasts: small, passing moments. A promotion is bigger and keeps its full-screen modal. ----
 
 export type RewardKind = "badge" | "quest" | "streak";
-export type RewardDraft = { kind: RewardKind; icon: string; title: string; detail?: string };
+/** `icon` fills the toast's left slot; `amounts` are shown as currency chips under the detail. */
+export type RewardDraft = { kind: RewardKind; icon: IconName; title: string; detail?: string; amounts?: Amounts };
 export type Reward = RewardDraft & { id: number };
 
 export const REWARD_KICKER: Record<RewardKind, string> = {
@@ -40,11 +45,11 @@ export const REWARD_KICKER: Record<RewardKind, string> = {
 
 export const badgeReward = (b: BadgeDef): RewardDraft => ({ kind: "badge", icon: b.icon, title: b.name, detail: b.description });
 
-export const questReward = (q: QuestDef): RewardDraft => ({ kind: "quest", icon: "🎯", title: q.name, detail: `Claim it: ${currencyLine(q)}` });
+export const questReward = (q: QuestDef): RewardDraft => ({ kind: "quest", icon: "target", title: q.name, detail: "Claim it:", amounts: q });
 
 export const streakReward = (days: number, r: { coins: number; crystals: number; freezes: number }): RewardDraft => ({
   kind: "streak",
-  icon: "🛰️",
+  icon: "orbit",
   title: `${days}-day orbit!`,
-  detail: currencyLine(r),
+  amounts: r,
 });

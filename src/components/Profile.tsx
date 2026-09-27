@@ -6,7 +6,7 @@ import { getAccount, getProfile, signOut, type Account, type Profile as ProfileI
 import type { Wallet } from "@/lib/economy";
 import type { PlayerState } from "@/lib/xp";
 import { levelProgress } from "@/lib/xp";
-import { rankOf, starsLabel } from "@/lib/ranks";
+import { rankOf } from "@/lib/ranks";
 import type { StudyCalendar } from "@/lib/economyStore";
 import { localDay } from "@/lib/streak";
 import { BADGES } from "@/lib/badges";
@@ -15,6 +15,10 @@ import { plural } from "@/lib/format";
 import { StreakCard } from "./StreakCard";
 import { OrbitHistory } from "./Heatmap";
 import { Avatar } from "./Avatar";
+import { Currency } from "./Currency";
+import { Alert, ArrowLeft, ArrowRight, Bookmark, Store, Target } from "./icons";
+import { Medal } from "./icons/Medal";
+import { Stars } from "./icons/Stars";
 
 type Props = {
   player: PlayerState;
@@ -62,8 +66,8 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
   return (
     <main className="shell center profile">
       <div className="profile-topbar">
-        <button type="button" className="link" onClick={onBack}>
-          ← Back
+        <button type="button" className="link icon-text" onClick={onBack}>
+          <ArrowLeft /> Back
         </button>
         <button type="button" className="link" onClick={leave}>
           Sign out
@@ -82,17 +86,17 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
 
       <div ref={walletRef} className="wallet-row profile-wallet">
         <button type="button" className="chip-mini chip-link" onClick={onShop} title="Earned on every phrase you finish">
-          🪙 {wallet.coins} Lunar Coins
+          <Currency r={{ coins: wallet.coins }} signed={false} units />
         </button>
         <button type="button" className="chip-mini chip-link" onClick={onShop} title="Rare — from rank-ups, level-up moments and orbit milestones">
-          💎 {wallet.crystals} Crystals
+          <Currency r={{ crystals: wallet.crystals }} signed={false} units />
         </button>
       </div>
 
       <section className="profile-card">
         <div className="profile-card-head">
           <b>
-            {rank.title.name} <span className="stars">{starsLabel(rank.stars)}</span>
+            {rank.title.name} <Stars n={rank.stars} />
           </b>
           <span className="muted">Level {lvl.level}</span>
         </div>
@@ -124,7 +128,7 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
 
       <section className="profile-card">
         <div className="profile-card-head">
-          <b>🏅 Badges</b>
+          <b>Badges</b>
           <span className="muted">
             {earned.length} of {BADGES.length}
           </span>
@@ -133,7 +137,7 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
           <div className="end-badges">
             {earned.map((b) => (
               <span key={b.id} className="end-badge" title={b.description}>
-                <span aria-hidden>{b.icon}</span> {b.name}
+                <Medal icon={b.icon} rarity={b.rarity} /> {b.name}
               </span>
             ))}
           </div>
@@ -144,20 +148,36 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
 
       <nav className="profile-links">
         <button type="button" className="profile-link" onClick={onQuests}>
-          <span>🎯 Missions</span>
-          <span className="muted">Daily &amp; weekly quests, badges →</span>
+          <span className="icon-text">
+            <Target /> Missions
+          </span>
+          <span className="muted icon-text">
+            Daily &amp; weekly quests, badges <ArrowRight />
+          </span>
         </button>
         <button type="button" className="profile-link" onClick={onShop}>
-          <span>🛒 Store</span>
-          <span className="muted">Oxygen, Streak Shields, spacesuit →</span>
+          <span className="icon-text">
+            <Store /> Store
+          </span>
+          <span className="muted icon-text">
+            Oxygen and Streak Shields <ArrowRight />
+          </span>
         </button>
         <button type="button" className="profile-link" onClick={onWords}>
-          <span>💾 My words</span>
-          <span className="muted">Saved for later →</span>
+          <span className="icon-text">
+            <Bookmark /> My words
+          </span>
+          <span className="muted icon-text">
+            Saved for later <ArrowRight />
+          </span>
         </button>
         <button type="button" className="profile-link" onClick={onTricky}>
-          <span>🧩 Tricky words</span>
-          <span className="muted">{trickyCount > 0 ? `${trickyCount} to work on →` : "None right now →"}</span>
+          <span className="icon-text">
+            <Alert /> Tricky words
+          </span>
+          <span className="muted icon-text">
+            {trickyCount > 0 ? `${trickyCount} to work on` : "None right now"} <ArrowRight />
+          </span>
         </button>
       </nav>
       </div>

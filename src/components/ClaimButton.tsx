@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { QuestDef } from "@/lib/quests";
-import { currencyLine } from "@/lib/rewards";
+import { Currency } from "./Currency";
+import { Check } from "./icons";
 
 export type OnClaim = (def: QuestDef, periodKey: string) => Promise<boolean>;
 
@@ -22,12 +23,17 @@ type Props = {
 export function ClaimButton({ def, periodKey, claimed, onClaim, quiet = false }: Props) {
   const [state, setState] = useState<"ready" | "claiming" | "paid">("ready");
 
-  if (claimed && state === "ready") return quiet ? null : <span className="claim-done">✅ Claimed</span>;
+  if (claimed && state === "ready")
+    return quiet ? null : (
+      <span className="claim-done icon-text">
+        <Check /> Claimed
+      </span>
+    );
 
   if (state === "paid")
     return (
-      <span className="claim-paid" role="status">
-        ✓ {currencyLine(def)}
+      <span className="claim-paid icon-text" role="status">
+        <Check /> <Currency r={def} />
       </span>
     );
 
@@ -41,7 +47,7 @@ export function ClaimButton({ def, periodKey, claimed, onClaim, quiet = false }:
         setState((await onClaim(def, periodKey)) ? "paid" : "ready");
       }}
     >
-      Claim {currencyLine(def)}
+      Claim <Currency r={def} />
     </button>
   );
 }

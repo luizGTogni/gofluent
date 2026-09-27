@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { starsLabel, type Rank } from "@/lib/ranks";
+import { plural } from "@/lib/format";
+import type { Rank } from "@/lib/ranks";
 import { Avatar } from "./Avatar";
+import { Coin, Crystal, Orbit } from "./icons";
+import { Stars } from "./icons/Stars";
 
 type Props = {
   full: boolean;
@@ -18,7 +21,8 @@ type Props = {
   onSignIn: () => void;
 };
 
-type Chip = { key: string; label: React.ReactNode; className?: string; onClick?: () => void; title?: string };
+/** `name` is what screen readers hear when the label is mostly an icon. */
+type Chip = { key: string; label: React.ReactNode; className?: string; onClick?: () => void; title?: string; name?: string };
 
 /** The persistent identity strip: brand at the left, the player's standing at the right. */
 export function TopBar({ full, name, rank, level, streak, coins, crystals, onViewProfile, onShop, onSignOut, onSignIn }: Props) {
@@ -43,14 +47,44 @@ export function TopBar({ full, name, rank, level, streak, coins, crystals, onVie
       className: "rank-chip-mini",
       label: (
         <>
-          {rank.title.name} <span className="stars">{starsLabel(rank.stars)}</span>
+          {rank.title.name} <Stars n={rank.stars} />
         </>
       ),
     },
     { key: "level", label: `Lv ${level}` },
-    { key: "streak", label: `🛰️ ${streak}`, onClick: onViewProfile, title: "Your orbit — open profile" },
-    { key: "coins", label: `🪙 ${coins}`, onClick: onShop, title: "Lunar Coins — open store" },
-    { key: "crystals", label: `💎 ${crystals}`, onClick: onShop, title: "Crystals — open store" },
+    {
+      key: "streak",
+      label: (
+        <>
+          <Orbit /> {streak}
+        </>
+      ),
+      onClick: onViewProfile,
+      title: "Your orbit — open profile",
+      name: `Orbit: ${plural(streak, "day")}. Open your profile`,
+    },
+    {
+      key: "coins",
+      label: (
+        <>
+          <Coin /> {coins}
+        </>
+      ),
+      onClick: onShop,
+      title: "Lunar Coins — open store",
+      name: `${plural(coins, "Lunar Coin")}. Open the Store`,
+    },
+    {
+      key: "crystals",
+      label: (
+        <>
+          <Crystal /> {crystals}
+        </>
+      ),
+      onClick: onShop,
+      title: "Crystals — open store",
+      name: `${plural(crystals, "Crystal")}. Open the Store`,
+    },
   ];
 
   return (
@@ -97,7 +131,14 @@ export function TopBar({ full, name, rank, level, streak, coins, crystals, onVie
         <span className="topbar-chips">
           {chips.map((c) =>
             c.onClick ? (
-              <button key={c.key} type="button" className={`chip-mini chip-link ${c.className ?? ""}`} onClick={c.onClick} title={c.title}>
+              <button
+                key={c.key}
+                type="button"
+                className={`chip-mini chip-link icon-text ${c.className ?? ""}`}
+                onClick={c.onClick}
+                title={c.title}
+                aria-label={c.name}
+              >
                 {c.label}
               </button>
             ) : (

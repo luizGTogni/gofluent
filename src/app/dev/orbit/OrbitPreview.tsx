@@ -6,6 +6,7 @@ import type { DayVolume } from "@/lib/heatmap";
 import { addDays, localDay } from "@/lib/streak";
 import { StreakCard } from "@/components/StreakCard";
 import { OrbitHistory } from "@/components/Heatmap";
+import { Currency } from "@/components/Currency";
 
 /** A calendar from day offsets relative to today (0 = today, -1 = yesterday…). */
 function fixture(today: string, studied: number[], shielded: number[] = []): StudyCalendar {
@@ -34,8 +35,12 @@ export function OrbitPreview() {
   return (
     <main className="shell center profile" style={{ maxWidth: 720, gap: 24 }}>
       <div ref={walletRef} className="wallet-row profile-wallet">
-        <span className="chip-mini">🪙 120 Lunar Coins</span>
-        <span className="chip-mini">💎 8 Crystals</span>
+        <span className="chip-mini">
+          <Currency r={{ coins: 120 }} signed={false} units />
+        </span>
+        <span className="chip-mini">
+          <Currency r={{ crystals: 8 }} signed={false} units />
+        </span>
         <button type="button" className="link small" onClick={replay}>
           Replay “secured” moment
         </button>

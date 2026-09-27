@@ -15,8 +15,6 @@ export function rankForLevel(level: number): Rank {
   return { index, title, stars: stars as 1 | 2 | 3 };
 }
 
-export const starsLabel = (stars: number) => "★".repeat(stars) + "☆".repeat(3 - stars);
-
 /** The rank the learner currently holds, from rank points. */
 export const rankOf = (rp: number): Rank => rankForLevel(levelFromXp(rp));
 

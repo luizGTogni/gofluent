@@ -5,6 +5,7 @@ import { CELESTIAL_PATH } from "@/lib/bodies";
 import { journeyIndex, stopDone, type PhraseCounts, type PlanetStat } from "@/lib/planetStats";
 import { PLANET_BY_ID, type PlanetId } from "@/lib/planets";
 import { StopGoal } from "./StopGoal";
+import { Check, Lock, Rocket } from "./icons";
 
 type Props = {
   stats: Map<PlanetId, PlanetStat>;
@@ -122,7 +123,7 @@ export function Courses({ stats, counts, current, onSelect }: Props) {
             <div key={body.id} className="planet-path-row" style={style} data-stop={body.id}>
               {i === rocketAt && (
                 <span className="planet-rocket" aria-hidden>
-                  🚀
+                  <Rocket />
                 </span>
               )}
               <button
@@ -138,12 +139,12 @@ export function Courses({ stats, counts, current, onSelect }: Props) {
                 <span className={`planet-orb ${ring ? "ringed" : ""}`} aria-hidden />
                 {!unlocked && (
                   <span className="planet-node-lock" aria-hidden>
-                    🔒
+                    <Lock />
                   </span>
                 )}
                 {done && (
                   <span className="planet-node-lock planet-node-done" aria-hidden>
-                    ✓
+                    <Check />
                   </span>
                 )}
                 {unlocked && count === 0 && (

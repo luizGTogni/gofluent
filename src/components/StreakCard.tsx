@@ -5,8 +5,10 @@ import type { StudyCalendar } from "@/lib/economyStore";
 import { coinsForXp, milestoneReward } from "@/lib/economy";
 import { plural } from "@/lib/format";
 import { daysAround, firstDay, longDate, mondayIndex, nextMilestone, orbitSummary, trackPosition, WEEKDAYS } from "@/lib/heatmap";
-import { currencyLine } from "@/lib/rewards";
+import { currencyText, type Amounts } from "@/lib/rewards";
 import { addDays, computeStreak, milestoneHit, MILESTONES } from "@/lib/streak";
+import { Currency } from "./Currency";
+import { Check, Gift, Orbit, Play, Shield } from "./icons";
 
 type Props = {
   calendar: StudyCalendar;
@@ -30,7 +32,7 @@ const K_CELEBRATED = "gofluent:orbitCelebrated";
  * so CSS transitions grow the ring, the chain and today's circle; null: at rest, no transitions.
  */
 type Phase = "before" | "after" | null;
-type Fly = { id: number; label: string; x: number; y: number; dx: number; dy: number; delay: number };
+type Fly = { id: number; amounts: Amounts; x: number; y: number; dx: number; dy: number; delay: number };
 
 type DayKind = "done" | "shield" | "pending" | "missed" | "unstarted" | "upcoming";
 const DAY_NAME: Record<DayKind, string> = {
@@ -107,17 +109,17 @@ export function StreakCard({ calendar, today, shields, canStudy, onStudy, onShop
     if (!from || !to) return [];
     const a = from.getBoundingClientRect();
     const b = to.getBoundingClientRect();
-    const labels: string[] = [];
+    const each: Amounts[] = [];
     const coins = coinsForXp(volume.get(day)?.xp ?? 0) + (hit ? milestoneReward(hit).coins : 0);
-    if (coins) labels.push(`🪙 +${coins}`);
+    if (coins) each.push({ coins });
     if (hit) {
       const r = milestoneReward(hit);
-      if (r.crystals) labels.push(`💎 +${r.crystals}`);
-      if (r.freezes) labels.push(`🛡️ +${r.freezes}`);
+      if (r.crystals) each.push({ crystals: r.crystals });
+      if (r.freezes) each.push({ freezes: r.freezes });
     }
     const x = a.left + a.width / 2;
     const y = a.top + a.height / 2;
-    return labels.map((label, i) => ({ id: i, label, x, y, dx: b.left + b.width / 2 - x, dy: b.top + b.height / 2 - y, delay: 350 + i * 120 }));
+    return each.map((amounts, i) => ({ id: i, amounts, x, y, dx: b.left + b.width / 2 - x, dy: b.top + b.height / 2 - y, delay: 350 + i * 120 }));
   }
 
   const stats =
@@ -145,8 +147,8 @@ export function StreakCard({ calendar, today, shields, canStudy, onStudy, onShop
           </p>
           {next ? (
             <p className="orbit-next">
-              <span>
-                {plural(next.left, "day")} to <span aria-hidden>🎁</span> {next.target}-day orbit
+              <span className="icon-text">
+                {plural(next.left, "day")} to <Gift className="accent" /> {next.target}-day orbit
               </span>
               <RewardChips reward={next.reward} />
             </p>
@@ -156,26 +158,28 @@ export function StreakCard({ calendar, today, shields, canStudy, onStudy, onShop
         </div>
         <div className="orbit-actions">
           {secured ? (
-            <span className="orbit-slot orbit-secured">✓ Secured today</span>
+            <span className="orbit-slot orbit-secured icon-text">
+              <Check /> Secured today
+            </span>
           ) : (
             <button
               type="button"
-              className="orbit-slot orbit-study"
+              className="orbit-slot orbit-study icon-text"
               disabled={!canStudy}
               title={canStudy ? undefined : "Your journey stop has no phrases yet"}
               onClick={onStudy}
             >
-              ▶ Study now
+              <Play /> Study now
             </button>
           )}
           <button
             type="button"
-            className="chip-mini chip-link orbit-shields"
+            className="chip-mini chip-link orbit-shields icon-text"
             onClick={onShop}
             title="Streak Shields cover a missed day. Get more in the Store."
             aria-label={`${plural(shields, "Streak Shield")}. Open the Store`}
           >
-            🛡️ {shields}
+            <Shield /> {shields}
           </button>
         </div>
       </div>
@@ -201,14 +205,14 @@ export function StreakCard({ calendar, today, shields, canStudy, onStudy, onShop
           aria-hidden
           style={{ left: f.x, top: f.y, "--dx": `${f.dx}px`, "--dy": `${f.dy}px`, animationDelay: `${f.delay}ms` } as CSSProperties}
         >
-          {f.label}
+          <Currency r={f.amounts} />
         </span>
       ))}
     </section>
   );
 }
 
-/** Progress toward the next milestone as a ring; the streak inside, or a satellite before day one. */
+/** Progress toward the next milestone as a ring; the streak inside, or the orbit icon before day one. */
 function OrbitRing({ current, pct, ref }: { current: number; pct: number; ref: RefObject<HTMLSpanElement | null> }) {
   const r = 27;
   const c = 2 * Math.PI * r;
@@ -227,24 +231,21 @@ function OrbitRing({ current, pct, ref }: { current: number; pct: number; ref: R
           opacity={pct > 0 ? 1 : 0}
         />
       </svg>
-      <span className={`orbit-ring-num ${current ? "" : "empty"}`}>{current || "🛰️"}</span>
+      <span className={`orbit-ring-num ${current ? "" : "empty"}`}>{current || <Orbit />}</span>
     </span>
   );
 }
 
-function RewardChips({ reward }: { reward: { coins: number; crystals: number; freezes: number } }) {
-  const chips = [
-    reward.coins ? `🪙${reward.coins}` : null,
-    reward.crystals ? `💎${reward.crystals}` : null,
-    reward.freezes ? `🛡️${reward.freezes}` : null,
-  ].filter(Boolean);
+function RewardChips({ reward }: { reward: Amounts }) {
   return (
-    <span className="orbit-rewards" aria-label={`Reward: ${currencyLine(reward)}`}>
-      {chips.map((c) => (
-        <span key={c} className="orbit-reward" aria-hidden>
-          {c}
-        </span>
-      ))}
+    <span className="orbit-rewards" role="img" aria-label={`Reward: ${currencyText(reward)}`}>
+      {(["coins", "crystals", "freezes"] as const)
+        .filter((k) => reward[k])
+        .map((k) => (
+          <span key={k} className="orbit-reward" aria-hidden>
+            <Currency r={{ [k]: reward[k] }} signed={false} />
+          </span>
+        ))}
     </span>
   );
 }
@@ -258,7 +259,7 @@ const PAST_DAYS = 4;
 /**
  * The last few days, today, and as many upcoming days as the card's width holds. Covered days
  * next to each other are joined into a chain; upcoming days are dim, the next milestone's day
- * holds a 🎁.
+ * holds a gift.
  */
 function WeekChain({ checked, frozen, today, milestoneDay }: { checked: ReadonlySet<string>; frozen: ReadonlySet<string>; today: string; milestoneDay: string | null }) {
   const listRef = useRef<HTMLOListElement>(null);
@@ -305,7 +306,7 @@ function WeekChain({ checked, frozen, today, milestoneDay }: { checked: Readonly
               {Number(day.slice(8))}
             </span>
             <span className="orbit-dot" aria-hidden>
-              {k === "done" ? "✓" : k === "shield" ? "🛡️" : day === milestoneDay && k === "upcoming" ? "🎁" : ""}
+              {k === "done" ? <Check /> : k === "shield" ? <Shield /> : day === milestoneDay && k === "upcoming" ? <Gift /> : null}
             </span>
             {i < days.length - 1 && <span className={`orbit-link ${covered(k) && covered(kinds[i + 1]) ? "on" : ""}`} aria-hidden />}
           </li>
@@ -329,7 +330,7 @@ function MilestoneTrack({ current }: { current: number }) {
         <ol className="orbit-ms-list" aria-label="Orbit milestones">
           {MILESTONES.map((m, i) => {
             const reached = current >= m;
-            const reward = currencyLine(milestoneReward(m));
+            const reward = milestoneReward(m);
             return (
               <li
                 key={m}
@@ -339,22 +340,22 @@ function MilestoneTrack({ current }: { current: number }) {
                 <button
                   type="button"
                   className="orbit-ms-dot"
-                  aria-label={`${m}-day orbit${reached ? ", reached" : ""}: ${reward}`}
+                  aria-label={`${m}-day orbit${reached ? ", reached" : ""}: ${currencyText(reward)}`}
                   aria-expanded={open === m}
                   onClick={() => setOpen(open === m ? null : m)}
                   onMouseEnter={() => setOpen(m)}
                   onBlur={() => setOpen(null)}
                 >
-                  {reached ? "✓" : "🎁"}
+                  {reached ? <Check /> : <Gift />}
                 </button>
                 <span className="orbit-ms-label" aria-hidden>
                   {m}
                 </span>
                 <span className="orbit-ms-tip" aria-hidden>
-                  <b>
-                    {m}-day orbit{reached ? " ✓" : ""}
+                  <b className="icon-text">
+                    {m}-day orbit{reached && <Check className="done-check" />}
                   </b>
-                  <span>{reward}</span>
+                  <Currency r={reward} />
                 </span>
               </li>
             );

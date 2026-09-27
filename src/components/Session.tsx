@@ -16,7 +16,7 @@ import { CELESTIAL_PATH } from "@/lib/bodies";
 import { loadPlanetStats, putPlanetStat } from "@/lib/planetStore";
 import { speak, stopSpeech } from "@/lib/speech";
 import { loadPlayer, savePlayer } from "@/lib/playerStore";
-import { effectiveRp, rankChange, rankOf, starsLabel } from "@/lib/ranks";
+import { effectiveRp, rankChange, rankOf } from "@/lib/ranks";
 import type { Title } from "@/lib/titles";
 import { addXp, emptyPlayer, levelFromXp, levelProgress, phraseXp, type PlayerState, type XpBreakdown } from "@/lib/xp";
 import { extendedUnlocked, modeUnlocked, type Accent } from "@/lib/unlocks";
@@ -34,6 +34,9 @@ import { QuestBoard } from "./QuestBoard";
 import { FREEZE_COST } from "@/lib/shop";
 import { loadInventory, useOxygen } from "@/lib/shopStore";
 import { Shop } from "./Shop";
+import { Currency } from "./Currency";
+import { ArrowRight, Close, Combo, Comeback, Compass, Heart, HeartEmpty, Lock, Oxygen, Play, Shield, Storm, Target, Timer, Volume } from "./icons";
+import { Stars } from "./icons/Stars";
 import { getProfile, signOut, syncTimeZone } from "@/lib/auth";
 import { coinsForXp, CRYSTALS_PER_CEFR_UP, CRYSTALS_PER_RANK_UP, dailyInterest, milestoneReward, type Wallet } from "@/lib/economy";
 import {
@@ -74,7 +77,8 @@ type Summary = {
   stumbled: string[];
   xp?: XpBreakdown;
   levelUp?: number;
-  starNote?: string;
+  /** A new star within the same title. */
+  starNote?: { stars: number; title: string };
   coins?: number;
   crystals?: number;
   cefrNote?: string;
@@ -248,7 +252,7 @@ export function Session() {
 
       // XP: lifetime XP only grows; rank points fade with inactivity, so earn from the faded value.
       const gain = phraseXp(exercise.words, result, difficulty, cameBack);
-      if (cameBack) s.comebackNote = "🔁 Comeback! You finally nailed a phrase that used to trip you up.";
+      if (cameBack) s.comebackNote = "Comeback! You finally nailed a phrase that used to trip you up.";
       const rpNow = effectiveRp(player, now);
       const before = rankOf(rpNow);
       const after = addXp({ ...player, rp: rpNow }, gain.total, now);
@@ -260,7 +264,7 @@ export function Session() {
       if (levelAfter > levelBefore) s.levelUp = levelAfter;
       const rankAfter = rankOf(after.rp);
       const change = rankChange(before, rankAfter);
-      if (change === "star") s.starNote = `${starsLabel(rankAfter.stars)} ${rankAfter.title.name}`;
+      if (change === "star") s.starNote = { stars: rankAfter.stars, title: rankAfter.title.name };
       if (change === "promotion") setPromo(rankAfter.title);
 
       const cefrBefore = cefrEstimate(cefrBands(planetStats.values(), rankAfter.index));
@@ -360,7 +364,7 @@ export function Session() {
     if (mode === "survival" && result.typedErrors > 0) {
       let nextLives = lives - 1;
       if (nextLives <= 0 && useOxygen()) {
-        s.oxygenNote = "🫧 Oxygen tank used — back in the game!";
+        s.oxygenNote = "Oxygen tank used — back in the game!";
         nextLives = 1;
       }
       setLives(Math.max(0, nextLives));
@@ -434,7 +438,7 @@ export function Session() {
         w = { ...w, freezes: w.freezes - 1 };
         await addFrozenDay(gap);
         cal.frozen.add(gap);
-        setFreezeNote(`🛡️ Streak Shield used for ${gap}. Your orbit holds.`);
+        setFreezeNote(`Streak Shield used for ${gap}. Your orbit holds.`);
       }
 
       const streakSoFar = computeStreak(cal.checked, cal.frozen, addDays(today, -1)).current;
@@ -645,7 +649,11 @@ export function Session() {
           </p>
         )}
         {slipped && <p className="muted rank-slip">Welcome back. Your rank slipped a little while you were away. It returns as you study.</p>}
-        {freezeNote && <p className="muted rank-slip">{freezeNote}</p>}
+        {freezeNote && (
+          <p className="muted rank-slip icon-text">
+            <Shield /> {freezeNote}
+          </p>
+        )}
 
         {!full && (
           <>
@@ -667,7 +675,7 @@ export function Session() {
               {DIFFICULTY[difficulty].blurb} <span className="accent">×{DIFFICULTY[difficulty].scoreMult}</span>
             </p>
             <button type="button" className="check big" onClick={() => start()}>
-              Start →
+              Start <ArrowRight />
             </button>
           </>
         )}
@@ -676,14 +684,20 @@ export function Session() {
           <>
             <div className="home-actions narrow-only">
               <button type="button" className="check big home-continue" disabled={!continueId} onClick={() => start("classic")}>
-                {continueId ? `▶ Continue on ${PLANET_BY_ID.get(continueId)!.name}` : `${currentStop.name} · phrases coming soon`}
+                {continueId ? (
+                  <>
+                    <Play /> Continue on {PLANET_BY_ID.get(continueId)!.name}
+                  </>
+                ) : (
+                  `${currentStop.name} · phrases coming soon`
+                )}
               </button>
               <div className="home-secondary">
                 <button type="button" className="check ghost" onClick={() => setScreen("modes")}>
-                  🚀 Free mode
+                  <Compass /> Free mode
                 </button>
                 <button type="button" className="check ghost" onClick={() => setScreen("quests")}>
-                  🎯 Missions
+                  <Target /> Missions
                 </button>
               </div>
               <DailyMissions quests={quests} onClaim={claim} onAll={() => setScreen("quests")} />
@@ -705,7 +719,9 @@ export function Session() {
           <div className="guest-box">
             <span className="muted">Playing as a guest: nothing is saved.</span>
             <button type="button" className="unlock" onClick={() => setAuth("gate")}>
-              <span className="unlock-title">🔒 Sign in to unlock more</span>
+              <span className="unlock-title icon-text">
+                <Lock /> Sign in to unlock more
+              </span>
               <span className="unlock-sub">Review, tricky words, saved words and your profile</span>
             </button>
           </div>
@@ -736,12 +752,12 @@ export function Session() {
     const heading =
       mode === "boss"
         ? history.length > 0
-          ? "☀️ Solar Storm cleared!"
-          : "☀️ Solar Storm"
+          ? "Solar Storm cleared!"
+          : "Solar Storm"
         : mode === "timeAttack"
-          ? "⏱️ Time's up!"
+          ? "Time's up!"
           : mode === "survival"
-            ? "💥 Game over"
+            ? "Game over"
             : "Mission complete";
     const endless = mode === "timeAttack" || mode === "survival";
     return (
@@ -781,7 +797,7 @@ export function Session() {
               <i className="dot" /> {summary ? "Phrase complete" : "Your turn to type"}
               {full && (
                 <span className="rank-chip">
-                  {rank.title.name} <span className="stars">{starsLabel(rank.stars)}</span>
+                  {rank.title.name} <Stars n={rank.stars} />
                 </span>
               )}
             </span>
@@ -798,7 +814,7 @@ export function Session() {
                 title={DIFFICULTY[difficulty].replay ? undefined : "Eclipse plays the audio once"}
                 onClick={() => setAudioTick((t) => t + 1)}
               >
-                🔊
+                <Volume size="md" />
               </button>
               <button
                 type="button"
@@ -809,17 +825,23 @@ export function Session() {
                   setScreen("intro");
                 }}
               >
-                ✕
+                <Close size="md" />
               </button>
             </div>
           </div>
           <div className="bar-metrics">
             {mode === "boss" ? (
-              <span className="progress">☀️ Storm</span>
+              <span className="progress icon-text">
+                <Storm /> Storm
+              </span>
             ) : mode === "timeAttack" ? (
-              <span className="progress">⏱️ {fmt(timeLeft)}</span>
+              <span className="progress icon-text">
+                <Timer /> {fmt(timeLeft)}
+              </span>
             ) : mode === "survival" ? (
-              <span className="progress lives">{"❤️".repeat(lives)}{"🖤".repeat(SURVIVAL_LIVES - lives)}</span>
+              <span className="progress lives" role="img" aria-label={`${lives} of ${SURVIVAL_LIVES} lives left`}>
+                {Array.from({ length: SURVIVAL_LIVES }, (_, i) => (i < lives ? <Heart key={i} /> : <HeartEmpty key={i} className="lost" />))}
+              </span>
             ) : (
               <span className="progress">
                 <b>{String(index + 1).padStart(2, "0")}</b> / {total}
@@ -835,8 +857,8 @@ export function Session() {
                   Practice time <b>{fmt(seconds)}</b>
                 </span>
               )}
-              <span>
-                ⚡ Combo <b>{combo}</b>
+              <span className="icon-text">
+                <Combo /> Combo <b>{combo}</b>
               </span>
             </span>
           </div>
@@ -857,7 +879,11 @@ export function Session() {
             <div className={`tier tier-${summary.tier}`}>{TIER_LABEL[summary.tier]}</div>
             <p className="muted">
               {TIER_COPY[summary.tier]}
-              {summary.combo > 1 && <span className="combo-chip">⚡ Combo {summary.combo}</span>}
+              {summary.combo > 1 && (
+                <span className="combo-chip icon-text">
+                  <Combo /> Combo {summary.combo}
+                </span>
+              )}
             </p>
             {summary.xp && (
               <div className="xp-gain">
@@ -875,14 +901,25 @@ export function Session() {
             {summary.levelUp && <p className="review-note level-up">Level up! You reached level {summary.levelUp}.</p>}
             {(Boolean(summary.coins) || Boolean(summary.crystals)) && (
               <p className="review-note currency-row">
-                {Boolean(summary.coins) && <span className="coin-note">🪙 +{summary.coins}</span>}
-                {Boolean(summary.crystals) && <span className="crystal-note">💎 +{summary.crystals}</span>}
+                <Currency r={{ coins: summary.coins, crystals: summary.crystals }} />
               </p>
             )}
-            {summary.comebackNote && <p className="review-note level-up">{summary.comebackNote}</p>}
-            {summary.starNote && <p className="review-note level-up">New star: {summary.starNote}</p>}
+            {summary.comebackNote && (
+              <p className="review-note level-up icon-text">
+                <Comeback /> {summary.comebackNote}
+              </p>
+            )}
+            {summary.starNote && (
+              <p className="review-note level-up icon-text">
+                New star: <Stars n={summary.starNote.stars} /> {summary.starNote.title}
+              </p>
+            )}
             {summary.cefrNote && <p className="review-note level-up">{summary.cefrNote}</p>}
-            {summary.oxygenNote && <p className="review-note level-up">{summary.oxygenNote}</p>}
+            {summary.oxygenNote && (
+              <p className="review-note level-up icon-text">
+                <Oxygen /> {summary.oxygenNote}
+              </p>
+            )}
             {summary.review && <p className="muted review-note">{summary.review}</p>}
             {summary.stumbled.length > 0 && (
               <p className="muted review-note">
@@ -896,7 +933,7 @@ export function Session() {
             <div className="footer">
               <span />
               <button type="button" className="check" onClick={next} autoFocus>
-                {index + 1 >= total ? "Finish →" : "Next →"}
+                {index + 1 >= total ? "Finish" : "Next"} <ArrowRight />
                 <kbd className="kbd-hint">Enter</kbd>
               </button>
             </div>

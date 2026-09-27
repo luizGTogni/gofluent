@@ -6,9 +6,11 @@ import { loadBadges, unlockedBadges } from "@/lib/badgeStore";
 import { periodKeyFor, QUESTS, type QuestDef } from "@/lib/quests";
 import { progressFor, type QuestProgress } from "@/lib/questStore";
 import { TITLES, type Rank } from "@/lib/ranks";
-import { currencyLine } from "@/lib/rewards";
 import { MODE_UNLOCKS, modeUnlocked } from "@/lib/unlocks";
 import { ClaimButton, type OnClaim } from "./ClaimButton";
+import { Currency } from "./Currency";
+import { ArrowLeft, Lock } from "./icons";
+import { Medal } from "./icons/Medal";
 
 type Props = { rows: QuestProgress[]; rank: Rank; onClaim: OnClaim; onBack: () => void };
 
@@ -32,9 +34,11 @@ export function QuestCard({ q, row, rank, onClaim }: { q: QuestDef; row: QuestPr
         {done ? (
           <ClaimButton def={q} periodKey={row.periodKey} claimed={row.claimed} onClaim={onClaim} />
         ) : locked ? (
-          `🔒 Opens at ${TITLES[MODE_UNLOCKS[q.mode!]].name}`
+          <span className="icon-text">
+            <Lock /> Opens at {TITLES[MODE_UNLOCKS[q.mode!]].name}
+          </span>
         ) : (
-          currencyLine(q)
+          <Currency r={q} />
         )}
       </div>
     </div>
@@ -58,8 +62,8 @@ export function QuestBoard({ rows, rank, onClaim, onBack }: Props) {
 
   return (
     <main className="shell center quest-board">
-      <button type="button" className="link mode-picker-back" onClick={onBack}>
-        ← Back
+      <button type="button" className="link mode-picker-back icon-text" onClick={onBack}>
+        <ArrowLeft /> Back
       </button>
       <h1 className="hero">Missions</h1>
       <p className="muted">Quick wins today, bigger goals this week.</p>
@@ -92,10 +96,11 @@ export function QuestBoard({ rows, rank, onClaim, onBack }: Props) {
             const on = badges.has(b.id);
             return (
               <div key={b.id} className={`badge-card ${on ? "on" : "locked"}`} title={b.description}>
-                <span className="badge-icon" aria-hidden>
-                  {on ? b.icon : "🔒"}
-                </span>
-                <b>{b.name}</b>
+                <Medal icon={b.icon} rarity={b.rarity} locked={!on} className="badge-icon" />
+                <b>
+                  {b.name}
+                  {!on && <span className="sr-only"> (locked)</span>}
+                </b>
                 <span className="muted badge-desc">{b.description}</span>
               </div>
             );

@@ -8,6 +8,7 @@ import { plural } from "@/lib/format";
 import { MODES, type GameMode } from "@/lib/modes";
 import { MODE_UNLOCKS, modeUnlocked } from "@/lib/unlocks";
 import { RankGoal } from "./RankGoal";
+import { ArrowLeft, ArrowRight, Lock, NamedIcon } from "./icons";
 import type { Rank } from "@/lib/ranks";
 
 type Props = {
@@ -59,8 +60,8 @@ function PlanetPreview({ planetId, stat, count }: { planetId: PlanetId; stat?: P
 export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank, rp, canStart, stuckAt, stats, counts, onStart, onBack }: Props) {
   return (
     <main className="shell center mode-picker">
-      <button type="button" className="link mode-picker-back" onClick={onBack}>
-        ← Back
+      <button type="button" className="link mode-picker-back icon-text" onClick={onBack}>
+        <ArrowLeft /> Back
       </button>
       <h1 className="hero">Free mode</h1>
       <p className="muted">Pick how you want to play, then pick a planet.</p>
@@ -79,7 +80,7 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
               onClick={() => onSelectMode(m.id)}
             >
               <span className="mode-icon" aria-hidden>
-                {m.icon}
+                <NamedIcon name={m.icon} />
               </span>
               <b>{m.name}</b>
               <span className="muted">{m.blurb}</span>
@@ -113,7 +114,7 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
                 <span className={`planet-orb ${p.ring ? "ringed" : ""}`} aria-hidden />
                 {!open && (
                   <span className="planet-node-lock" aria-hidden>
-                    🔒
+                    <Lock />
                   </span>
                 )}
               </button>
@@ -130,7 +131,7 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
       )}
 
       <button type="button" className="check big mode-start" disabled={!canStart} onClick={onStart}>
-        Start →
+        Start <ArrowRight />
       </button>
       </div>
       </div>

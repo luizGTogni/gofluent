@@ -3,6 +3,7 @@
 import { EXERCISES } from "@/lib/exercises";
 import { speak } from "@/lib/speech";
 import { isTricky, mainCause, rate, trickyList, type WordStat } from "@/lib/wordStats";
+import { ArrowLeft, Slow, Volume } from "./icons";
 
 const IPA = new Map(EXERCISES.flatMap((e) => e.words).map((w) => [w.text.toLowerCase(), w.ipa]));
 
@@ -19,11 +20,11 @@ export function TrickyWords({ stats, onBack }: { stats: WordStat[]; onBack: () =
         </div>
       </div>
       <span className="word-actions">
-        <button type="button" className="link" onClick={() => speak(s.word, 1)} aria-label={`Hear ${s.word}`}>
-          🔊
+        <button type="button" className="link" onClick={() => speak(s.word, 1)} aria-label={`Hear ${s.word}`} title="Hear it">
+          <Volume size="md" />
         </button>
-        <button type="button" className="link" onClick={() => speak(s.word, 0.6)} aria-label={`Hear ${s.word} slowly`}>
-          🐢
+        <button type="button" className="link" onClick={() => speak(s.word, 0.6)} aria-label={`Hear ${s.word} slowly`} title="Hear it slowly">
+          <Slow size="md" />
         </button>
       </span>
     </li>
@@ -31,12 +32,12 @@ export function TrickyWords({ stats, onBack }: { stats: WordStat[]; onBack: () =
 
   return (
     <main className="shell center">
-      <h1 className="hero">🧩 Tricky words</h1>
+      <h1 className="hero">Tricky words</h1>
       {tricky.length === 0 ? (
         <p className="muted">Nothing is holding you back right now. Words you stumble on more than once will show up here.</p>
       ) : (
         <>
-          <p className="muted">These come back in your sessions until they feel easy. Tap 🔊 to hear a word alone, or 🐢 to hear it slowly.</p>
+          <p className="muted">These come back in your sessions until they feel easy. Use the speaker to hear a word alone, or the slow button to hear it slowly.</p>
           <ul className="saved-list">{tricky.map(row)}</ul>
         </>
       )}
@@ -47,7 +48,7 @@ export function TrickyWords({ stats, onBack }: { stats: WordStat[]; onBack: () =
         </>
       )}
       <button type="button" className="check" onClick={onBack}>
-        ← Back
+        <ArrowLeft /> Back
       </button>
     </main>
   );

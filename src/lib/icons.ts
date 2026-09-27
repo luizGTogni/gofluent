@@ -1,0 +1,42 @@
+// Kept dependency-free so scripts can load it directly. The components live in components/icons.
+
+/** Every icon the app draws, by name, so data (modes, badges, rewards) can say which one it uses. */
+export type IconName =
+  // interface, drawn as outlines in currentColor
+  | "play"
+  | "arrow-right"
+  | "arrow-left"
+  | "check"
+  | "close"
+  | "lock"
+  | "volume"
+  | "slow"
+  | "star"
+  | "star-filled"
+  | "gift"
+  | "target"
+  | "store"
+  | "alert"
+  | "timer"
+  | "heart"
+  | "heart-empty"
+  | "eye-off"
+  | "pencil"
+  | "storm"
+  | "refresh"
+  | "bookmark"
+  | "compass"
+  | "comeback"
+  | "sparkles"
+  | "bulb-off"
+  | "sunrise"
+  | "moon"
+  // game identity, filled in their brand colour
+  | "coin"
+  | "crystal"
+  | "shield"
+  | "orbit"
+  | "oxygen"
+  | "combo"
+  | "rocket"
+  | "astronaut";

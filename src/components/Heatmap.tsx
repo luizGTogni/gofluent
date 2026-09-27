@@ -30,7 +30,7 @@ function describe(s: DayState, today: string): { title: string; lines: string[];
   else if (s.studied) {
     lines.push(s.v?.phrases ? `${plural(s.v.phrases, "phrase")} · ${s.v.xp} XP` : "Studied");
   } else if (!s.shield) lines.push(s.day === today ? "Not yet today" : "No study");
-  if (s.shield) lines.push("🛡️ Covered by a Streak Shield");
+  if (s.shield) lines.push("Covered by a Streak Shield");
   return { title: longDate(s.day), lines, label: `${shortDate(s.day)}, ${lines.join(", ")}` };
 }
 
@@ -187,7 +187,7 @@ export function OrbitHistory(props: Props) {
         <span>More</span>
         <span className="legend-sep">·</span>
         <span className="heatmap-cell shield" />
-        <span>🛡️ Shield</span>
+        <span>Shield</span>
       </div>
     </section>
   );

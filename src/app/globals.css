@@ -13,6 +13,135 @@
   --bad: #ff6b7a;
   --gold: #ffd84d;
   --font: var(--font-geist-sans), system-ui, sans-serif;
+
+  /* icons: the game's objects keep these colours wherever they appear */
+  --icon-coin: var(--gold);
+  --icon-crystal: #9fd8ff;
+  --icon-shield: #6fc8ff;
+  --icon-orbit: var(--accent);
+  --icon-oxygen: #7ee8d8;
+  --icon-combo: #ffb454;
+  --icon-heart: var(--bad);
+  --icon-rocket: #e8edff;
+  --icon-rocket-fin: #ff7a6b;
+  --icon-flame: #ffc94d;
+  --icon-astronaut: #e8edff;
+  --icon-visor: #1d2c5c;
+  /* badge medallion rings */
+  --rarity-common: #aab6d6;
+  --rarity-rare: #6fc8ff;
+  --rarity-epic: #c69cff;
+}
+
+/* ---- icons (components/icons): 1em by default, so they follow the text they sit in ---- */
+.gf-icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  vertical-align: -0.14em;
+  overflow: visible;
+}
+.icon-sm { width: 14px; height: 14px; }
+.icon-md { width: 18px; height: 18px; }
+.icon-lg { width: 28px; height: 28px; }
+.icon-xl { width: 48px; height: 48px; }
+.gf-coin { color: var(--icon-coin); }
+.gf-crystal { color: var(--icon-crystal); }
+.gf-shield { color: var(--icon-shield); }
+.gf-orbit { color: var(--icon-orbit); }
+.gf-oxygen { color: var(--icon-oxygen); }
+.gf-combo { color: var(--icon-combo); }
+.gf-rocket { color: var(--icon-rocket); }
+.gf-astronaut { color: var(--icon-astronaut); }
+/* a disabled control dims its icons with it; brand colours stay recognisable */
+:disabled .gf-icon-solid,
+.locked .gf-icon-solid {
+  opacity: 0.6;
+}
+/* an icon and its words, spaced as one unit */
+.icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* amounts of currency: icon + number, a few side by side. Inline, not flex, so the numbers sit
+   on the baseline of the text around them. */
+.currency {
+  font-variant-numeric: tabular-nums;
+}
+.currency-item {
+  display: inline-block;
+  white-space: nowrap;
+}
+.currency-item + .currency-item {
+  margin-left: 0.8em;
+}
+.currency-item > .gf-icon {
+  margin-right: 0.3em;
+}
+.shield-note {
+  color: var(--icon-shield);
+}
+
+/* badge medallions: the icon inside a ring in the rarity's colour */
+.medal {
+  --ring: var(--rarity-common);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.4em;
+  height: 2.4em;
+  border-radius: 50%;
+  color: var(--ring);
+  background: radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--ring) 32%, var(--panel-2)), var(--panel) 72%);
+  box-shadow:
+    inset 0 0 0 0.12em var(--ring),
+    0 0 0 0.16em color-mix(in srgb, var(--ring) 18%, transparent);
+}
+.medal > .gf-icon {
+  width: 1.2em;
+  height: 1.2em;
+}
+.medal.rarity-rare { --ring: var(--rarity-rare); }
+.medal.rarity-epic { --ring: var(--rarity-epic); }
+.medal.locked {
+  --ring: var(--line-strong);
+  color: var(--muted);
+  background: var(--panel-2);
+}
+.medal.locked > .gf-icon {
+  opacity: 0.45;
+}
+.medal-lock {
+  position: absolute;
+  right: -0.15em;
+  bottom: -0.15em;
+  display: grid;
+  place-items: center;
+  width: 1.05em;
+  height: 1.05em;
+  border-radius: 50%;
+  font-size: 0.8em;
+  color: var(--text);
+  background: var(--panel-2);
+  box-shadow: 0 0 0 2px var(--line-strong);
+}
+.medal-lock .gf-icon {
+  width: 0.65em;
+  height: 0.65em;
 }
 
 * {
@@ -256,11 +385,18 @@ button.card:hover {
   box-shadow: 0 0 0 2px var(--accent);
 }
 .card.stumbled::after {
-  content: "🔊";
+  content: "";
   position: absolute;
   right: -6px;
   bottom: -8px;
-  font-size: 12px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: var(--panel-2);
+  /* the Volume icon, as a mask, in the accent colour */
+  background-image: linear-gradient(var(--accent), var(--accent));
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5Z'/%3E%3Cpath d='M16 9a5 5 0 0 1 0 6'/%3E%3Cpath d='M19.4 18.4a9 9 0 0 0 0-12.8'/%3E%3C/svg%3E") center / 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5Z'/%3E%3Cpath d='M16 9a5 5 0 0 1 0 6'/%3E%3Cpath d='M19.4 18.4a9 9 0 0 0 0-12.8'/%3E%3C/svg%3E") center / 12px no-repeat;
 }
 .pos-verb { --c: #7fb4ff; }
 .pos-noun { --c: #3fc9b0; }
@@ -805,8 +941,10 @@ button.card:hover {
   margin-top: 12px;
 }
 .stars {
+  display: inline-flex;
+  gap: 1px;
+  vertical-align: -0.1em;
   color: var(--gold);
-  letter-spacing: 1px;
 }
 .rank-card {
   width: min(360px, 100%);
@@ -1034,9 +1172,19 @@ button.card:hover {
 .toast-badge { border-left-color: var(--gold); }
 .toast-quest { border-left-color: var(--ok); }
 .toast-streak { border-left-color: #9fd8ff; }
+/* the left slot: the reward's own icon, tinted by kind */
 .toast-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   font-size: 26px;
+  background: var(--panel-2);
 }
+.toast-badge .toast-icon { color: var(--gold); }
+.toast-quest .toast-icon { color: var(--ok); }
 .toast-body {
   display: flex;
   flex-direction: column;
@@ -1115,11 +1263,17 @@ button.card:hover {
   flex-wrap: wrap;
   gap: 8px;
 }
+.end-badge .medal {
+  font-size: 11px;
+}
 .end-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border: 1px solid var(--gold);
   color: var(--gold);
   border-radius: 999px;
-  padding: 4px 12px;
+  padding: 3px 12px 3px 3px;
   font-size: 14px;
   animation: toast-in 0.4s ease-out;
 }
@@ -2037,6 +2191,7 @@ button.card:hover {
   align-items: center;
   justify-content: center;
   font-size: 15px;
+  color: var(--accent);
   background: var(--panel-2);
   border: 2px solid var(--line);
   border-radius: 50%;
@@ -2148,6 +2303,7 @@ button.card:hover {
 .profile-link {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 14px 18px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -2172,8 +2328,14 @@ button.card:hover {
   color: var(--accent);
 }
 .progress.lives {
+  display: inline-flex;
+  gap: 3px;
   font-size: 16px;
-  letter-spacing: 2px;
+  color: var(--icon-heart);
+}
+.progress.lives .lost {
+  color: var(--muted);
+  opacity: 0.6;
 }
 
 /* mode picker */
@@ -2225,6 +2387,7 @@ button.card:hover {
 }
 .mode-icon {
   font-size: 22px;
+  color: var(--accent);
 }
 .mode-planets {
   width: 100%;
@@ -2322,14 +2485,13 @@ button.card:hover {
   background: var(--accent-soft);
 }
 /* locked cards keep their text at full contrast (it says how to unlock); only the art dims */
-.badge-card.locked .badge-icon {
-  opacity: 0.5;
-}
 .badge-card.locked b {
   color: var(--muted);
 }
+/* the medallion: 2.4em, 48px across */
 .badge-icon {
-  font-size: 26px;
+  font-size: 20px;
+  margin-bottom: 4px;
 }
 .badge-desc {
   font-size: 11px;
@@ -3380,4 +3542,9 @@ kbd {
   .planet-path {
     gap: 36px;
   }
+}
+
+/* a finished mission or day, marked by a check alone */
+.done-check {
+  color: var(--ok);
 }

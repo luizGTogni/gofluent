@@ -6,6 +6,7 @@ import { sentenceOf, type Exercise } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
 import type { Accent } from "@/lib/unlocks";
 import { WordCards } from "./WordCards";
+import { ArrowRight, Refresh } from "./icons";
 
 type Props = {
   exercise: Exercise;
@@ -286,8 +287,8 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
       <div className="footer">
         <div className="footer-left">
           {cfg.replay && (
-            <button type="button" className="link" onClick={onReplay}>
-              ↺ Replay exercise
+            <button type="button" className="link icon-text" onClick={onReplay}>
+              <Refresh /> Replay exercise
             </button>
           )}
           {cfg.showText && (
@@ -298,7 +299,7 @@ export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audio
 
         </div>
         <button type="button" className="check" onClick={check}>
-          Check →
+          Check <ArrowRight />
         </button>
       </div>
     </div>
