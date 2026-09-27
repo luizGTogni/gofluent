@@ -1102,22 +1102,28 @@ button {
   height: 34px;
   width: auto;
 }
-.topbar-you-wrap {
-  position: relative;
-}
 .topbar-you {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
+}
+.topbar-you-wrap {
+  position: relative;
+}
+.topbar-name-btn {
   background: none;
   border: 0;
-  padding: 4px 2px;
+  padding: 2px 4px;
   color: var(--text);
-}
-.topbar-name {
+  font: inherit;
   font-size: 13px;
   font-weight: 600;
+  border-radius: 6px;
+}
+.topbar-name-btn:hover {
+  color: var(--accent);
+  background: var(--panel-2);
 }
 .topbar-chips {
   display: flex;
