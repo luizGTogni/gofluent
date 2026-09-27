@@ -2333,6 +2333,108 @@ button.card:hover {
   border-color: var(--accent);
 }
 
+/* profile & privacy settings */
+.settings-title {
+  margin-bottom: 4px;
+}
+.settings-group {
+  margin: 0;
+  min-width: 0;
+}
+.settings-legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  font-weight: 700;
+}
+.settings-legend + * {
+  clear: both;
+}
+.settings-option {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.settings-option.on,
+.settings-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.settings-option input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+  flex: none;
+}
+.settings-option > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-bio {
+  width: 100%;
+  resize: vertical;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  outline: 0;
+}
+.settings-bio:focus {
+  border-color: var(--accent);
+}
+.settings-count {
+  font-size: 12px;
+}
+.settings-count.over {
+  color: var(--bad);
+}
+.settings-code-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.settings-code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+.check.settings-small {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+.settings-left {
+  align-self: flex-start;
+}
+.settings-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.settings-actions .auth-error,
+.settings-ok {
+  margin: 0;
+  font-size: 14px;
+}
+.settings-ok {
+  color: var(--ok);
+}
+
 /* home hero + free-mode entry */
 .home-tagline {
   margin: 4px 0 0;

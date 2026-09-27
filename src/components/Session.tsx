@@ -63,6 +63,7 @@ import { ExerciseView } from "./ExerciseView";
 import { AuthGate } from "./AuthGate";
 import { MyWords } from "./MyWords";
 import { Profile } from "./Profile";
+import { ProfileSettings } from "./ProfileSettings";
 import { Promotion } from "./Promotion";
 import { TopBar } from "./TopBar";
 import { Courses } from "./Courses";
@@ -95,7 +96,7 @@ type Summary = {
   oxygenNote?: string;
 };
 type Auth = "loading" | "gate" | "guest" | "member";
-type Screen = "intro" | "modes" | "play" | "end" | "words" | "tricky" | "profile" | "quests" | "shop";
+type Screen = "intro" | "modes" | "play" | "end" | "words" | "tricky" | "profile" | "settings" | "quests" | "shop";
 
 const SUMMARY_SETTLE_MS = 300;
 
@@ -756,6 +757,7 @@ export function Session() {
         onTricky={() => setScreen("tricky")}
         onQuests={() => setScreen("quests")}
         onShop={() => setScreen("shop")}
+        onSettings={() => setScreen("settings")}
         canStudy={Boolean(continueId)}
         onStudy={() => start("classic")}
         onSignedOut={() => {
@@ -766,6 +768,8 @@ export function Session() {
         }}
       />
     );
+
+  if (screen === "settings") return <ProfileSettings onBack={() => setScreen("profile")} />;
 
   if (screen === "tricky") return <TrickyWords stats={[...wordStats.values()]} onBack={() => setScreen("profile")} />;
 
