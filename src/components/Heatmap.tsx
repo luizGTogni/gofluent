@@ -1,10 +1,11 @@
 "use client";
 
 import { addDays, localDay } from "@/lib/streak";
+import { plural } from "@/lib/format";
 
 const WEEKS = 14;
 
-/** GitHub-style grid of the last ~14 weeks, on the learner's clock. Green = studied, blue ring = bridged by a shield. */
+/** GitHub-style grid of the last ~14 weeks, on the learner's clock. Green = studied, blue ring = bridged by a Streak Shield. */
 export function Heatmap({ checked, frozen }: { checked: ReadonlySet<string>; frozen: ReadonlySet<string> }) {
   const today = localDay(new Date());
   const todayDow = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = Sunday
@@ -18,7 +19,7 @@ export function Heatmap({ checked, frozen }: { checked: ReadonlySet<string>; fro
   );
 
   return (
-    <div className="heatmap" role="img" aria-label={`${checked.size} days studied in the last ${WEEKS} weeks`}>
+    <div className="heatmap" role="img" aria-label={`${plural(checked.size, "day")} studied in the last ${WEEKS} weeks`}>
       {weeks.map((week, w) => (
         <div key={w} className="heatmap-col">
           {week.map((day, d) =>
@@ -28,7 +29,7 @@ export function Heatmap({ checked, frozen }: { checked: ReadonlySet<string>; fro
               <span
                 key={d}
                 className={`heatmap-cell ${checked.has(day) ? "on" : ""} ${frozen.has(day) ? "frozen" : ""}`}
-                title={`${day}${checked.has(day) ? " · studied" : frozen.has(day) ? " · shielded" : ""}`}
+                title={`${day}${checked.has(day) ? " · studied" : frozen.has(day) ? " · covered by a Streak Shield" : ""}`}
               />
             ),
           )}

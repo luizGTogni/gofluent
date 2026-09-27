@@ -26,6 +26,9 @@ import { ModePicker } from "./ModePicker";
 import { daysStudiedInWeek, QUEST_BY_ID, weekKey } from "@/lib/quests";
 import { claimQuest, loadQuests, progressFor, putQuests, withRow, type QuestProgress } from "@/lib/questStore";
 import { bumpNoHintCount, loadBadges, unlockedBadges, unlockBadge } from "@/lib/badgeStore";
+import { BADGE_BY_ID, type BadgeId } from "@/lib/badges";
+import { addGains, badgeReward, emptyGains, questReward, streakReward, type Reward, type RewardDraft, type SessionGains } from "@/lib/rewards";
+import { bestFor, loadBests, putBest } from "@/lib/recordStore";
 import { QuestBoard } from "./QuestBoard";
 import { FREEZE_COST } from "@/lib/shop";
 import { loadInventory, useOxygen } from "@/lib/shopStore";
@@ -53,6 +56,9 @@ import { TrickyWords } from "./TrickyWords";
 import { SaveChunks } from "./SaveChunks";
 import { Heatmap } from "./Heatmap";
 import { WordCards } from "./WordCards";
+import { XpMeter } from "./XpMeter";
+import { RewardToasts } from "./RewardToasts";
+import { SessionEnd } from "./SessionEnd";
 
 type Summary = {
   tier: Tier;
@@ -65,11 +71,9 @@ type Summary = {
   levelUp?: number;
   starNote?: string;
   coins?: number;
-  crystalNote?: string;
-  milestoneNote?: string;
+  crystals?: number;
+  cefrNote?: string;
   comebackNote?: string;
-  questNote?: string;
-  badgeNote?: string;
   oxygenNote?: string;
 };
 type Auth = "loading" | "gate" | "guest" | "member";
@@ -134,6 +138,12 @@ export function Session() {
   const [mode, setMode] = useState<GameMode>("classic");
   const [lives, setLives] = useState(SURVIVAL_LIVES);
   const [timeLeft, setTimeLeft] = useState(TIME_ATTACK_SECONDS);
+  // What this session earned, and where things stood when it began, for the end screen.
+  const [gains, setGains] = useState<SessionGains>(emptyGains);
+  const [startedWith, setStartedWith] = useState({ xp: 0, quests: [] as QuestProgress[], checkedIn: false });
+  const [prevBest, setPrevBest] = useState<number | null>(null);
+  const [toasts, setToasts] = useState<Reward[]>([]);
+  const toastId = useRef(0);
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -153,7 +163,7 @@ export function Session() {
   useEffect(() => {
     if (screen !== "play" || mode !== "timeAttack") return;
     if (timeLeft <= 0) {
-      setScreen("end");
+      finishSession();
       return;
     }
     const id = setInterval(() => setTimeLeft((t) => t - 1), 1000);
@@ -171,6 +181,12 @@ export function Session() {
   const courseCounts = Object.fromEntries(PLANETS.map((p) => [p.id, library.filter((e) => e.planet === p.id).length])) as Record<PlanetId, number>;
 
   const exercise = exercises[index];
+
+  const celebrate = (r: RewardDraft) => {
+    const id = ++toastId.current;
+    setToasts((t) => [...t, { ...r, id }]);
+  };
+  const dismissToast = (id: number) => setToasts((t) => t.filter((r) => r.id !== id));
 
   const showWallet = (w: Wallet) => {
     walletRef.current = w;
@@ -200,7 +216,7 @@ export function Session() {
 
       // XP: lifetime XP only grows; rank points fade with inactivity, so earn from the faded value.
       const gain = phraseXp(exercise.words, result, difficulty, cameBack);
-      if (cameBack) s.comebackNote = "🎯 Comeback! You finally nailed a phrase that used to trip you up.";
+      if (cameBack) s.comebackNote = "🔁 Comeback! You finally nailed a phrase that used to trip you up.";
       const rpNow = effectiveRp(player, now);
       const before = rankOf(rpNow);
       const after = addXp({ ...player, rp: rpNow }, gain.total, now);
@@ -220,7 +236,7 @@ export function Session() {
       const nextPlanetStats = new Map(planetStats).set(exercise.planet, planetStat);
       const cefrAfter = cefrEstimate(cefrBands(nextPlanetStats.values(), rankAfter.index));
       const cefrUp = Boolean(cefrAfter && cefrAfter !== cefrBefore);
-      if (cefrUp) s.crystalNote = `New estimated level: ${cefrAfter}. +${CRYSTALS_PER_CEFR_UP} crystals.`;
+      if (cefrUp) s.cefrNote = `New estimated English level: ${cefrAfter}.`;
       putPlanetStat(planetStat);
       setPlanetStats(nextPlanetStats);
 
@@ -244,7 +260,7 @@ export function Session() {
           coinGain += reward.coins;
           crystalGain += reward.crystals;
           freezeGain += reward.freezes;
-          s.milestoneNote = `🛰️ ${hit}-day orbit! +${reward.coins} Lunar Coins, +${reward.crystals} Crystals, +${reward.freezes} shield${reward.freezes === 1 ? "" : "s"}.`;
+          celebrate(streakReward(hit, reward));
         }
       }
 
@@ -293,46 +309,36 @@ export function Session() {
       // was the claim that flipped it (idempotent per user, quest and period).
       for (const row of reached) questRows = withRow(questRows, { ...row, claimed: true });
       setQuests(questRows);
-      if (reached.length) {
-        s.questNote = reached
-          .map((r) => QUEST_BY_ID.get(r.id)!)
-          .map((d) => `🎯 ${d.name} complete! +${d.coins} Lunar Coins${d.crystals ? `, +${d.crystals} Crystal` : ""}.`)
-          .join(" ");
-      }
+      for (const row of reached) celebrate(questReward(QUEST_BY_ID.get(row.id)!));
       putQuests(touched).then(async () => {
         for (const row of reached) {
           if (!(await claimQuest(row.id, row.periodKey))) continue;
           const def = QUEST_BY_ID.get(row.id)!;
           commitWallet((w) => ({ ...w, coins: w.coins + def.coins, crystals: w.crystals + (def.crystals ?? 0) }));
+          setGains((g) => addGains(g, { coins: def.coins, crystals: def.crystals }));
         }
       });
 
       // One wallet write for everything this phrase earned: XP coins, check-in rewards, level-ups.
       s.coins = coinGain;
+      s.crystals = crystalGain;
       if (coinGain || crystalGain || freezeGain)
         commitWallet((w) => ({ coins: w.coins + coinGain, crystals: w.crystals + crystalGain, freezes: w.freezes + freezeGain }));
 
       // Mission badges: a handful of concrete, lifetime achievements.
-      const badgeNotes: string[] = [];
       const unlocked = unlockedBadges();
-      if (s.tier === "perfect" && !unlocked.has("first_perfect")) {
-        unlockBadge("first_perfect");
-        badgeNotes.push("🌟 Badge unlocked: First Perfect!");
-      }
-      if (!result.helped && bumpNoHintCount() >= 100 && !unlocked.has("no_hint_100")) {
-        unlockBadge("no_hint_100");
-        badgeNotes.push("💪 Badge unlocked: No Hints, 100 Phrases!");
-      }
       const hour = localHour(now);
-      if (hour < 7 && !unlocked.has("early_bird")) {
-        unlockBadge("early_bird");
-        badgeNotes.push("🌅 Badge unlocked: Early Bird!");
+      const earned: BadgeId[] = [];
+      if (s.tier === "perfect") earned.push("first_perfect");
+      if (!result.helped && bumpNoHintCount() >= 100) earned.push("no_hint_100");
+      if (hour < 7) earned.push("early_bird");
+      if (hour >= 23) earned.push("night_owl");
+      const fresh = earned.filter((id) => !unlocked.has(id));
+      for (const id of fresh) {
+        unlockBadge(id);
+        celebrate(badgeReward(BADGE_BY_ID.get(id)!));
       }
-      if (hour >= 23 && !unlocked.has("night_owl")) {
-        unlockBadge("night_owl");
-        badgeNotes.push("🦉 Badge unlocked: Night Owl!");
-      }
-      if (badgeNotes.length) s.badgeNote = badgeNotes.join(" ");
+      setGains((g) => addGains(g, { xp: gain.total, coins: coinGain, crystals: crystalGain, freezes: freezeGain, badges: fresh }));
     }
     if (mode === "survival" && result.typedErrors > 0) {
       let nextLives = lives - 1;
@@ -349,11 +355,19 @@ export function Session() {
     speak(sentenceOf(exercise), speed, undefined, accent);
   };
 
+  /** Ends the run. The score lives on only as a personal record per mode, shown on the end screen. */
+  const finishSession = () => {
+    stopSpeech();
+    setPrevBest(full ? bestFor(mode) : null);
+    if (full) putBest(mode, score);
+    setScreen("end");
+  };
+
   const next = () => {
     stopSpeech();
     setSummary(null);
-    if (mode === "survival" && lives <= 0) setScreen("end");
-    else if (index + 1 >= total) setScreen("end");
+    if (mode === "survival" && lives <= 0) finishSession();
+    else if (index + 1 >= total) finishSession();
     else {
       setIndex((i) => i + 1);
       setReplay(0);
@@ -379,6 +393,7 @@ export function Session() {
     loadQuests().then(setQuests);
     loadBadges();
     loadInventory();
+    loadBests();
     getProfile().then((p) => {
       setFullName(p?.fullName);
       syncTimeZone(p);
@@ -393,7 +408,7 @@ export function Session() {
         w = { ...w, freezes: w.freezes - 1 };
         await addFrozenDay(gap);
         cal.frozen.add(gap);
-        setFreezeNote(`⚡ Energy shield used for ${gap}. Your orbit holds.`);
+        setFreezeNote(`🛡️ Streak Shield used for ${gap}. Your orbit holds.`);
       }
 
       const streakSoFar = computeStreak(cal.checked, cal.frozen, addDays(today, -1)).current;
@@ -462,6 +477,9 @@ export function Session() {
     setSeconds(0);
     setHistory([]);
     setSummary(null);
+    setGains(emptyGains);
+    setToasts([]);
+    setStartedWith({ xp: player.xp, quests, checkedIn: checkedInToday.current });
     setLives(SURVIVAL_LIVES);
     setTimeLeft(TIME_ATTACK_SECONDS);
     setScreen("play");
@@ -660,43 +678,30 @@ export function Session() {
           : mode === "survival"
             ? "💥 Game over"
             : "Mission complete";
+    const endless = mode === "timeAttack" || mode === "survival";
     return (
-      <main className="shell center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="GoFluent" className="logo" />
-        <h1 className="hero">{heading}</h1>
-        <div className="stats">
-          <div>
-            <b>{score}</b>
-            <span>Score</span>
-          </div>
-          {mode === "timeAttack" || mode === "survival" ? (
-            <div>
-              <b>{history.length}</b>
-              <span>Phrases solved</span>
-            </div>
-          ) : (
-            <div>
-              <b>{perfect}/{total}</b>
-              <span>Perfect</span>
-            </div>
-          )}
-          <div>
-            <b>{fmt(seconds)}</b>
-            <span>Practice time</span>
-          </div>
-        </div>
-        {missed.length > 0 ? (
-          <p className="muted">
-            To revisit: <span className="missed">{missed.join(", ")}</span>
-          </p>
-        ) : (
-          <p className="muted">No slips this time. Your fingers can take it from here.</p>
-        )}
-        <button type="button" className="check big" onClick={start}>
-          Practice again →
-        </button>
-      </main>
+      <>
+        <SessionEnd
+          heading={heading}
+          full={full}
+          score={score}
+          prevBest={prevBest}
+          solved={endless ? { value: String(history.length), label: "Phrases solved" } : { value: `${perfect}/${total}`, label: "Perfect" }}
+          time={fmt(seconds)}
+          missed={missed}
+          xpBefore={startedWith.xp}
+          xpAfter={player.xp}
+          gains={gains}
+          questsBefore={startedWith.quests}
+          questsAfter={quests}
+          streak={streak.current}
+          streakExtended={!startedWith.checkedIn && checkedInToday.current}
+          onContinue={() => setScreen("intro")}
+          onPlayAgain={start}
+        />
+        <RewardToasts rewards={toasts} onDismiss={dismissToast} />
+        {promo && <Promotion title={promo} onContinue={() => setPromo(null)} />}
+      </>
     );
   }
 
@@ -706,10 +711,10 @@ export function Session() {
         <header className="bar">
           <div className="bar-top">
             <span className="status">
-              <i className="dot" /> {summary ? "Well done" : "Your turn to type"}
+              <i className="dot" /> {summary ? "Phrase complete" : "Your turn to type"}
               {full && (
                 <span className="rank-chip">
-                  Lv {lvl.level} · {rank.title.name} <span className="stars">{starsLabel(rank.stars)}</span>
+                  {rank.title.name} <span className="stars">{starsLabel(rank.stars)}</span>
                 </span>
               )}
             </span>
@@ -764,18 +769,11 @@ export function Session() {
                 </span>
               )}
               <span>
-                Score <b className="accent">{score}</b>
-              </span>
-              <span>
                 ⚡ Combo <b>{combo}</b>
               </span>
             </span>
           </div>
-          {full && (
-            <div className="xpbar xpbar-thin" aria-label={`${lvl.pct}% to level ${lvl.level + 1}`}>
-              <span style={{ width: `${lvl.pct}%` }} />
-            </div>
-          )}
+          {full && <XpMeter xp={player.xp} />}
         </header>
 
         {summary ? (
@@ -787,8 +785,8 @@ export function Session() {
             </div>
             <div className={`tier tier-${summary.tier}`}>{TIER_LABEL[summary.tier]}</div>
             <p className="muted">
-              {TIER_COPY[summary.tier]} <b className="accent">+{summary.points}</b>
-              {summary.combo > 0 && ` · Nice · Combo ${summary.combo}`}
+              {TIER_COPY[summary.tier]}
+              {summary.combo > 1 && <span className="combo-chip">⚡ Combo {summary.combo}</span>}
             </p>
             {summary.xp && (
               <div className="xp-gain">
@@ -803,14 +801,16 @@ export function Session() {
                 </span>
               </div>
             )}
-            {summary.comebackNote && <p className="review-note level-up">{summary.comebackNote}</p>}
             {summary.levelUp && <p className="review-note level-up">Level up! You reached level {summary.levelUp}.</p>}
+            {(Boolean(summary.coins) || Boolean(summary.crystals)) && (
+              <p className="review-note currency-row">
+                {Boolean(summary.coins) && <span className="coin-note">🪙 +{summary.coins}</span>}
+                {Boolean(summary.crystals) && <span className="crystal-note">💎 +{summary.crystals}</span>}
+              </p>
+            )}
+            {summary.comebackNote && <p className="review-note level-up">{summary.comebackNote}</p>}
             {summary.starNote && <p className="review-note level-up">New star: {summary.starNote}</p>}
-            {summary.coins !== undefined && summary.coins > 0 && <p className="review-note coin-note">🪙 +{summary.coins} Lunar Coins</p>}
-            {summary.crystalNote && <p className="review-note level-up">{summary.crystalNote}</p>}
-            {summary.milestoneNote && <p className="review-note level-up">{summary.milestoneNote}</p>}
-            {summary.questNote && <p className="review-note level-up">{summary.questNote}</p>}
-            {summary.badgeNote && <p className="review-note level-up">{summary.badgeNote}</p>}
+            {summary.cefrNote && <p className="review-note level-up">{summary.cefrNote}</p>}
             {summary.oxygenNote && <p className="review-note level-up">{summary.oxygenNote}</p>}
             {summary.review && <p className="muted review-note">{summary.review}</p>}
             {summary.stumbled.length > 0 && (
@@ -848,6 +848,7 @@ export function Session() {
           />
         )}
       </section>
+      <RewardToasts rewards={toasts} onDismiss={dismissToast} />
       {promo && <Promotion title={promo} onContinue={() => setPromo(null)} />}
     </main>
   );

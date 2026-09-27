@@ -12,3 +12,5 @@ export const BADGES: BadgeDef[] = [
   { id: "early_bird", name: "Early Bird", description: "Practice before 7am.", icon: "🌅" },
   { id: "night_owl", name: "Night Owl", description: "Practice after 11pm.", icon: "🦉" },
 ];
+
+export const BADGE_BY_ID = new Map(BADGES.map((b) => [b.id, b]));

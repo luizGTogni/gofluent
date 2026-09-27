@@ -9,13 +9,13 @@ type Props = {
   wallet: Wallet;
   /** Deducts currency if the player can afford it; returns whether the purchase went through. */
   onSpend: (coins: number, crystals: number) => boolean;
-  /** Streak shields live on the wallet itself (they're already synced), so this spends and grants
+  /** Streak Shields live on the wallet itself (they're already synced), so this spends and grants
    * the shield in one atomic step rather than going through `onSpend` plus a local counter. */
   onBuyFreeze: () => boolean;
   onBack: () => void;
 };
 
-/** The store: oxygen extras (a Survival-mode second wind), streak shields, and spacesuit pieces —
+/** The store: oxygen extras (a Survival-mode second wind), Streak Shields, and spacesuit pieces —
  * cosmetic, cumulative, shown next to the avatar in the profile once owned. */
 export function Shop({ wallet, onSpend, onBuyFreeze, onBack }: Props) {
   const [oxygen, setOxygen] = useState(0);
@@ -67,7 +67,7 @@ export function Shop({ wallet, onSpend, onBuyFreeze, onBack }: Props) {
           </div>
           <div className="shop-card">
             <span className="shop-icon" aria-hidden>
-              ⚡
+              🛡️
             </span>
             <b>Streak Shield</b>
             <span className="muted shop-desc">Covers one missed day so your orbit keeps going.</span>

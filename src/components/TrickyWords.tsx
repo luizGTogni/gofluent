@@ -31,7 +31,7 @@ export function TrickyWords({ stats, onBack }: { stats: WordStat[]; onBack: () =
 
   return (
     <main className="shell center">
-      <h1 className="hero">Tricky words</h1>
+      <h1 className="hero">🧩 Tricky words</h1>
       {tricky.length === 0 ? (
         <p className="muted">Nothing is holding you back right now. Words you stumble on more than once will show up here.</p>
       ) : (

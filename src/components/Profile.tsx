@@ -11,6 +11,7 @@ import type { StudyCalendar } from "@/lib/economyStore";
 import { computeStreak, localDay } from "@/lib/streak";
 import { SUITS, type SuitId } from "@/lib/shop";
 import { loadInventory, ownedSuits } from "@/lib/shopStore";
+import { plural } from "@/lib/format";
 import { Heatmap } from "./Heatmap";
 
 type Props = {
@@ -107,14 +108,14 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
       <section className="profile-card">
         <div className="profile-card-head">
           <b>🛰️ {streak.current}-day orbit</b>
-          <span className="muted">Best: {streak.longest} days</span>
+          <span className="muted">Best: {plural(streak.longest, "day")}</span>
         </div>
         <Heatmap checked={calendar.checked} frozen={calendar.frozen} />
-        <p className="muted profile-note">Every green square is a day you studied. A ringed square is a day an energy shield covered for you.</p>
+        <p className="muted profile-note">Every green square is a day you studied. A ringed square is a day a Streak Shield covered for you.</p>
         <div className="wallet-row">
           <span title="Earned on every phrase you finish">🪙 {wallet.coins} Lunar Coins</span>
           <span title="Rare — from rank-ups, level-up moments and orbit milestones">💎 {wallet.crystals} Crystals</span>
-          <span title="Cover one missed day so your orbit keeps going">⚡ {wallet.freezes} shields</span>
+          <span title="Covers one missed day so your orbit keeps going">🛡️ {plural(wallet.freezes, "Streak Shield")}</span>
         </div>
       </section>
 
@@ -125,14 +126,14 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
         </button>
         <button type="button" className="profile-link" onClick={onShop}>
           <span>🛒 Store</span>
-          <span className="muted">Oxygen, shields, spacesuit →</span>
+          <span className="muted">Oxygen, Streak Shields, spacesuit →</span>
         </button>
         <button type="button" className="profile-link" onClick={onWords}>
           <span>💾 My words</span>
           <span className="muted">Saved for later →</span>
         </button>
         <button type="button" className="profile-link" onClick={onTricky}>
-          <span>🎯 Tricky words</span>
+          <span>🧩 Tricky words</span>
           <span className="muted">{trickyCount > 0 ? `${trickyCount} to work on →` : "None right now →"}</span>
         </button>
       </nav>
