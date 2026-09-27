@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DIFFICULTIES, DIFFICULTY, scoreExercise, TIER_COPY, TIER_LABEL, type Difficulty, type Result, type Tier } from "@/lib/engine";
-import { EXERCISES, sentenceOf } from "@/lib/exercises";
+import { loadContent } from "@/lib/content";
+import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
 import { ExerciseView } from "./ExerciseView";
 import { MyWords } from "./MyWords";
@@ -13,10 +14,12 @@ type Summary = { tier: Tier; points: number; combo: number; result: Result };
 type Screen = "intro" | "play" | "end" | "words";
 
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-const total = EXERCISES.length;
 
 export function Session() {
   const [screen, setScreen] = useState<Screen>("intro");
+  const [exercises, setExercises] = useState<Exercise[]>(EXERCISES);
+  const remote = useRef<Exercise[] | null>(null);
+  const total = exercises.length;
   const [index, setIndex] = useState(0);
   const [replay, setReplay] = useState(0);
   const [audioTick, setAudioTick] = useState(0);
@@ -35,7 +38,7 @@ export function Session() {
     return () => clearInterval(id);
   }, [screen, summary]);
 
-  const exercise = EXERCISES[index];
+  const exercise = exercises[index];
 
   const complete = (result: Result) => {
     const nextCombo = result.typedErrors === 0 ? combo + 1 : 0;
@@ -68,7 +71,14 @@ export function Session() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary, index]);
 
+  useEffect(() => {
+    loadContent().then((c) => {
+      if (c.source === "remote") remote.current = c.exercises;
+    });
+  }, []);
+
   const start = () => {
+    setExercises(remote.current ?? EXERCISES);
     setIndex(0);
     setReplay(0);
     setScore(0);

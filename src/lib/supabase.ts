@@ -17,6 +17,13 @@ let ready: Promise<SupabaseClient | null> | null = null;
 /** True when the env vars are set; the app keeps working without them, minus saving. */
 export const supabaseConfigured = Boolean(url && key);
 
+/** Client without signing in: enough for public, read-only content. */
+export function getPublicClient(): SupabaseClient | null {
+  if (!supabaseConfigured) return null;
+  client ??= createClient(url!, key!);
+  return client;
+}
+
 /** Returns a client that already has a session, signing in anonymously on first use. */
 export function getSupabase(): Promise<SupabaseClient | null> {
   if (!supabaseConfigured) return Promise.resolve(null);
