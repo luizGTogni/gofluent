@@ -6,6 +6,8 @@ import { PLANET_BY_ID, type PlanetId } from "@/lib/planets";
 import { CELESTIAL_PATH } from "@/lib/bodies";
 import { plural } from "@/lib/format";
 import { MODES, type GameMode } from "@/lib/modes";
+import { DIFFICULTIES, DIFFICULTY, type Difficulty } from "@/lib/engine";
+import { levelBands } from "@/lib/levels";
 import { MODE_UNLOCKS, modeUnlocked } from "@/lib/unlocks";
 import { RankGoal } from "./RankGoal";
 import { ArrowLeft, ArrowRight, Lock, NamedIcon } from "./icons";
@@ -24,6 +26,10 @@ type Props = {
   stuckAt: string;
   stats: Map<PlanetId, PlanetStat>;
   counts: Record<PlanetId, number>;
+  /** Free mode by level, off the journey: the level picked (null when a planet is), and phrases per level. */
+  level: Difficulty | null;
+  onSelectLevel: (d: Difficulty) => void;
+  levelCounts: Record<Difficulty, number>;
   onStart: () => void;
   onBack: () => void;
 };
@@ -56,15 +62,16 @@ function PlanetPreview({ planetId, stat, count }: { planetId: PlanetId; stat?: P
   );
 }
 
-/** "Free mode": pick how to play, then pick a planet, then go. */
-export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank, rp, canStart, stuckAt, stats, counts, onStart, onBack }: Props) {
+/** "Free mode": pick how to play, then a level (off the journey) or a planet, then go. */
+export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank, rp, canStart, stuckAt, stats, counts, level, onSelectLevel, levelCounts, onStart, onBack }: Props) {
+  const ready = level ? levelCounts[level] > 0 : canStart;
   return (
     <main className="shell center mode-picker">
       <button type="button" className="link mode-picker-back icon-text" onClick={onBack}>
         <ArrowLeft /> Back
       </button>
       <h1 className="hero">Free mode</h1>
-      <p className="muted">Pick how you want to play, then pick a planet.</p>
+      <p className="muted">Pick how you want to play, then a level or a planet.</p>
 
       <div className="mode-layout">
       <section className="mode-grid">
@@ -91,7 +98,27 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
       </section>
 
       <div className="mode-right">
-      <h2 className="mode-picker-sub muted">Choose a planet</h2>
+      <h2 className="mode-picker-sub muted">Choose a level</h2>
+      <p className="muted level-note">Any phrase up to that level, wherever you are on your journey.</p>
+      <div className="level-grid">
+        {DIFFICULTIES.map((d) => (
+          <button
+            key={d}
+            type="button"
+            className={`mode-card level-card ${level === d ? "on" : ""}`}
+            aria-pressed={level === d}
+            disabled={levelCounts[d] === 0}
+            onClick={() => onSelectLevel(d)}
+          >
+            <b>
+              {DIFFICULTY[d].label} <span className="chip-cefr">{levelBands(d)}</span>
+            </b>
+            <span className="muted">{levelCounts[d] ? DIFFICULTY[d].blurb : "Coming soon"}</span>
+          </button>
+        ))}
+      </div>
+
+      <h2 className="mode-picker-sub muted">Or choose a planet</h2>
       <div className="mode-planets">
         {PATH_PLANETS.map((p) => {
           const count = counts[p.id] ?? 0;
@@ -103,9 +130,9 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
             <div key={p.id} className="mode-planet">
               <button
                 type="button"
-                className={`planet-node ${open && planetId === p.id ? "on" : ""} ${!open ? "locked" : ""}`}
+                className={`planet-node ${open && !level && planetId === p.id ? "on" : ""} ${!open ? "locked" : ""}`}
                 disabled={!open}
-                aria-pressed={open && planetId === p.id}
+                aria-pressed={open && !level && planetId === p.id}
                 aria-label={`${p.name}, ${open ? "open" : count === 0 ? "coming soon" : `locked — finish ${prev?.name} first`}`}
                 title={count === 0 ? "Coming soon" : !open && prev ? `Finish ${prev.name} to unlock` : p.topic}
                 onClick={() => onSelectPlanet(p.id)}
@@ -124,13 +151,13 @@ export function ModePicker({ mode, onSelectMode, planetId, onSelectPlanet, rank,
         })}
       </div>
 
-      {canStart ? (
+      {level ? null : canStart ? (
         <PlanetPreview planetId={planetId} stat={stats.get(planetId)} count={counts[planetId] ?? 0} />
       ) : (
         <p className="muted">You&apos;re at {stuckAt} on your journey. Its phrases are coming soon, and the next stops open after it.</p>
       )}
 
-      <button type="button" className="check big mode-start" disabled={!canStart} onClick={onStart}>
+      <button type="button" className="check big mode-start" disabled={!ready} onClick={onStart}>
         Start <ArrowRight />
       </button>
       </div>

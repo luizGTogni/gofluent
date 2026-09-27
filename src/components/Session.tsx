@@ -22,6 +22,7 @@ import { addXp, emptyPlayer, levelFromXp, levelProgress, phraseXp, type PlayerSt
 import { extendedUnlocked, modeUnlocked, type Accent } from "@/lib/unlocks";
 import { addDays, computeStreak, localDay, localHour, milestoneHit } from "@/lib/streak";
 import { pickDifficulty } from "@/lib/adaptive";
+import { levelPool } from "@/lib/levels";
 import { MODES, SURVIVAL_LIVES, TIME_ATTACK_SECONDS, type GameMode } from "@/lib/modes";
 import { ModePicker } from "./ModePicker";
 import { daysStudiedInWeek, weekKey, type QuestDef } from "@/lib/quests";
@@ -124,6 +125,9 @@ export function Session() {
   // The planet picked on the journey or in Free mode; the stop you're on when it can't be played.
   const [planetId, setPlanetId] = useState<PlanetId>(PLANETS[0].id);
   const [planetStats, setPlanetStats] = useState<Map<PlanetId, PlanetStat>>(new Map());
+  // Free mode by level: the level picked, and the one the current run plays (null on the journey).
+  const [freeLevel, setFreeLevel] = useState<Difficulty | null>("easy");
+  const [runLevel, setRunLevel] = useState<Difficulty | null>(null);
   const total = exercises.length;
   const [review, setReview] = useState<Map<string, ReviewState>>(new Map());
   const [reviewKeys, setReviewKeys] = useState<Set<string>>(new Set());
@@ -270,7 +274,8 @@ export function Session() {
     if (r.replayed || !ledgerIdle()) return;
     setPlayer(r.player);
     showWallet(r.wallet);
-    setPlanetStats((m) => new Map(m).set(r.planet.planet, r.planet));
+    const stat = r.planet;
+    if (stat) setPlanetStats((m) => new Map(m).set(stat.planet, stat));
     setQuests((rows) => r.quests.reduce(withRow, rows));
     setCalendar((c) => ({ ...c, volume: new Map(c.volume).set(r.day.day, { phrases: r.day.phrases, xp: r.day.xp }) }));
   };
@@ -348,8 +353,10 @@ export function Session() {
       if (change === "promotion") setPromo(rankAfter.title);
 
       const cefrBefore = cefrEstimate(cefrBands(planetStats.values(), rankAfter.index));
-      const planetStat = recordResult(planetStats.get(exercise.planet), exercise.planet, isSolid(result));
-      const nextPlanetStats = new Map(planetStats).set(exercise.planet, planetStat);
+      // A run by level is off the journey: its phrases move no planet's progress.
+      const nextPlanetStats = runLevel
+        ? planetStats
+        : new Map(planetStats).set(exercise.planet, recordResult(planetStats.get(exercise.planet), exercise.planet, isSolid(result)));
       const cefrAfter = cefrEstimate(cefrBands(nextPlanetStats.values(), rankAfter.index));
       const cefrUp = Boolean(cefrAfter && cefrAfter !== cefrBefore);
       if (cefrUp) s.cefrNote = `New estimated English level: ${cefrAfter}.`;
@@ -441,7 +448,7 @@ export function Session() {
       // Offline, both wait in the outbox in that order.
       completePhrase({
         eventId: attemptId,
-        planet: exercise.planet,
+        planet: runLevel ? null : exercise.planet,
         words: exercise.words.length,
         xp: gain.total,
         rpDelta: after.rp - player.rp,
@@ -605,20 +612,26 @@ export function Session() {
     });
   }, []);
 
-  /** Starts a run in `requested` (the picked mode unless a shortcut says otherwise). */
-  const start = (requested: GameMode = playMode) => {
+  /**
+   * Starts a run in `requested` (the picked mode unless a shortcut says otherwise). With a `level`
+   * (Free mode by level), members play that difficulty on phrases up to its CEFR band, off the journey.
+   */
+  const start = (requested: GameMode = playMode, level: Difficulty | null = null) => {
     const runMode = modeUnlocked(requested, rank.index) ? requested : "classic";
-    // Members play the journey: nothing to start until the stop they're on has phrases.
-    if (full && !continueId) return;
+    const byLevel = full && level !== null;
+    // Members on the journey: nothing to start until the stop they're on has phrases.
+    if (full && !byLevel && !continueId) return;
     const pool = library;
     setMode(runMode);
+    setRunLevel(byLevel ? level : null);
     const chosen = continueId ?? PLANETS[0].id;
-    if (full) setDifficulty(runMode === "blind" ? "extreme" : pickDifficulty(rank.index, planetStats.get(chosen)));
-    // Guests keep to the first two course planets; members play the journey stop picked (or the one they're on).
-    const planetPool = pool.filter(
-      (e) => (full ? e.planet === chosen : STARTER_PLANETS.includes(e.planet)) && (canExtend || e.words.length <= 6),
+    if (full) setDifficulty(runMode === "blind" ? "extreme" : byLevel ? level : pickDifficulty(rank.index, planetStats.get(chosen)));
+    // Guests keep to the first two course planets; members play the journey stop picked (or the one
+    // they're on), or everything up to the level's CEFR band.
+    const planetPool = (byLevel ? levelPool(pool, level) : pool).filter(
+      (e) => (byLevel || (full ? e.planet === chosen : STARTER_PLANETS.includes(e.planet))) && (canExtend || e.words.length <= 6),
     );
-    if (full) {
+    if (full && !byLevel) {
       const entered = markEntered(planetStats.get(chosen), chosen, new Date());
       if (entered !== planetStats.get(chosen)) {
         setPlanetStats((m) => new Map(m).set(chosen, entered));
@@ -638,7 +651,8 @@ export function Session() {
       const exercises = Array.from({ length: 8 }, () => shuffled).flat();
       plan = { exercises, review: new Set(), practice: new Set() };
     } else {
-      const byText = new Map(pool.map((e) => [sentenceOf(e), e])); // reviews can come from any planet
+      // Reviews can come from any planet on the journey; by level, only from what the level plays.
+      const byText = new Map((byLevel ? basePool : pool).map((e) => [sentenceOf(e), e]));
       const dueEx = (full ? dueList(review.values(), new Date()) : [])
         .map((r) => byText.get(r.phrase))
         .filter((e): e is Exercise => Boolean(e));
@@ -699,14 +713,20 @@ export function Session() {
         mode={playMode}
         onSelectMode={setMode}
         planetId={planetId}
-        onSelectPlanet={setPlanetId}
+        onSelectPlanet={(id) => {
+          setPlanetId(id);
+          setFreeLevel(null);
+        }}
         rank={rank}
         rp={rpNow}
         canStart={Boolean(continueId)}
         stuckAt={currentStop.name}
         stats={planetStats}
         counts={courseCounts}
-        onStart={() => start()}
+        level={freeLevel}
+        onSelectLevel={setFreeLevel}
+        levelCounts={Object.fromEntries(DIFFICULTIES.map((d) => [d, levelPool(library, d).length])) as Record<Difficulty, number>}
+        onStart={() => start(playMode, freeLevel)}
         onBack={() => setScreen("intro")}
       />
     );
@@ -916,7 +936,7 @@ export function Session() {
           streakExtended={!startedWith.checkedIn && calendar.checked.has(localDay(new Date()))}
           onClaim={claim}
           onContinue={() => setScreen("intro")}
-          onPlayAgain={() => start()}
+          onPlayAgain={() => start(playMode, runLevel)}
         />
         <RewardToasts rewards={toasts} onDismiss={dismissToast} />
         {syncNote && (

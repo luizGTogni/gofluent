@@ -25,7 +25,8 @@ export const newEventId = () => crypto.randomUUID();
 
 export type PhraseIntent = {
   eventId: string;
-  planet: PlanetId;
+  /** Null for phrases played off the journey (Free mode by level): no planet's progress moves. */
+  planet: PlanetId | null;
   words: number;
   xp: number;
   /** Rank points after minus before, from the faded value (effectiveRp); may be negative. */
@@ -45,7 +46,7 @@ export type PhraseResult = Replayable & {
   player: PlayerState;
   coins: number;
   wallet: Wallet;
-  planet: PlanetStat;
+  planet: PlanetStat | null;
   day: { day: string; seconds: number; phrases: number; xp: number };
   noHintCount: number;
   quests: QuestProgress[];
@@ -84,7 +85,7 @@ type Args = Record<string, unknown>;
 const ABSORB: Record<Rpc, (r: any, args: Args) => void> = {
   complete_phrase: (r: PhraseResult) => {
     writeJson(KEYS.player, r.player);
-    cachePlanet(r.planet);
+    if (r.planet) cachePlanet(r.planet);
     writeJson(KEYS.studyDays, [...cachedDays().add(r.day.day)]);
     writeJson(KEYS.dayVolume, { ...readJson<Record<string, DayVolume>>(KEYS.dayVolume, {}), [r.day.day]: { phrases: r.day.phrases, xp: r.day.xp } });
     cacheWallet(r.wallet);
@@ -289,7 +290,8 @@ export function completePhrase(i: PhraseIntent): Promise<PhraseResult | null> {
   return run<PhraseResult>("complete_phrase", args, () => {
     const p = { ...emptyPlayer, ...readJson<Partial<PlayerState>>(KEYS.player, {}) };
     const xp = p.xp + i.xp;
-    const prev = cachedPlanets().find((s) => s.planet === i.planet);
+    const planet = i.planet;
+    const prev = planet && cachedPlanets().find((s) => s.planet === planet);
     const vol = readJson<Record<string, DayVolume>>(KEYS.dayVolume, {})[i.day] ?? { phrases: 0, xp: 0 };
     const coins = coinsForXp(i.xp);
     const w = cachedWallet();
@@ -297,11 +299,11 @@ export function completePhrase(i: PhraseIntent): Promise<PhraseResult | null> {
       player: { xp, rp: Math.max(0, Math.min(xp, p.rp + i.rpDelta)), lastActiveAt: new Date().toISOString() },
       coins,
       wallet: { ...w, coins: w.coins + coins },
-      planet: {
-        planet: i.planet,
-        played: (prev?.played ?? 0) + 1,
-        solid: (prev?.solid ?? 0) + (i.solid ? 1 : 0),
-        enteredAt: prev?.enteredAt ?? new Date().toISOString(),
+      planet: planet && {
+        planet,
+        played: (prev ? prev.played : 0) + 1,
+        solid: (prev ? prev.solid : 0) + (i.solid ? 1 : 0),
+        enteredAt: (prev && prev.enteredAt) ?? new Date().toISOString(),
       },
       day: { day: i.day, seconds: i.seconds, phrases: vol.phrases + 1, xp: vol.xp + i.xp },
       noHintCount: readJson(KEYS.noHint, 0) + (i.noHint ? 1 : 0),

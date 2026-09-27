@@ -2407,6 +2407,29 @@ button.card:hover {
   font-size: 22px;
   color: var(--accent);
 }
+/* Free mode by level: four cards, two per row (one per row on the narrowest phones) */
+.level-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.level-card b {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.level-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.level-note {
+  margin: -4px 0 0;
+  font-size: 13px;
+}
+@media (max-width: 360px) {
+  .level-grid { grid-template-columns: 1fr; }
+}
 .mode-planets {
   width: 100%;
   display: flex;

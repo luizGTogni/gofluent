@@ -69,6 +69,14 @@ first=$(as "$A" "select public.enter_planet('mars') ->> 'enteredAt'"); again=$(a
 check "entered once, kept" "$first" "$again"
 check "earth stats kept on enter" "1" "$(as "$A" "select public.enter_planet('earth') ->> 'played'")"
 
+echo "== complete_phrase off the journey (0020)"
+played=$(sql "select coalesce(sum(played), 0) from planet_stats where user_id = '$A'")
+xp=$(sql "select xp from player_stats where user_id = '$A'")
+r=$(as "$A" "select public.complete_phrase('$(uuid)', null, 2, 20, 20, true, false, 5, '[]', '$DAY')")
+check "no planet: planet stats untouched" "$played" "$(sql "select coalesce(sum(played), 0) from planet_stats where user_id = '$A'")"
+check "no planet: xp still counted" "$((xp + 20))" "$(sql "select xp from player_stats where user_id = '$A'")"
+check "no planet: answer has planet null" "null" "$(sql "select coalesce(('$r'::jsonb -> 'planet')::text, 'missing')")"
+
 echo "== complete_phrase: 10 concurrent, different keys"
 for _ in $(seq 10); do phrase "$B" "$(uuid)" >/dev/null & done; wait
 check "sums exactly 10x" "200,400,10,10,10" "$(state "$B")"
