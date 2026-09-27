@@ -1294,3 +1294,10 @@ button {
 .profile-link:hover {
   border-color: var(--accent);
 }
+
+.profile-topbar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

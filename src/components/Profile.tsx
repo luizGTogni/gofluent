@@ -46,6 +46,15 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
 
   return (
     <main className="shell center profile">
+      <div className="profile-topbar">
+        <button type="button" className="link" onClick={onBack}>
+          ← Back
+        </button>
+        <button type="button" className="link" onClick={leave}>
+          Sign out
+        </button>
+      </div>
+
       <div className="profile-head">
         <span className="profile-avatar" aria-hidden>
           🧑‍🚀
@@ -105,12 +114,6 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
         </button>
       </nav>
 
-      <button type="button" className="link" onClick={leave}>
-        Sign out
-      </button>
-      <button type="button" className="check" onClick={onBack}>
-        ← Back
-      </button>
     </main>
   );
 }
