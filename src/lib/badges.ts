@@ -4,7 +4,7 @@ import type { IconName } from "./icons";
 export type BadgeId = "first_perfect" | "no_hint_100" | "early_bird" | "night_owl";
 
 /** Sets the colour of a badge's medallion ring. */
-export type Rarity = "common" | "rare" | "epic";
+export type Rarity = "common" | "rare" | "epic" | "legendary";
 
 export type BadgeDef = { id: BadgeId; name: string; description: string; icon: IconName; rarity: Rarity };
 

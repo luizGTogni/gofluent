@@ -13,6 +13,8 @@ import { BADGES } from "@/lib/badges";
 import { loadBadges, unlockedBadges } from "@/lib/badgeStore";
 import { plural } from "@/lib/format";
 import { checkAdmin } from "@/lib/adminStore";
+import { ACHIEVEMENTS, ACHIEVEMENT_BY_ID } from "@/lib/achievements";
+import { cachedAchievements, loadAchievements, type AchievementState } from "@/lib/achievementStore";
 import { StreakCard } from "./StreakCard";
 import { OrbitHistory } from "./Heatmap";
 import { Avatar } from "./Avatar";
@@ -34,17 +36,19 @@ type Props = {
   onQuests: () => void;
   onShop: () => void;
   onSettings: () => void;
+  onAchievements: () => void;
   /** Starts a session from the orbit card; false while there's nothing to play. */
   canStudy: boolean;
   onStudy: () => void;
   onSignedOut: () => void;
 };
 
-export function Profile({ player, wallet, calendar, planetStats, trickyCount, onBack, onWords, onTricky, onQuests, onShop, onSettings, canStudy, onStudy, onSignedOut }: Props) {
+export function Profile({ player, wallet, calendar, planetStats, trickyCount, onBack, onWords, onTricky, onQuests, onShop, onSettings, onAchievements, canStudy, onStudy, onSignedOut }: Props) {
   const [account, setAccount] = useState<Account | null>(null);
   const [profile, setProfile] = useState<ProfileInfo | null>(null);
   const [badges, setBadges] = useState<Set<string>>(new Set());
   const [admin, setAdmin] = useState(false);
+  const [achievements, setAchievements] = useState<AchievementState>({ unlocked: new Map(), metrics: {} });
   const walletRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,6 +57,8 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
     setBadges(unlockedBadges());
     loadBadges().then(setBadges);
     checkAdmin().then((ok) => setAdmin(ok === true));
+    setAchievements(cachedAchievements());
+    loadAchievements().then(setAchievements);
   }, []);
 
   const rank = rankOf(player.rp);
@@ -61,6 +67,13 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
   const estimate = cefrEstimate(bands);
   const today = localDay(new Date());
   const earned = BADGES.filter((b) => badges.has(b.id));
+  const achieved = ACHIEVEMENTS.filter((d) => achievements.unlocked.has(d.id)).length;
+  // The latest unlocked first (the cache has no dates: then in catalogue order).
+  const recent = [...achievements.unlocked.entries()]
+    .sort(([, a], [, b]) => b.localeCompare(a))
+    .map(([id]) => ACHIEVEMENT_BY_ID.get(id))
+    .filter((d) => d !== undefined)
+    .slice(0, 6);
 
   const leave = async () => {
     await signOut();
@@ -144,17 +157,43 @@ export function Profile({ player, wallet, calendar, planetStats, trickyCount, on
             {earned.length} of {BADGES.length}
           </span>
         </div>
-        {earned.length ? (
+        <div className="end-badges">
+          {BADGES.map((b) => {
+            const on = badges.has(b.id);
+            return (
+              <span key={b.id} className={`end-badge ${on ? "" : "locked"}`} title={on ? b.description : `Locked: ${b.description}`}>
+                <Medal icon={b.icon} rarity={b.rarity} locked={!on} /> {b.name}
+                {!on && <span className="sr-only"> (locked)</span>}
+              </span>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="profile-card">
+        <div className="profile-card-head">
+          <b>Achievements</b>
+          <span className="muted">
+            {achieved} of {ACHIEVEMENTS.length}
+          </span>
+        </div>
+        <div className="xpbar" aria-hidden>
+          <span style={{ width: `${Math.round((achieved / ACHIEVEMENTS.length) * 100)}%` }} />
+        </div>
+        {recent.length > 0 ? (
           <div className="end-badges">
-            {earned.map((b) => (
-              <span key={b.id} className="end-badge" title={b.description}>
-                <Medal icon={b.icon} rarity={b.rarity} /> {b.name}
+            {recent.map((d) => (
+              <span key={d.id} className="end-badge" title={d.description}>
+                <Medal icon={d.icon} rarity={d.rarity} /> {d.name}
               </span>
             ))}
           </div>
         ) : (
-          <p className="muted profile-note">No badges yet. Your first Perfect phrase earns one.</p>
+          <p className="muted profile-note">Your first phrase unlocks the first one.</p>
         )}
+        <button type="button" className="link icon-text settings-left" onClick={onAchievements}>
+          See all {ACHIEVEMENTS.length} <ArrowRight />
+        </button>
       </section>
 
       <nav className="profile-links">

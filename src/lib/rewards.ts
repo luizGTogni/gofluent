@@ -1,4 +1,5 @@
 // What a session earns, and the celebratory moments it produces. Kept pure: Session owns the state.
+import type { AchievementDef } from "./achievements";
 import type { BadgeDef, BadgeId } from "./badges";
 import { plural } from "./format";
 import type { IconName } from "./icons";
@@ -32,7 +33,7 @@ export function currencyText(r: Amounts): string {
 
 // ---- reward toasts: small, passing moments. A promotion is bigger and keeps its full-screen modal. ----
 
-export type RewardKind = "badge" | "quest" | "streak";
+export type RewardKind = "badge" | "quest" | "streak" | "achievement";
 /** `icon` fills the toast's left slot; `amounts` are shown as currency chips under the detail. */
 export type RewardDraft = { kind: RewardKind; icon: IconName; title: string; detail?: string; amounts?: Amounts };
 export type Reward = RewardDraft & { id: number };
@@ -41,9 +42,21 @@ export const REWARD_KICKER: Record<RewardKind, string> = {
   badge: "Badge unlocked",
   quest: "Mission complete",
   streak: "Orbit milestone",
+  achievement: "Achievement unlocked",
 };
 
 export const badgeReward = (b: BadgeDef): RewardDraft => ({ kind: "badge", icon: b.icon, title: b.name, detail: b.description });
+
+export const achievementReward = (d: AchievementDef, amounts: Amounts): RewardDraft => ({ kind: "achievement", icon: d.icon, title: d.name, detail: d.description, amounts });
+
+/** Several unlocked at once (the first check after this shipped): one toast instead of a pile. */
+export const achievementsReward = (count: number, amounts: Amounts): RewardDraft => ({
+  kind: "achievement",
+  icon: "star-filled",
+  title: `${count} achievements`,
+  detail: "See them all on your profile.",
+  amounts,
+});
 
 export const questReward = (q: QuestDef): RewardDraft => ({ kind: "quest", icon: "target", title: q.name, detail: "Claim it:", amounts: q });
 

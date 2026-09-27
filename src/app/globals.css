@@ -31,6 +31,7 @@
   --rarity-common: #aab6d6;
   --rarity-rare: #6fc8ff;
   --rarity-epic: #c69cff;
+  --rarity-legendary: var(--gold);
 }
 
 /* ---- icons (components/icons): 1em by default, so they follow the text they sit in ---- */
@@ -117,6 +118,7 @@
 }
 .medal.rarity-rare { --ring: var(--rarity-rare); }
 .medal.rarity-epic { --ring: var(--rarity-epic); }
+.medal.rarity-legendary { --ring: var(--rarity-legendary); }
 .medal.locked {
   --ring: var(--line-strong);
   color: var(--muted);
@@ -1284,6 +1286,12 @@ button.card:hover {
 .end-badge .medal {
   font-size: 11px;
 }
+/* a badge not earned yet: there to see, greyed out */
+.end-badge.locked {
+  border-color: var(--line);
+  color: var(--muted);
+  animation: none;
+}
 .end-badge {
   display: inline-flex;
   align-items: center;
@@ -2331,6 +2339,115 @@ button.card:hover {
 }
 .profile-link:hover {
   border-color: var(--accent);
+}
+
+/* achievements */
+.ach-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+.ach-filters {
+  display: flex;
+  gap: 8px;
+}
+.ach-total {
+  width: 100%;
+}
+.ach-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 10px;
+}
+.ach-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  text-align: left;
+}
+.ach-card.on {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
+  background: var(--accent-soft);
+}
+.ach-card.locked b,
+.ach-card.locked .ach-desc {
+  color: var(--muted);
+}
+.ach-medal {
+  font-size: 18px;
+}
+.ach-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.ach-pt {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+.ach-desc {
+  font-size: 13px;
+}
+.ach-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.ach-progress .xpbar {
+  flex: 1;
+}
+.ach-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.ach-reward {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.ach-rarity {
+  text-transform: capitalize;
+  color: var(--rarity-common);
+}
+.ach-rarity.rarity-rare { color: var(--rarity-rare); }
+.ach-rarity.rarity-epic { color: var(--rarity-epic); }
+.ach-rarity.rarity-legendary { color: var(--rarity-legendary); }
+.ach-card.locked .ach-rarity,
+.ach-card.locked .currency {
+  opacity: 0.7;
+}
+@media (min-width: 1024px) {
+  .ach-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+  .ach-card {
+    grid-column: span 4;
+  }
+}
+@media (min-width: 1440px) {
+  .ach-card {
+    grid-column: span 3;
+  }
 }
 
 /* profile & privacy settings */

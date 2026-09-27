@@ -14,6 +14,8 @@ export const KEYS = {
   oxygen: "gofluent:oxygen",
   badges: "gofluent:badges",
   noHint: "gofluent:noHintCount",
+  achievements: "gofluent:achievements",
+  achievementMetrics: "gofluent:achievementMetrics",
 } as const;
 
 export const readJson = <T,>(key: string, fallback: T): T => {

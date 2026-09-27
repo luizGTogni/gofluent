@@ -19,6 +19,7 @@ import { progressFor, withRow, type QuestOp, type QuestProgress } from "./questS
 import { addDays, computeStreak, gapToFreeze } from "./streak";
 import { FREEZE_COST, OXYGEN_COST } from "./shop";
 import type { DayVolume } from "./heatmap";
+import type { Signal as AchievementSignal } from "./achievements";
 
 export const newEventId = () => crypto.randomUUID();
 
@@ -64,6 +65,12 @@ export type PurchaseResult = Replayable & {
 };
 export type DailyResult = { frozenDay: string | null; interest: number; streak: number; wallet: Wallet };
 export type OxygenResult = Replayable & { used: boolean; oxygen: number };
+export type AchievementsResult = Replayable & {
+  unlocked: string[];
+  reward: { coins: number; crystals: number };
+  wallet: Wallet;
+  metrics: Record<string, number>;
+};
 
 /** The server refused the intent (or it can't be queued and the network is down). */
 export class LedgerError extends Error {}
@@ -79,7 +86,7 @@ const cacheQuests = (rows: QuestProgress[]) => writeJson(KEYS.quests, rows.reduc
 const cachedDays = () => new Set(readJson<string[]>(KEYS.studyDays, []));
 const cachedFrozen = () => new Set(readJson<string[]>(KEYS.frozenDays, []));
 
-type Rpc = "complete_phrase" | "advance_quests" | "grant_reward" | "claim_quest" | "purchase" | "apply_daily" | "use_oxygen" | "enter_planet";
+type Rpc = "complete_phrase" | "advance_quests" | "grant_reward" | "claim_quest" | "purchase" | "apply_daily" | "use_oxygen" | "enter_planet" | "track_achievements";
 type Args = Record<string, unknown>;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -114,6 +121,11 @@ const ABSORB: Record<Rpc, (r: any, args: Args) => void> = {
   },
   use_oxygen: (r: OxygenResult) => writeJson(KEYS.oxygen, r.oxygen),
   enter_planet: (r: PlanetStat) => cachePlanet(r),
+  track_achievements: (r: AchievementsResult) => {
+    cacheWallet(r.wallet);
+    writeJson(KEYS.achievementMetrics, r.metrics);
+    if (r.unlocked.length) writeJson(KEYS.achievements, [...new Set([...readJson<string[]>(KEYS.achievements, []), ...r.unlocked])]);
+  },
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -121,7 +133,7 @@ const ABSORB: Record<Rpc, (r: any, args: Args) => void> = {
 
 const OUTBOX = "gofluent:outbox";
 /** Intents that can wait: progress already shown optimistically. Purchases and claims can't. */
-const QUEUEABLE = new Set<Rpc>(["complete_phrase", "advance_quests", "grant_reward", "use_oxygen", "enter_planet"]);
+const QUEUEABLE = new Set<Rpc>(["complete_phrase", "advance_quests", "grant_reward", "use_oxygen", "enter_planet", "track_achievements"]);
 type Queued = { rpc: Rpc; args: Args; tries: number };
 
 const outbox = () => readJson<Queued[]>(OUTBOX, []);
@@ -391,3 +403,16 @@ export const enterPlanet = (planet: PlanetId) =>
     const prev = cachedPlanets().find((s) => s.planet === planet);
     return { planet, played: prev?.played ?? 0, solid: prev?.solid ?? 0, enteredAt: prev?.enteredAt ?? new Date().toISOString() };
   });
+
+/**
+ * Achievement signals from one phrase or session, then the server unlocks whatever is reached and
+ * pays it. With no signals it only checks (on opening, after a purchase or a claim). Members only:
+ * without the server nothing is tracked.
+ */
+export const trackAchievements = (eventId: string, signals: AchievementSignal[], day: string) =>
+  run<AchievementsResult>(
+    "track_achievements",
+    { p_event_id: eventId, p_signals: signals, p_local_day: day },
+    () => ({ unlocked: [], reward: { coins: 0, crystals: 0 }, wallet: cachedWallet(), metrics: readJson(KEYS.achievementMetrics, {}) }),
+    eventId,
+  );

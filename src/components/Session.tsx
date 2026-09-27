@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DIFFICULTIES, DIFFICULTY, scoreExercise, TIER_COPY, TIER_LABEL, type Difficulty, type Result, type Tier } from "@/lib/engine";
+import { DIFFICULTIES, DIFFICULTY, expectedMs, scoreExercise, TIER_COPY, TIER_LABEL, type Difficulty, type Result, type Tier } from "@/lib/engine";
 import { buildSession, loadContent, type SessionPlan } from "@/lib/content";
 import { getAccount } from "@/lib/auth";
 import { supabaseConfigured } from "@/lib/supabase";
@@ -29,7 +29,8 @@ import { daysStudiedInWeek, weekKey, type QuestDef } from "@/lib/quests";
 import { addOp, loadQuests, maxOp, opTick, progressFor, tickQuests, withRow, type QuestOp, type QuestProgress } from "@/lib/questStore";
 import { loadBadges, noHintCount, unlockedBadges } from "@/lib/badgeStore";
 import { BADGE_BY_ID, type BadgeId } from "@/lib/badges";
-import { addGains, badgeReward, emptyGains, questReward, streakReward, type Amounts, type Reward, type RewardDraft, type SessionGains } from "@/lib/rewards";
+import { ACHIEVEMENT_BY_ID, ACHIEVEMENT_REWARD, phraseSignals, sessionSignals, type Signal } from "@/lib/achievements";
+import { achievementReward, achievementsReward, addGains, badgeReward, emptyGains, questReward, streakReward, type Amounts, type Reward, type RewardDraft, type SessionGains } from "@/lib/rewards";
 import { bestFor, loadBests, putBest } from "@/lib/recordStore";
 import { QuestBoard } from "./QuestBoard";
 import { FREEZE_COST, OXYGEN_COST } from "@/lib/shop";
@@ -56,6 +57,8 @@ import {
   onOutboxDelivered,
   purchase,
   spendOxygen,
+  trackAchievements,
+  type AchievementsResult,
   type PhraseResult,
   type ShopItem,
 } from "@/lib/ledger";
@@ -64,6 +67,7 @@ import { AuthGate } from "./AuthGate";
 import { MyWords } from "./MyWords";
 import { Profile } from "./Profile";
 import { ProfileSettings } from "./ProfileSettings";
+import { Achievements } from "./Achievements";
 import { Promotion } from "./Promotion";
 import { TopBar } from "./TopBar";
 import { Courses } from "./Courses";
@@ -96,7 +100,7 @@ type Summary = {
   oxygenNote?: string;
 };
 type Auth = "loading" | "gate" | "guest" | "member";
-type Screen = "intro" | "modes" | "play" | "end" | "words" | "tricky" | "profile" | "settings" | "quests" | "shop";
+type Screen = "intro" | "modes" | "play" | "end" | "words" | "tricky" | "profile" | "settings" | "achievements" | "quests" | "shop";
 
 const SUMMARY_SETTLE_MS = 300;
 
@@ -183,6 +187,9 @@ export function Session() {
   const [prevBest, setPrevBest] = useState<number | null>(null);
   const [toasts, setToasts] = useState<Reward[]>([]);
   const toastId = useRef(0);
+  // Runs for achievements, this session: perfect phrases, speed bonuses, perfect Eclipse phrases.
+  const rows = useRef({ perfect: 0, fast: 0, eclipsePerfect: 0 });
+  const achievementsChecked = useRef(false);
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -257,6 +264,24 @@ export function Session() {
     if (ledgerIdle()) showWallet(w);
   };
 
+  /** Celebrates what the server just unlocked; a burst of them becomes a single toast. */
+  const announceAchievements = (r: AchievementsResult | null) => {
+    if (!r || r.replayed || !r.unlocked.length) return;
+    settleWallet(r.wallet);
+    const defs = r.unlocked.map((id) => ACHIEVEMENT_BY_ID.get(id)).filter((d) => d !== undefined);
+    if (defs.length > 3) celebrate(achievementsReward(defs.length, r.reward));
+    else for (const d of defs) celebrate(achievementReward(d, ACHIEVEMENT_REWARD[d.rarity]));
+    if (screen === "play" || screen === "end") setGains((g) => addGains(g, r.reward));
+  };
+  /** Sends achievement signals (none: just a check), keyed once per call. A refusal only logs:
+   * achievements never get in the way of the phrase or the session. */
+  const sendAchievements = (signals: Signal[]) => {
+    if (!full) return Promise.resolve();
+    return trackAchievements(newEventId(), signals, localDay(new Date()))
+      .then(announceAchievements)
+      .catch((e) => console.error("achievements:", e));
+  };
+
   /** Back to the server's state: after a refusal, or when the outbox delivers. */
   const resync = () => {
     loadPlayer().then(setPlayer);
@@ -295,6 +320,7 @@ export function Session() {
       if (ledgerIdle()) showWallet(r.wallet);
       else bumpWallet(r.reward ?? {});
       if (screen === "play" || screen === "end") setGains((g) => addGains(g, { coins: def.coins, crystals: def.crystals }));
+      sendAchievements([]);
       return true;
     } catch (e) {
       mark(false);
@@ -312,6 +338,7 @@ export function Session() {
       const r = await purchase(newEventId(), item);
       if (r?.ok) {
         settleWallet(r.wallet);
+        sendAchievements([]);
         return true;
       }
       setSyncNote(r?.reason === "insufficient_funds" ? "Not enough Lunar Coins for that." : "That item isn't available.");
@@ -395,6 +422,10 @@ export function Session() {
       }
 
       const changed = applyOutcome(wordStats, result.perWord);
+      const trickyBefore = new Set(trickyList(wordStats.values()).map((w) => w.word));
+      const statsAfter = new Map(wordStats);
+      changed.forEach((c) => statsAfter.set(c.word, c));
+      const trickyAfter = new Set(trickyList(statsAfter.values()).map((w) => w.word));
       putWordStats(changed);
       setWordStats((m) => {
         const next = new Map(m);
@@ -446,6 +477,33 @@ export function Session() {
       }
       setGains((g) => addGains(g, { xp: gain.total, coins: coinGain, crystals: crystalGain, freezes: freezeGain, badges: fresh }));
 
+      // Achievements: what only this device sees about the phrase; the server derives the rest.
+      const firstTry = result.typedErrors === 0 && result.emptyChecks === 0 && !result.helped;
+      const perfect = tier === "perfect";
+      const r = rows.current;
+      r.perfect = perfect ? r.perfect + 1 : 0;
+      r.fast = gain.fast > 0 ? r.fast + 1 : 0;
+      r.eclipsePerfect = difficulty === "extreme" ? (perfect ? r.eclipsePerfect + 1 : 0) : r.eclipsePerfect;
+      const achievementSignals = phraseSignals({
+        mode,
+        difficulty,
+        hour,
+        perfect,
+        firstTry,
+        cameBack,
+        review: reviewKeys.has(key),
+        words: exercise.words.length,
+        halfTime: result.elapsedMs <= (expectedMs(exercise.words) * DIFFICULTY[difficulty].timeMult) / 2,
+        runLength,
+        flawless: lives === SURVIVAL_LIVES && result.typedErrors === 0,
+        perfectRow: r.perfect,
+        fastRow: r.fast,
+        eclipsePerfectRow: r.eclipsePerfect,
+        trickyRemoved: [...trickyBefore].filter((w) => !trickyAfter.has(w)).length,
+        trickyCleared: trickyBefore.size > 0 && trickyAfter.size === 0,
+        reconquest: rpNow < player.rp && change !== null,
+      });
+
       // The phrase first, then its rewards: a rank-up is checked against the XP the phrase adds.
       // Offline, both wait in the outbox in that order.
       completePhrase({
@@ -466,6 +524,8 @@ export function Session() {
             const g = await grantReward(grant);
             if (g) settleWallet(g.wallet);
           }
+          // After the phrase, so what the server derives (phrases, streak, level…) includes it.
+          await sendAchievements(achievementSignals);
         })
         .catch(failed);
     }
@@ -505,6 +565,10 @@ export function Session() {
           if (r && !r.replayed && ledgerIdle()) setQuests((rows) => r.quests.reduce(withRow, rows));
         })
         .catch(failed);
+    }
+    if (full && history.length > 0) {
+      const clean = completed && history.length >= 5 && history.every((h) => h.result.typedErrors === 0 && !h.result.helped);
+      sendAchievements(sessionSignals(clean));
     }
     setPrevBest(full ? bestFor(mode) : null);
     if (full) putBest(mode, score);
@@ -572,6 +636,11 @@ export function Session() {
           setFreezeNote(`Streak Shield used for ${frozenDay}. Your orbit holds.`);
         }
         settleWallet(r.wallet);
+        // Once per app load: unlocks what the server can already see (streaks, levels, planets…).
+        if (!achievementsChecked.current) {
+          achievementsChecked.current = true;
+          await sendAchievements([]);
+        }
       } catch (e) {
         // Offline or refused: it runs again next time the app opens today.
         console.error(e);
@@ -679,6 +748,7 @@ export function Session() {
     tanksPending.current = 0;
     finished.current = false;
     setLives(SURVIVAL_LIVES);
+    rows.current = { perfect: 0, fast: 0, eclipsePerfect: 0 };
     setTimeLeft(TIME_ATTACK_SECONDS);
     setScreen("play");
   };
@@ -758,6 +828,7 @@ export function Session() {
         onQuests={() => setScreen("quests")}
         onShop={() => setScreen("shop")}
         onSettings={() => setScreen("settings")}
+        onAchievements={() => setScreen("achievements")}
         canStudy={Boolean(continueId)}
         onStudy={() => start("classic")}
         onSignedOut={() => {
@@ -770,6 +841,8 @@ export function Session() {
     );
 
   if (screen === "settings") return <ProfileSettings onBack={() => setScreen("profile")} />;
+
+  if (screen === "achievements") return <Achievements onBack={() => setScreen("profile")} />;
 
   if (screen === "tricky") return <TrickyWords stats={[...wordStats.values()]} onBack={() => setScreen("profile")} />;
 
