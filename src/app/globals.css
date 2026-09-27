@@ -484,3 +484,78 @@ button {
   color: var(--bad);
   text-decoration: underline;
 }
+
+/* save chunks + my words */
+.save {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.save-hint {
+  font-size: 13px;
+}
+.save-words {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.save-word {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 14px;
+  font-size: 16px;
+  color: var(--text);
+}
+.save-word:hover {
+  border-color: var(--accent);
+}
+.save-word.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.save-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.save-actions .link:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.save-msg {
+  font-size: 13px;
+}
+.save-msg.bad {
+  color: var(--bad);
+}
+.saved-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: min(640px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.saved-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.saved-src {
+  font-size: 13px;
+  margin-top: 4px;
+}

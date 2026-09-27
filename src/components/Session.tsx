@@ -5,10 +5,12 @@ import { DIFFICULTIES, DIFFICULTY, scoreExercise, TIER_COPY, TIER_LABEL, type Di
 import { EXERCISES, sentenceOf } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
 import { ExerciseView } from "./ExerciseView";
+import { MyWords } from "./MyWords";
+import { SaveChunks } from "./SaveChunks";
 import { WordCards } from "./WordCards";
 
 type Summary = { tier: Tier; points: number; combo: number; result: Result };
-type Screen = "intro" | "play" | "end";
+type Screen = "intro" | "play" | "end" | "words";
 
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 const total = EXERCISES.length;
@@ -77,6 +79,8 @@ export function Session() {
     setScreen("play");
   };
 
+  if (screen === "words") return <MyWords onBack={() => setScreen("intro")} />;
+
   if (screen === "intro") {
     return (
       <main className="shell center">
@@ -103,6 +107,9 @@ export function Session() {
         </p>
         <button type="button" className="check big" onClick={start}>
           Start →
+        </button>
+        <button type="button" className="link" onClick={() => setScreen("words")}>
+          My words
         </button>
       </main>
     );
@@ -207,6 +214,7 @@ export function Session() {
               {TIER_COPY[summary.tier]} <b className="accent">+{summary.points}</b>
               {summary.combo > 0 && ` · Nice · Combo ${summary.combo}`}
             </p>
+            <SaveChunks exercise={exercise} />
             <div className="footer">
               <span />
               <button type="button" className="check" onClick={next} autoFocus>
