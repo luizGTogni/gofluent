@@ -11,7 +11,7 @@ export const audioPath = (text: string) => `/audio/${audioSlug(text)}.mp3`;
  * Where the browser loads audio from. Empty by default (served from /public);
  * set NEXT_PUBLIC_AUDIO_BASE_URL to move files to a bucket or CDN without code changes.
  */
-export const audioUrl = (text: string) => {
+export const audioUrl = (text: string, accent: "us" | "gb" = "us") => {
   const base = (process.env.NEXT_PUBLIC_AUDIO_BASE_URL ?? "").replace(/\/+$/, "");
-  return `${base}${audioPath(text)}`;
+  return accent === "gb" ? `${base}/audio/gb/${audioSlug(text)}.mp3` : `${base}${audioPath(text)}`;
 };

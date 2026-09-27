@@ -4,22 +4,23 @@ import { useEffect, useRef, useState } from "react";
 import { DIFF_AFTER_WRONG, DIFFICULTY, diffWord, heardButMisspelled, norm, type Difficulty, type GapStatus, type Result } from "@/lib/engine";
 import { sentenceOf, type Exercise } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
+import type { Accent } from "@/lib/unlocks";
 import { WordCards } from "./WordCards";
 
 type Props = {
   exercise: Exercise;
   difficulty: Difficulty;
   hidden: boolean;
-  slow: boolean;
+  rate: number;
+  accent: Accent;
   audioTick: number;
   onTypedError: () => void;
   onComplete: (r: Result) => void;
   onReplay: () => void;
   onToggleHidden: () => void;
-  onToggleSlow: () => void;
 };
 
-export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, onTypedError, onComplete, onReplay, onToggleHidden, onToggleSlow }: Props) {
+export function ExerciseView({ exercise, difficulty, hidden, rate, accent, audioTick, onTypedError, onComplete, onReplay, onToggleHidden }: Props) {
   const { words } = exercise;
   const cfg = DIFFICULTY[difficulty];
   const [free, setFree] = useState("");
@@ -38,13 +39,20 @@ export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, on
   const stats = useRef({ typedErrors: 0, emptyChecks: 0, helped: false, missed: new Set<string>() });
   const startRef = useRef(performance.now());
   const typedRef = useRef(false);
-  const slowRef = useRef(slow);
-  slowRef.current = slow;
+  const rateRef = useRef(rate);
+  rateRef.current = rate;
+  const accentRef = useRef(accent);
+  accentRef.current = accent;
 
   useEffect(() => {
-    speak(sentenceOf(exercise), slowRef.current ? 0.75 : 1, () => {
-      if (!typedRef.current) startRef.current = performance.now();
-    });
+    speak(
+      sentenceOf(exercise),
+      rateRef.current,
+      () => {
+        if (!typedRef.current) startRef.current = performance.now();
+      },
+      accentRef.current,
+    );
     return stopSpeech;
   }, [audioTick, exercise]);
 
@@ -287,11 +295,7 @@ export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, on
               {hidden ? "Show answer" : "Hide answer"}
             </button>
           )}
-          {cfg.replay && (
-            <button type="button" className={`link ${slow ? "on" : ""}`} onClick={onToggleSlow}>
-              0.75× speed
-            </button>
-          )}
+
         </div>
         <button type="button" className="check" onClick={check}>
           Check →

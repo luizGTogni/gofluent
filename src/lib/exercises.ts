@@ -142,6 +142,35 @@ slowly|/ˈsloʊli/|adverb
 always|/ˈɔːlweɪz/|adverb
 early|/ˈɜːrli/|adverb
 far|/fɑːr/|adverb
+someone|/ˈsʌmwʌn/|pronoun
+anyone|/ˈɛniwʌn/|pronoun
+because|/bɪˈkɔːz/|conjunction
+but|/bʌt/|conjunction
+if|/ɪf/|conjunction
+still|/stɪl/|adverb
+already|/ɔːlˈrɛdi/|adverb
+finally|/ˈfaɪnəli/|adverb
+enough|/ɪˈnʌf/|adverb
+during|/ˈdʊrɪŋ/|preposition
+before|/bɪˈfɔːr/|preposition
+after|/ˈæftər/|preposition
+weekend|/ˈwiːkɛnd/|noun
+neighbor|/ˈneɪbər/|noun
+umbrella|/ʌmˈbrɛlə/|noun
+meeting|/ˈmiːtɪŋ/|noun
+understood|/ˌʌndərˈstʊd/|verb
+saying|/ˈseɪɪŋ/|verb
+bought|/bɔːt/|verb
+stayed|/steɪd/|verb
+home|/hoʊm/|noun
+raining|/ˈreɪnɪŋ/|verb
+calls|/kɔːlz/|verb
+his|/hɪz/|determiner
+rains|/reɪnz/|verb
+our|/aʊər/|determiner
+helped|/hɛlpt/|verb
+us|/ʌs/|pronoun
+did|/dɪd/|verb
 hello|/həˈloʊ/|interjection
 goodbye|/ɡʊdˈbaɪ/|interjection
 welcome|/ˈwɛlkʌm/|interjection
@@ -416,6 +445,18 @@ export const EXERCISES: Exercise[] = [
   ex("the tickets are in my bag", "as passagens estão na minha bolsa", "jupiter"),
   ex("please turn left at the corner", "por favor, vire à esquerda na esquina", "jupiter"),
   ex("the trip was longer than expected", "a viagem foi mais longa que o esperado", "jupiter"),
+
+  // Extended (7-9 words): unlocked at a higher rank.
+  ex("we usually have breakfast together before school", "nós geralmente tomamos café da manhã juntos antes da escola", "earth"),
+  ex("she finally understood what I was saying", "ela finalmente entendeu o que eu estava dizendo", "moon"),
+  ex("I already bought bread and orange juice", "eu já comprei pão e suco de laranja", "mars"),
+  ex("we stayed home because it was raining", "nós ficamos em casa porque estava chovendo", "earth"),
+  ex("he still calls his mother every weekend", "ele ainda liga para a mãe dele todo fim de semana", "venus"),
+  ex("I need an umbrella if it rains today", "eu preciso de um guarda-chuva se chover hoje", "earth"),
+  ex("our neighbor helped us during the weekend", "nosso vizinho nos ajudou durante o fim de semana", "earth"),
+  ex("the meeting was longer than we expected", "a reunião foi mais longa do que esperávamos", "jupiter"),
+  ex("I want to see you again before I leave", "eu quero te ver de novo antes de eu ir", "venus"),
+  ex("we did not have enough time to talk", "nós não tivemos tempo suficiente para conversar", "venus"),
 ];
 
 export const sentenceOf = (e: Exercise) => e.words.map((x) => x.text).join(" ");

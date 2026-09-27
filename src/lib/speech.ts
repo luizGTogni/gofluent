@@ -1,4 +1,5 @@
 import { audioUrl } from "./audio-slug";
+import type { Accent } from "./unlocks";
 
 let audio: HTMLAudioElement | null = null;
 let token = 0;
@@ -18,17 +19,20 @@ function speakWithBrowser(text: string, rate: number, onEnd?: () => void) {
 }
 
 /** Plays the pre-generated file for `text`; falls back to the browser voice if the file can't play. */
-export function speak(text: string, rate: number, onEnd?: () => void) {
+export function speak(text: string, rate: number, onEnd?: () => void, accent: Accent = "us") {
   stopSpeech();
   const mine = ++token;
-  const el = new Audio(audioUrl(text));
+  const el = new Audio(audioUrl(text, accent));
   el.playbackRate = rate;
   el.onended = () => {
     if (mine === token) onEnd?.();
   };
   audio = el;
   el.play().catch(() => {
-    if (mine === token) speakWithBrowser(text, rate, onEnd);
+    // A missing British file (word-level audio is US-only) falls back to the American clip.
+    if (mine !== token) return;
+    if (accent === "gb") return speak(text, rate, onEnd, "us");
+    speakWithBrowser(text, rate, onEnd);
   });
 }
 

@@ -18,6 +18,8 @@ import { loadPlayer, savePlayer } from "@/lib/playerStore";
 import { effectiveRp, rankChange, rankOf, starsLabel } from "@/lib/ranks";
 import type { Title } from "@/lib/titles";
 import { addXp, emptyPlayer, levelFromXp, levelProgress, phraseXp, type PlayerState, type XpBreakdown } from "@/lib/xp";
+import { accentUnlocked, availableSpeeds, extendedUnlocked, nextSpeedUnlock, type Accent } from "@/lib/unlocks";
+import { TITLES } from "@/lib/titles";
 import { ExerciseView } from "./ExerciseView";
 import { Account } from "./Account";
 import { AuthGate } from "./AuthGate";
@@ -84,7 +86,8 @@ export function Session() {
   const [seconds, setSeconds] = useState(0);
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
   const [hidden, setHidden] = useState(false);
-  const [slow, setSlow] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [accent, setAccent] = useState<Accent>("us");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [history, setHistory] = useState<Summary[]>([]);
   const [player, setPlayer] = useState<PlayerState>(emptyPlayer);
@@ -103,6 +106,17 @@ export function Session() {
     const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, [screen, summary]);
+
+  const nowDate = new Date();
+  const rpNow = effectiveRp(player, nowDate);
+  const rank = rankOf(rpNow);
+  const held = rankOf(player.rp);
+  const slipped = rank.index < held.index || (rank.index === held.index && rank.stars < held.stars);
+  const lvl = levelProgress(player.xp);
+  const speeds = availableSpeeds(rank.index);
+  const nextSpeed = nextSpeedUnlock(rank.index);
+  const canAccent = accentUnlocked(rank.index);
+  const canExtend = extendedUnlocked(rank.index);
 
   const exercise = exercises[index];
 
@@ -153,7 +167,7 @@ export function Session() {
     setScore((v) => v + points);
     setSummary(s);
     setHistory((h) => [...h, s]);
-    speak(sentenceOf(exercise), slow ? 0.75 : 1);
+    speak(sentenceOf(exercise), speed, undefined, accent);
   };
 
   const next = () => {
@@ -194,7 +208,9 @@ export function Session() {
     const pool = library;
     // Guests keep to the first two planets; members play the planet they picked (falling back to Earth).
     const chosen = full && canEnter(PLANET_BY_ID.get(planetId)!, rank, planetStats.get(planetId)) ? planetId : "earth";
-    const planetPool = pool.filter((e) => (full ? e.planet === chosen : e.planet === "earth" || e.planet === "moon"));
+    const planetPool = pool.filter(
+      (e) => (full ? e.planet === chosen : e.planet === "earth" || e.planet === "moon") && (canExtend || e.words.length <= 6),
+    );
     if (full) {
       const entered = markEntered(planetStats.get(chosen), chosen, new Date());
       if (entered !== planetStats.get(chosen)) {
@@ -223,13 +239,6 @@ export function Session() {
 
   const trickyCount = full ? [...wordStats.values()].filter(isTricky).length : 0;
   const dueCount = full ? dueList(review.values(), new Date()).length : 0;
-
-  const nowDate = new Date();
-  const rpNow = effectiveRp(player, nowDate);
-  const rank = rankOf(rpNow);
-  const held = rankOf(player.rp);
-  const slipped = rank.index < held.index || (rank.index === held.index && rank.stars < held.stars);
-  const lvl = levelProgress(player.xp);
 
   if (auth === "loading")
     return (
@@ -317,6 +326,35 @@ export function Session() {
         <p className="muted level-blurb">
           {DIFFICULTY[difficulty].blurb} <span className="accent">×{DIFFICULTY[difficulty].scoreMult}</span>
         </p>
+        {full && (
+          <div className="speed-picker">
+            <span className="muted">Audio speed</span>
+            <div className="levels">
+              {speeds.map((r) => (
+                <button key={r} type="button" className={`level small ${speed === r ? "on" : ""}`} onClick={() => setSpeed(r)}>
+                  {r}×
+                </button>
+              ))}
+            </div>
+            {canAccent && (
+              <>
+                <span className="muted">Accent</span>
+                <div className="levels">
+                  {(["us", "gb"] as Accent[]).map((a) => (
+                    <button key={a} type="button" className={`level small ${accent === a ? "on" : ""}`} onClick={() => setAccent(a)}>
+                      {a === "us" ? "🇺🇸 American" : "🇬🇧 British"}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            {nextSpeed && !canAccent && (
+              <span className="muted unlock-hint">
+                Reach {TITLES[nextSpeed.rank].name} for {nextSpeed.rate}× speed.
+              </span>
+            )}
+          </div>
+        )}
         <button type="button" className="check big" onClick={start}>
           Start →
         </button>
@@ -529,13 +567,13 @@ export function Session() {
             exercise={exercise}
             difficulty={difficulty}
             hidden={hidden}
-            slow={slow}
+            rate={speed}
+            accent={accent}
             audioTick={audioTick}
             onTypedError={() => setCombo(0)}
             onComplete={complete}
             onReplay={() => setReplay((r) => r + 1)}
             onToggleHidden={() => setHidden((h) => !h)}
-            onToggleSlow={() => setSlow((s) => !s)}
           />
         )}
       </section>

@@ -18,12 +18,16 @@ if (!python || !voice) {
   process.exit(1);
 }
 
-const outDir = new URL("../public/audio/", import.meta.url).pathname;
+const isGb = process.env.PIPER_ACCENT === "gb";
+const outDir = new URL(isGb ? "../public/audio/gb/" : "../public/audio/", import.meta.url).pathname;
 mkdirSync(outDir, { recursive: true });
 const tmp = mkdtempSync(join(tmpdir(), "gofluent-"));
 
-// Phrases, every dictionary word on its own (to replay it slowly) and the promotion phrases.
-const texts = [...new Set([...EXERCISES.map(sentenceOf), ...DICTIONARY_WORDS.map((w) => w.text), ...TITLES.map(promotionPhrase)])];
+// American: phrases, every dictionary word on its own (to replay it slowly) and promotion phrases.
+// British: phrases only (the accent picker only ever plays full sentences).
+const texts = isGb
+  ? [...new Set(EXERCISES.map(sentenceOf))]
+  : [...new Set([...EXERCISES.map(sentenceOf), ...DICTIONARY_WORDS.map((w) => w.text), ...TITLES.map(promotionPhrase)])];
 for (const text of texts) {
   const slug = audioSlug(text);
   const mp3 = join(outDir, `${slug}.mp3`);
