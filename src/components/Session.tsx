@@ -300,7 +300,7 @@ export function Session() {
     // Guests keep to the first two planets; members play the planet they picked (falling back to Earth).
     const chosen = full && canEnter(PLANET_BY_ID.get(planetId)!, rank, planetStats.get(planetId)) ? planetId : "earth";
     const planetPool = pool.filter(
-      (e) => (full ? e.planet === chosen : e.planet === "earth" || e.planet === "moon") && (canExtend || e.words.length <= 6),
+      (e) => (full ? e.planet === chosen : e.planet === "earth" || e.planet === "aurelia") && (canExtend || e.words.length <= 6),
     );
     if (full) {
       const entered = markEntered(planetStats.get(chosen), chosen, new Date());

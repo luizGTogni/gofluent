@@ -19,7 +19,7 @@ export function Courses({ rank, stats, counts, current, onSelect, onSeeAll }: Pr
   return (
     <div className="courses">
       <div className="courses-head">
-        <span className="muted">Courses</span>
+        <span className="muted">Planets</span>
         <button type="button" className="link small" onClick={onSeeAll}>
           See all →
         </button>
