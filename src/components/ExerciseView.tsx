@@ -71,7 +71,7 @@ export function ExerciseView({ exercise, difficulty, hidden, slow, audioTick, on
       missed: [...stats.current.missed],
     });
 
-  // Extreme: one open field, the whole sentence, no gaps to hint at word count.
+  // Eclipse (extreme): one open field, the whole sentence, no gaps to hint at word count.
   const checkFree = () => {
     const tokens = free.trim().split(/\s+/).filter(Boolean);
     if (!tokens.length) {

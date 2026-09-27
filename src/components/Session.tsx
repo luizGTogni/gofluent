@@ -11,15 +11,30 @@ import { applyOutcome, isTricky, rate, trickyList, type WordStat } from "@/lib/w
 import { loadWordStats, putWordStats } from "@/lib/wordStore";
 import { EXERCISES, sentenceOf, type Exercise } from "@/lib/exercises";
 import { speak, stopSpeech } from "@/lib/speech";
+import { loadPlayer, savePlayer } from "@/lib/playerStore";
+import { effectiveRp, rankChange, rankOf, starsLabel } from "@/lib/ranks";
+import type { Title } from "@/lib/titles";
+import { addXp, emptyPlayer, levelFromXp, levelProgress, phraseXp, type PlayerState, type XpBreakdown } from "@/lib/xp";
 import { ExerciseView } from "./ExerciseView";
 import { Account } from "./Account";
 import { AuthGate } from "./AuthGate";
 import { MyWords } from "./MyWords";
+import { Promotion } from "./Promotion";
 import { TrickyWords } from "./TrickyWords";
 import { SaveChunks } from "./SaveChunks";
 import { WordCards } from "./WordCards";
 
-type Summary = { tier: Tier; points: number; combo: number; result: Result; review?: string; stumbled: string[] };
+type Summary = {
+  tier: Tier;
+  points: number;
+  combo: number;
+  result: Result;
+  review?: string;
+  stumbled: string[];
+  xp?: XpBreakdown;
+  levelUp?: number;
+  starNote?: string;
+};
 type Auth = "loading" | "gate" | "guest" | "member";
 type Screen = "intro" | "play" | "end" | "words" | "tricky" | "account";
 
@@ -66,6 +81,8 @@ export function Session() {
   const [slow, setSlow] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [history, setHistory] = useState<Summary[]>([]);
+  const [player, setPlayer] = useState<PlayerState>(emptyPlayer);
+  const [promo, setPromo] = useState<Title | null>(null);
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -88,6 +105,24 @@ export function Session() {
     const { tier, points } = scoreExercise(exercise.words, result, nextCombo, difficulty);
     const s: Summary = { tier, points, combo: nextCombo, result, stumbled: result.perWord.filter((w) => w.fails > 0).map((w) => w.word) };
     if (full) {
+      const now = new Date();
+
+      // XP: lifetime XP only grows; rank points fade with inactivity, so earn from the faded value.
+      const gain = phraseXp(exercise.words, result, difficulty);
+      const rpNow = effectiveRp(player, now);
+      const before = rankOf(rpNow);
+      const after = addXp({ ...player, rp: rpNow }, gain.total, now);
+      savePlayer(after);
+      setPlayer(after);
+      s.xp = gain;
+      const levelBefore = levelFromXp(player.xp);
+      const levelAfter = levelFromXp(after.xp);
+      if (levelAfter > levelBefore) s.levelUp = levelAfter;
+      const rankAfter = rankOf(after.rp);
+      const change = rankChange(before, rankAfter);
+      if (change === "star") s.starNote = `${starsLabel(rankAfter.stars)} ${rankAfter.title.name}`;
+      if (change === "promotion") setPromo(rankAfter.title);
+
       const changed = applyOutcome(wordStats, result.perWord);
       putWordStats(changed);
       setWordStats((m) => {
@@ -97,7 +132,6 @@ export function Session() {
       });
 
       const key = sentenceOf(exercise);
-      const now = new Date();
       const updated = afterAttempt(review.get(key), result.typedErrors === 0 && !result.helped, key, now);
       if (updated) {
         putReview(updated);
@@ -125,17 +159,18 @@ export function Session() {
   useEffect(() => {
     if (!summary) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && !e.repeat) next();
+      if (e.key === "Enter" && !e.repeat && !promo) next();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [summary, index]);
+  }, [summary, index, promo]);
 
   useEffect(() => {
     if (screen !== "intro" || !full) return;
     loadReview().then((list) => setReview(new Map(list.map((r) => [r.phrase, r]))));
     loadWordStats().then((list) => setWordStats(new Map(list.map((w) => [w.word, w]))));
+    loadPlayer().then(setPlayer);
   }, [screen, full]);
 
   useEffect(() => {
@@ -167,6 +202,13 @@ export function Session() {
 
   const trickyCount = full ? [...wordStats.values()].filter(isTricky).length : 0;
   const dueCount = full ? dueList(review.values(), new Date()).length : 0;
+
+  const nowDate = new Date();
+  const rpNow = effectiveRp(player, nowDate);
+  const rank = rankOf(rpNow);
+  const held = rankOf(player.rp);
+  const slipped = rank.index < held.index || (rank.index === held.index && rank.stars < held.stars);
+  const lvl = levelProgress(player.xp);
 
   if (auth === "loading")
     return (
@@ -240,6 +282,21 @@ export function Session() {
         <button type="button" className="check big" onClick={start}>
           Start →
         </button>
+        {full && (
+          <div className="rank-card">
+            <div className="rank-top">
+              <b>{rank.title.name}</b> <span className="stars">{starsLabel(rank.stars)}</span>
+              <span className="muted"> · Level {lvl.level}</span>
+            </div>
+            <div className="xpbar" aria-label={`${lvl.pct}% to level ${lvl.level + 1}`}>
+              <span style={{ width: `${lvl.pct}%` }} />
+            </div>
+            <div className="muted rank-sub">
+              {lvl.into} / {lvl.need} XP to level {lvl.level + 1}
+            </div>
+            {slipped && <div className="muted rank-slip">Welcome back. Your rank slipped a little while you were away. It returns as you study.</div>}
+          </div>
+        )}
         {auth === "guest" ? (
           <div className="guest-box">
             <span className="muted">Playing as a guest: nothing is saved.</span>
@@ -312,6 +369,11 @@ export function Session() {
           <div className="bar-top">
             <span className="status">
               <i className="dot" /> {summary ? "Well done" : "Your turn to type"}
+              {full && (
+                <span className="rank-chip">
+                  Lv {lvl.level} · {rank.title.name} <span className="stars">{starsLabel(rank.stars)}</span>
+                </span>
+              )}
             </span>
             <div className="bar-actions">
               {reviewKeys.has(sentenceOf(exercise)) && <span className="level-badge review-badge">Review</span>}
@@ -322,7 +384,7 @@ export function Session() {
                 className="icon"
                 aria-label="Play audio"
                 disabled={!DIFFICULTY[difficulty].replay}
-                title={DIFFICULTY[difficulty].replay ? undefined : "Extreme plays the audio once"}
+                title={DIFFICULTY[difficulty].replay ? undefined : "Eclipse plays the audio once"}
                 onClick={() => setAudioTick((t) => t + 1)}
               >
                 🔊
@@ -356,6 +418,11 @@ export function Session() {
               </span>
             </span>
           </div>
+          {full && (
+            <div className="xpbar xpbar-thin" aria-label={`${lvl.pct}% to level ${lvl.level + 1}`}>
+              <span style={{ width: `${lvl.pct}%` }} />
+            </div>
+          )}
         </header>
 
         {summary ? (
@@ -370,6 +437,20 @@ export function Session() {
               {TIER_COPY[summary.tier]} <b className="accent">+{summary.points}</b>
               {summary.combo > 0 && ` · Nice · Combo ${summary.combo}`}
             </p>
+            {summary.xp && (
+              <div className="xp-gain">
+                <b className="accent">+{summary.xp.total} XP</b>
+                <span className="xp-chips">
+                  <i>Base {summary.xp.base}</i>
+                  {summary.xp.firstTry > 0 && <i>First try +{summary.xp.firstTry}</i>}
+                  {summary.xp.fast > 0 && <i>Fast +{summary.xp.fast}</i>}
+                  {summary.xp.noHelp > 0 && <i>No hints +{summary.xp.noHelp}</i>}
+                  {summary.xp.mult !== 1 && <i>×{summary.xp.mult} {DIFFICULTY[difficulty].label}</i>}
+                </span>
+              </div>
+            )}
+            {summary.levelUp && <p className="review-note level-up">Level up! You reached level {summary.levelUp}.</p>}
+            {summary.starNote && <p className="review-note level-up">New star: {summary.starNote}</p>}
             {summary.review && <p className="muted review-note">{summary.review}</p>}
             {summary.stumbled.length > 0 && (
               <p className="muted review-note">
@@ -406,6 +487,7 @@ export function Session() {
           />
         )}
       </section>
+      {promo && <Promotion title={promo} onContinue={() => setPromo(null)} />}
     </main>
   );
 }

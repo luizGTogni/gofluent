@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DICTIONARY_WORDS, EXERCISES, sentenceOf } from "../src/lib/exercises.ts";
 import { audioSlug } from "../src/lib/audio-slug.ts";
+import { TITLES, promotionPhrase } from "../src/lib/titles.ts";
 
 const python = process.env.PIPER_PYTHON;
 const voice = process.env.PIPER_VOICE;
@@ -21,8 +22,8 @@ const outDir = new URL("../public/audio/", import.meta.url).pathname;
 mkdirSync(outDir, { recursive: true });
 const tmp = mkdtempSync(join(tmpdir(), "gofluent-"));
 
-// Phrases plus every dictionary word on its own (used to replay a single word slowly).
-const texts = [...new Set([...EXERCISES.map(sentenceOf), ...DICTIONARY_WORDS.map((w) => w.text)])];
+// Phrases, every dictionary word on its own (to replay it slowly) and the promotion phrases.
+const texts = [...new Set([...EXERCISES.map(sentenceOf), ...DICTIONARY_WORDS.map((w) => w.text), ...TITLES.map(promotionPhrase)])];
 for (const text of texts) {
   const slug = audioSlug(text);
   const mp3 = join(outDir, `${slug}.mp3`);

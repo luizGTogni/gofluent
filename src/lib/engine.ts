@@ -21,7 +21,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyConfig> = {
   easy: { label: "Easy", blurb: "See the full text and type along as you listen.", scoreMult: 1, timeMult: 1, showText: true, firstLetter: false, gaps: true, diff: true, replay: true },
   medium: { label: "Medium", blurb: "First-letter hints only. Listen closely.", scoreMult: 1.3, timeMult: 1.15, showText: false, firstLetter: true, gaps: true, diff: true, replay: true },
   hard: { label: "Hard", blurb: "Audio only. No text, no hints.", scoreMult: 1.6, timeMult: 1.3, showText: false, firstLetter: false, gaps: true, diff: true, replay: true },
-  extreme: { label: "Extreme", blurb: "One listen. No gaps, no diff. Type the whole sentence.", scoreMult: 2.2, timeMult: 1.6, showText: false, firstLetter: false, gaps: false, diff: false, replay: false },
+  extreme: { label: "Eclipse", blurb: "Total eclipse: one listen, no text, no gaps. Type the whole sentence.", scoreMult: 2.2, timeMult: 1.6, showText: false, firstLetter: false, gaps: false, diff: false, replay: false },
 };
 
 export const DIFFICULTIES = Object.keys(DIFFICULTY) as Difficulty[];
