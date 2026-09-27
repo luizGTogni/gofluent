@@ -80,6 +80,21 @@ button {
   text-align: center;
   gap: 18px;
 }
+.shell.home {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+.home-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 18px;
+  padding: 24px 0;
+}
 .logo {
   height: 84px;
   width: auto;
@@ -1071,4 +1086,205 @@ button {
 }
 .heatmap-cell.frozen {
   box-shadow: 0 0 0 1.5px var(--accent) inset;
+}
+
+/* top bar */
+.topbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.topbar-logo {
+  height: 34px;
+  width: auto;
+}
+.topbar-you-wrap {
+  position: relative;
+}
+.topbar-you {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  color: var(--text);
+}
+.topbar-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.topbar-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.chip-mini {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.chip-mini.accent {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.rank-chip-mini {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.topbar-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.topbar-menu button {
+  background: none;
+  border: 0;
+  text-align: left;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 14px;
+}
+.topbar-menu button:hover {
+  background: var(--panel-2);
+}
+
+/* courses */
+.courses {
+  width: min(760px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.courses-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+.link.small {
+  font-size: 13px;
+}
+.courses-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.course-card {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100px;
+  padding: 12px 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text);
+}
+.course-card:not(.locked):hover {
+  border-color: var(--accent);
+}
+.course-card.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.course-card.locked {
+  opacity: 0.5;
+}
+.course-emoji {
+  font-size: 24px;
+}
+.course-name {
+  font-size: 12px;
+  text-align: center;
+}
+.chip-cefr.small {
+  font-size: 10px;
+  padding: 1px 8px;
+}
+
+/* profile screen */
+.shell.profile {
+  align-items: stretch;
+  max-width: 640px;
+  margin: 0 auto;
+  gap: 14px;
+}
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.profile-avatar {
+  font-size: 40px;
+}
+.profile-title {
+  margin: 0;
+  font-size: 22px;
+}
+.profile-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  text-align: left;
+}
+.profile-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.profile-note {
+  font-size: 13px;
+  margin: 0;
+}
+.wallet-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.profile-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.profile-link {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text);
+  font-size: 14px;
+}
+.profile-link:hover {
+  border-color: var(--accent);
 }

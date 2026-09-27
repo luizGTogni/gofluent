@@ -18,8 +18,10 @@ import { loadPlayer, savePlayer } from "@/lib/playerStore";
 import { effectiveRp, rankChange, rankOf, starsLabel } from "@/lib/ranks";
 import type { Title } from "@/lib/titles";
 import { addXp, emptyPlayer, levelFromXp, levelProgress, phraseXp, type PlayerState, type XpBreakdown } from "@/lib/xp";
-import { accentUnlocked, availableSpeeds, extendedUnlocked, nextSpeedUnlock, type Accent } from "@/lib/unlocks";
+import { extendedUnlocked, type Accent } from "@/lib/unlocks";
 import { addDays, computeStreak, gapToFreeze, milestoneHit, utcDay } from "@/lib/streak";
+import { pickDifficulty } from "@/lib/adaptive";
+import { getProfile, signOut } from "@/lib/auth";
 import { coinsForXp, CRYSTALS_PER_CEFR_UP, CRYSTALS_PER_RANK_UP, dailyInterest, milestoneReward, type Wallet } from "@/lib/economy";
 import {
   addFrozenDay,
@@ -31,12 +33,13 @@ import {
   saveWallet,
   type StudyCalendar,
 } from "@/lib/economyStore";
-import { TITLES } from "@/lib/titles";
 import { ExerciseView } from "./ExerciseView";
-import { Account } from "./Account";
 import { AuthGate } from "./AuthGate";
 import { MyWords } from "./MyWords";
+import { Profile } from "./Profile";
 import { Promotion } from "./Promotion";
+import { TopBar } from "./TopBar";
+import { Courses } from "./Courses";
 import { StarMap } from "./StarMap";
 import { TrickyWords } from "./TrickyWords";
 import { SaveChunks } from "./SaveChunks";
@@ -58,7 +61,7 @@ type Summary = {
   milestoneNote?: string;
 };
 type Auth = "loading" | "gate" | "guest" | "member";
-type Screen = "intro" | "play" | "end" | "words" | "tricky" | "account" | "map";
+type Screen = "intro" | "play" | "end" | "words" | "tricky" | "profile" | "map";
 
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
@@ -112,6 +115,7 @@ export function Session() {
   const [calendar, setCalendar] = useState<StudyCalendar>({ checked: new Set(), frozen: new Set(), lastInterestDay: null });
   const [freezeNote, setFreezeNote] = useState<string | null>(null);
   const checkedInToday = useRef(false);
+  const [username, setUsername] = useState<string | undefined>();
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -133,11 +137,10 @@ export function Session() {
   const held = rankOf(player.rp);
   const slipped = rank.index < held.index || (rank.index === held.index && rank.stars < held.stars);
   const lvl = levelProgress(player.xp);
-  const speeds = availableSpeeds(rank.index);
-  const nextSpeed = nextSpeedUnlock(rank.index);
-  const canAccent = accentUnlocked(rank.index);
   const canExtend = extendedUnlocked(rank.index);
   const streak = computeStreak(calendar.checked, calendar.frozen, utcDay(nowDate));
+  const autoDifficulty = pickDifficulty(rank.index, planetStats.get(planetId));
+  const courseCounts = Object.fromEntries(PLANETS.map((p) => [p.id, library.filter((e) => e.planet === p.id).length])) as Record<PlanetId, number>;
 
   const exercise = exercises[index];
 
@@ -252,6 +255,7 @@ export function Session() {
     loadPlayer().then(setPlayer);
     loadPlanetStats().then((list) => setPlanetStats(new Map(list.map((p) => [p.planet, p]))));
     loadWallet().then(setWallet);
+    getProfile().then((p) => setUsername(p?.username));
     loadCalendar().then(async (cal) => {
       const today = utcDay(new Date());
       const gap = gapToFreeze(cal.checked, today);
@@ -292,6 +296,7 @@ export function Session() {
 
   const start = () => {
     const pool = library;
+    if (full) setDifficulty(pickDifficulty(rank.index, planetStats.get(planetId)));
     // Guests keep to the first two planets; members play the planet they picked (falling back to Earth).
     const chosen = full && canEnter(PLANET_BY_ID.get(planetId)!, rank, planetStats.get(planetId)) ? planetId : "earth";
     const planetPool = pool.filter(
@@ -366,10 +371,18 @@ export function Session() {
     );
   }
 
-  if (screen === "account")
+  if (screen === "profile")
     return (
-      <Account
+      <Profile
+        player={player}
+        wallet={wallet}
+        calendar={calendar}
+        planetStats={planetStats}
+        trickyCount={trickyCount}
+        savedCount={0}
         onBack={() => setScreen("intro")}
+        onWords={() => setScreen("words")}
+        onTricky={() => setScreen("tricky")}
         onSignedOut={() => {
           setReview(new Map());
           setWordStats(new Map());
@@ -379,137 +392,93 @@ export function Session() {
       />
     );
 
-  if (screen === "tricky") return <TrickyWords stats={[...wordStats.values()]} onBack={() => setScreen("intro")} />;
+  if (screen === "tricky") return <TrickyWords stats={[...wordStats.values()]} onBack={() => setScreen("profile")} />;
 
-  if (screen === "words") return <MyWords onBack={() => setScreen("intro")} />;
+  if (screen === "words") return <MyWords onBack={() => setScreen("profile")} />;
 
   if (screen === "intro") {
     return (
-      <main className="shell center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="GoFluent" className="logo" />
-        <h1 className="hero tagline">Make English part of your every day.</h1>
-        <p className="muted">Listen. Type. Every key is practice. Today&apos;s mission: {total} short exercises.</p>
+      <main className="shell home">
+        <TopBar
+          full={full}
+          username={username}
+          rank={rank}
+          level={lvl.level}
+          streak={streak.current}
+          coins={wallet.coins}
+          crystals={wallet.crystals}
+          onViewProfile={() => setScreen("profile")}
+          onSignOut={async () => {
+            await signOut();
+            setReview(new Map());
+            setWordStats(new Map());
+            setScreen("intro");
+            setAuth("gate");
+          }}
+          onSignIn={() => setAuth("gate")}
+        />
+        <div className="home-body">
+        <p className="muted">Today&apos;s mission: {total} short exercises.</p>
         {dueCount > 0 && (
           <p className="muted">
             <b className="accent">{dueCount}</b> {dueCount === 1 ? "sentence is" : "sentences are"} ready for review.
           </p>
         )}
-        <div className="levels" role="radiogroup" aria-label="Difficulty">
-          {DIFFICULTIES.map((d) => (
-            <button
-              key={d}
-              type="button"
-              role="radio"
-              aria-checked={difficulty === d}
-              className={`level ${difficulty === d ? "on" : ""}`}
-              onClick={() => setDifficulty(d)}
-            >
-              {DIFFICULTY[d].label}
-            </button>
-          ))}
-        </div>
-        <p className="muted level-blurb">
-          {DIFFICULTY[difficulty].blurb} <span className="accent">×{DIFFICULTY[difficulty].scoreMult}</span>
-        </p>
-        {full && (
-          <div className="speed-picker">
-            <span className="muted">Audio speed</span>
-            <div className="levels">
-              {speeds.map((r) => (
-                <button key={r} type="button" className={`level small ${speed === r ? "on" : ""}`} onClick={() => setSpeed(r)}>
-                  {r}×
+        {slipped && <p className="muted rank-slip">Welcome back. Your rank slipped a little while you were away. It returns as you study.</p>}
+        {freezeNote && <p className="muted rank-slip">{freezeNote}</p>}
+
+        {!full && (
+          <>
+            <div className="levels" role="radiogroup" aria-label="Difficulty">
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  role="radio"
+                  aria-checked={difficulty === d}
+                  className={`level ${difficulty === d ? "on" : ""}`}
+                  onClick={() => setDifficulty(d)}
+                >
+                  {DIFFICULTY[d].label}
                 </button>
               ))}
             </div>
-            {canAccent && (
-              <>
-                <span className="muted">Accent</span>
-                <div className="levels">
-                  {(["us", "gb"] as Accent[]).map((a) => (
-                    <button key={a} type="button" className={`level small ${accent === a ? "on" : ""}`} onClick={() => setAccent(a)}>
-                      {a === "us" ? "🇺🇸 American" : "🇬🇧 British"}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-            {nextSpeed && !canAccent && (
-              <span className="muted unlock-hint">
-                Reach {TITLES[nextSpeed.rank].name} for {nextSpeed.rate}× speed.
-              </span>
-            )}
-          </div>
+            <p className="muted level-blurb">
+              {DIFFICULTY[difficulty].blurb} <span className="accent">×{DIFFICULTY[difficulty].scoreMult}</span>
+            </p>
+          </>
         )}
+        {full && (
+          <p className="muted level-blurb">
+            Auto-adjusting to your pace — today: <b className="accent">{DIFFICULTY[autoDifficulty].label}</b>
+          </p>
+        )}
+
         <button type="button" className="check big" onClick={start}>
           Start →
         </button>
+
         {full && (
-          <div className="rank-card">
-            <div className="rank-top">
-              <b>{rank.title.name}</b> <span className="stars">{starsLabel(rank.stars)}</span>
-              <span className="muted"> · Level {lvl.level}</span>
-            </div>
-            <div className="xpbar" aria-label={`${lvl.pct}% to level ${lvl.level + 1}`}>
-              <span style={{ width: `${lvl.pct}%` }} />
-            </div>
-            <div className="muted rank-sub">
-              {lvl.into} / {lvl.need} XP to level {lvl.level + 1}
-            </div>
-            {slipped && <div className="muted rank-slip">Welcome back. Your rank slipped a little while you were away. It returns as you study.</div>}
-          </div>
+          <Courses
+            rank={rank}
+            stats={planetStats}
+            counts={courseCounts}
+            current={planetId}
+            onSelect={setPlanetId}
+            onSeeAll={() => setScreen("map")}
+          />
         )}
-        {full && (
-          <div className="wallet-card">
-            <span className="orbit">🛰️ {streak.current} day{streak.current === 1 ? "" : "s"} in orbit</span>
-            <span className="wallet-coins">🪙 {wallet.coins}</span>
-            <span className="wallet-crystals">💎 {wallet.crystals}</span>
-            <span className="wallet-freezes" title="Energy shields">
-              ⚡ {wallet.freezes}
-            </span>
-          </div>
-        )}
-        {freezeNote && <p className="muted rank-slip">{freezeNote}</p>}
-        {full && <Heatmap checked={calendar.checked} frozen={calendar.frozen} />}
-        {full && (
-          <button type="button" className="destination" onClick={() => setScreen("map")}>
-            <span className="planet-emoji" aria-hidden>
-              {PLANET_BY_ID.get(planetId)!.emoji}
-            </span>
-            <span className="planet-main">
-              <span className="muted">Destination</span>
-              <b>
-                {PLANET_BY_ID.get(planetId)!.name} <span className="muted">· {PLANET_BY_ID.get(planetId)!.topic}</span>
-              </b>
-            </span>
-            <span className="chip-cefr">{PLANET_BY_ID.get(planetId)!.cefr}</span>
-          </button>
-        )}
-        {auth === "guest" ? (
+
+        {auth === "guest" && (
           <div className="guest-box">
             <span className="muted">Playing as a guest: nothing is saved.</span>
             <button type="button" className="unlock" onClick={() => setAuth("gate")}>
               <span className="unlock-title">🔒 Sign in to unlock more</span>
-              <span className="unlock-sub">Review, tricky words and saved words</span>
+              <span className="unlock-sub">Review, tricky words, saved words and your profile</span>
             </button>
-          </div>
-        ) : (
-          <div className="intro-links">
-            {supabaseConfigured && (
-              <button type="button" className="link" onClick={() => setScreen("words")}>
-                My words
-              </button>
-            )}
-            <button type="button" className="link" onClick={() => setScreen("tricky")}>
-              Tricky words{trickyCount > 0 ? ` (${trickyCount})` : ""}
-            </button>
-            {supabaseConfigured && (
-              <button type="button" className="link" onClick={() => setScreen("account")}>
-                Account
-              </button>
-            )}
           </div>
         )}
+        </div>
       </main>
     );
   }
